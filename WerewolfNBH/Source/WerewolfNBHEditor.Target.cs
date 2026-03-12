@@ -9,5 +9,6 @@ public class WerewolfNBHEditorTarget : TargetRules
         DefaultBuildSettings = BuildSettingsVersion.V6;
         IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
         ExtraModuleNames.Add("WerewolfNBH");
+        ExtraModuleNames.Add("WerewolfNBHEditor");
     }
 }
