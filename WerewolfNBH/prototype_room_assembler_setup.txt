@@ -1,0 +1,56 @@
+Prototype Room Assembler Setup
+
+What was added
+- A new project code module: `WerewolfNBH`
+- Base room actor: `ARoomModuleBase`
+- Connector component: `UPrototypeRoomConnectorComponent`
+- Generator actor: `ARoomGenerator`
+- Three built-in graybox test rooms:
+  - `APrototypeRoomHub`
+  - `APrototypeRoomCorridor`
+  - `APrototypeRoomDeadEnd`
+
+Where the code lives
+- `Source/WerewolfNBH/Public`
+- `Source/WerewolfNBH/Private`
+
+How to build
+1. Open `WerewolfNBH.uproject` in Unreal 5.7.
+2. Let Unreal generate project files and build the new code module.
+3. If prompted for a compiler, use the normal Unreal C++ setup for your machine.
+
+How to test
+1. Create or open a simple test level.
+2. Place one `RoomGenerator` actor in the level.
+3. Leave the defaults in place for the first run:
+   - StartRoomClass = `PrototypeRoomHub`
+   - DeadEndRoomClass = `PrototypeRoomDeadEnd`
+   - AvailableRooms includes corridor and dead end
+   - MaxRooms = 6
+   - RunSeed = 1337
+4. Press Play.
+
+Expected behavior
+- A small 3 to 6 room graybox layout should spawn.
+- Rooms use box bounds for overlap validation.
+- Doors are represented by connector arrows.
+- On-screen debug messages show the seed, spawned rooms, and connections.
+- Debug boxes and arrows should remain visible briefly during play.
+
+Important implementation details
+- `RoomBoundsBox` is the authoritative footprint.
+- The visible cube mesh is scaled from the box size.
+- Placement is snapped to a 100 uu grid.
+- Room rotation is restricted to cardinal orientations.
+- If a door fails too many placement attempts, it is closed deterministically.
+- Reachability is validated at the end of generation.
+
+Likely next editor steps
+1. Create Blueprint subclasses of `ARoomModuleBase` for bathhouse-specific rooms.
+2. Replace the code-only test rooms with Entry, Locker Hall, and Public Hallway.
+3. Place connectors as `Conn_N`, `Conn_S`, `Conn_E`, `Conn_W`.
+4. Keep using `RoomBoundsBox` as the truth during graybox development.
+
+Notes
+- I could not compile or run the Unreal project from this terminal because the local Unreal editor/build tools are not available on PATH here.
+- The source implementation is in place, but the first compile/test needs to happen from your Unreal environment.

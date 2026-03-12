@@ -1,0 +1,546 @@
+# Prototype Room Assembler Plan (Unreal Engine)
+
+## Why This Is the First Step
+
+Before creating real bathhouse rooms in Blender or building gameplay systems, the project should first prove that modular rooms can be spawned and connected correctly inside Unreal Engine.
+
+Procedural games frequently fail early because art assets are built before the placement system is validated. If doorway spacing, pivot points, or room scale are incorrect, every room mesh may need to be rebuilt.
+
+Building a simple "prototype blueprint assembler" first avoids that risk. This step verifies that:
+
+- Rooms can spawn procedurally
+- Doorways align correctly
+- Rotations work
+- Overlap detection prevents broken layouts
+- The player can navigate generated rooms
+
+Only after this system works reliably should real rooms be created in Blender.
+
+This approach saves significant time and prevents costly rework.
+
+---
+
+# Phase 1: Prototype Blueprint Assembler
+
+## Goal
+
+Create a simple Blueprint system in Unreal Engine that:
+
+- Spawns rooms
+- Connects rooms via door markers
+- Prevents overlapping rooms
+- Generates small test layouts
+
+No art assets are required at this stage.
+
+All rooms can be built using simple cube geometry.
+
+---
+
+# Unreal Project Setup
+
+Recommended setup:
+
+- Unreal Engine 5.x
+- Blueprint-only prototype
+- Single persistent level
+
+Avoid using World Partition during the prototype phase.
+
+World Partition adds complexity that is unnecessary for testing procedural layout.
+
+---
+
+# Core Blueprint Classes
+
+The prototype requires three main Blueprints.
+
+## 1. BP_Room
+
+Represents a modular room that can connect to other rooms.
+
+Components:
+
+- Scene Root
+- Static Mesh (simple cube room)
+- DoorMarker components
+
+Example structure:
+
+BP_Room
+- SceneRoot
+- RoomMesh
+- Door_01
+- Door_02
+- Door_03
+
+Each DoorMarker should be a Scene Component with an arrow indicating the forward direction of the connection.
+
+This arrow direction determines how the next room aligns.
+
+
+### Door Marker Guidelines
+
+Each DoorMarker must:
+
+- Sit exactly in the center of a doorway
+- Face outward from the room
+- Be positioned on the grid
+
+Example doorway size:
+
+- Width: 200 cm
+- Height: 240 cm
+
+Maintain this standard for all rooms.
+
+---
+
+## 2. BP_RoomGenerator
+
+Responsible for spawning and connecting rooms.
+
+Placed once in the level.
+
+High-level behavior:
+
+On BeginPlay:
+
+1. Spawn the start room
+2. Find available door markers
+3. Spawn additional rooms
+4. Align doorways
+5. Check for overlap
+
+If overlap occurs, destroy the room and try another.
+
+
+### Basic Generator Logic (Conceptual)
+
+Spawn Start Room
+
+For each unused door:
+
+- Choose a room type
+- Spawn the room
+- Align its doorway to the current door
+- Check for overlap
+- Accept or reject placement
+
+Stop after spawning a small number of rooms (3–6 for testing).
+
+
+---
+
+## 3. BP_DoorMarker (Optional)
+
+A small helper component that may store:
+
+- Connection status
+- Door type
+
+This can also simply be a Scene Component during the prototype phase.
+
+---
+
+# Room Alignment Method
+
+Rooms connect by aligning door transforms.
+
+Conceptually:
+
+NewRoomTransform = TargetDoorTransform - NewRoomDoorTransform
+
+This snaps the new room's doorway to the target doorway.
+
+The new room should also rotate so that the door faces inward toward the connecting room.
+
+Supporting rotations of:
+
+- 0 degrees
+- 90 degrees
+- 180 degrees
+- 270 degrees
+
+ensures modular flexibility.
+
+---
+
+# Overlap Detection
+
+After spawning a room, the generator must verify that it does not intersect an existing room.
+
+Possible methods:
+
+- Box collision check
+- Overlap query using room bounds
+
+If overlap is detected:
+
+- Destroy the room
+- Try a different room type
+
+This prevents impossible layouts.
+
+---
+
+# Phase 2: The 3-Room Generator Test
+
+The assembler should first be tested using only three room types.
+
+These rooms expose most procedural layout errors early.
+
+
+## Room A — Hub Room
+
+Purpose:
+
+Tests multiple door connections.
+
+Configuration:
+
+- 3 or 4 door markers
+
+Example layout:
+
+      Door
+        |
+Door — Room — Door
+        |
+      Door
+
+This room reveals problems with:
+
+- rotation
+- overlapping rooms
+- incorrect door alignment
+
+
+## Room B — Dead End
+
+Purpose:
+
+Tests generator stopping behavior.
+
+Configuration:
+
+- One door only
+
+Example:
+
+Door
+ |
+Room
+
+This ensures the generator handles endpoints correctly.
+
+
+## Room C — Corridor
+
+Purpose:
+
+Tests straight connections.
+
+Configuration:
+
+- Two doors on opposite walls
+
+Example:
+
+Door — Room — Door
+
+Corridor rooms are often the most common module in procedural interiors.
+
+
+---
+
+# Layout Example
+
+A valid generated layout may resemble:
+
+      DeadEnd
+        |
+Corridor — Hub — Corridor
+        |
+      DeadEnd
+
+This confirms the generator can handle multiple room types.
+
+
+---
+
+# Debug Visualization
+
+To help detect errors quickly, use debug visuals.
+
+Example approach:
+
+- Start room = green
+- Corridor rooms = blue
+- Dead-end rooms = yellow
+
+This allows developers to see generator structure immediately.
+
+
+---
+
+# Grid and Scale Standards
+
+Maintain consistent dimensions.
+
+Unreal Engine uses centimeters.
+
+Recommended grid:
+
+1 meter (100 cm)
+
+Example room sizes:
+
+- 600 cm x 600 cm
+- 800 cm x 800 cm
+- 600 cm x 1000 cm
+
+
+Doorway standard:
+
+- Width: 200 cm
+- Height: 240 cm
+
+All rooms must follow this standard.
+
+
+---
+
+# Success Criteria
+
+The prototype assembler is considered successful when:
+
+- Rooms spawn reliably
+- Doorways align correctly
+- Rotations work
+- Overlaps are prevented
+- The player can walk through generated layouts
+
+Once these criteria are met, development can proceed to creating real bathhouse modules in Blender.
+
+
+---
+
+# Next Step After Success
+
+After the assembler is proven, the next stage is creating the first bathhouse modules.
+
+Suggested initial room set:
+
+- Entrance
+- Locker Room
+- Sauna
+- Shower Area
+- Utility Hall
+- Boiler Room
+
+These can then replace the greybox rooms while using the same generator system.
+
+The procedural framework will already be validated, allowing development to focus on gameplay systems rather than structural debugging.
+
+
+
+---
+
+# Blueprint Generator Logic (Step-by-Step)
+
+The prototype generator can be implemented entirely in Blueprints.
+
+Suggested event flow inside **BP_RoomGenerator**:
+
+BeginPlay:
+
+1. Spawn Start Room
+2. Add its door markers to a list called `OpenDoors`
+3. Loop until:
+   - `OpenDoors` is empty
+   - OR `MaxRooms` reached
+
+Loop Logic:
+
+- Take one door from `OpenDoors`
+- Select a random room class from `AvailableRooms`
+- Spawn that room
+- Choose one of the new room's doors as the connection door
+- Align the two doors
+- Perform overlap check
+
+If overlap occurs:
+
+- Destroy spawned room
+- Try another room
+
+If placement succeeds:
+
+- Mark both doors as used
+- Add the remaining doors of the new room to `OpenDoors`
+
+
+Example Blueprint Variable List:
+
+- `AvailableRooms` (Array of Room Classes)
+- `OpenDoors` (Array of Scene Components)
+- `SpawnedRooms` (Array of Room Actors)
+- `MaxRooms` (Integer)
+
+---
+
+# Door Alignment Method (Unreal Implementation)
+
+Each room contains door markers implemented as Scene Components.
+
+Alignment works by matching transforms between two doors.
+
+Steps:
+
+1. Get Transform of the existing door
+2. Get Transform of the new room's chosen door
+3. Calculate rotation so the new door faces inward
+4. Move the new room actor so both door locations match
+
+Blueprint nodes commonly used:
+
+- GetWorldTransform
+- InverseTransformLocation
+- SetActorTransform
+
+Typical logic:
+
+- Rotate new room so door forward vectors oppose each other
+- Offset position so door origins match
+
+This ensures rooms snap together precisely.
+
+---
+
+# Visual Generator Flow
+
+Conceptual flow:
+
+StartRoom
+   |
+Add Doors To Queue
+   |
+Select Door
+   |
+Pick Random Room
+   |
+Align Doors
+   |
+Overlap Check
+   |
+Success → Add New Doors
+Failure → Try Another Room
+
+Repeat until layout limit reached.
+
+---
+
+# Recommended Unreal Folder Structure
+
+Keeping the project organized early prevents chaos later.
+
+Suggested structure:
+
+Content/
+
+Bathhouse/
+
+Blueprints/
+- BP_Room
+- BP_RoomGenerator
+
+Rooms/
+- BP_HubRoom
+- BP_CorridorRoom
+- BP_DeadEndRoom
+
+Meshes/
+
+Data/
+
+Debug/
+
+Keeping rooms separated from gameplay logic makes iteration easier.
+
+---
+
+# Common Procedural Generation Problems
+
+These issues appear frequently in early prototypes.
+
+## Misaligned Doors
+
+Cause:
+
+- inconsistent pivot points
+- incorrect door orientation
+
+Solution:
+
+- standardize door forward direction
+- ensure doors face outward
+
+
+## Overlapping Rooms
+
+Cause:
+
+- missing collision check
+
+Solution:
+
+- perform overlap test immediately after spawn
+
+
+## Infinite Generation
+
+Cause:
+
+- generator never runs out of doors
+
+Solution:
+
+- set a `MaxRooms` limit
+
+
+## Inconsistent Room Sizes
+
+Cause:
+
+- assets built without grid standard
+
+Solution:
+
+- enforce grid dimensions
+
+
+---
+
+# Debug Tools for Early Development
+
+Recommended quick debugging techniques:
+
+- DrawDebugBox for room bounds
+- DrawDebugArrow for door directions
+- Print room names during generation
+
+These help identify placement problems immediately.
+
+---
+
+# Prototype Development Goal
+
+At the end of this stage, the project should have:
+
+- A functioning procedural room generator
+- Three working test rooms
+- A navigable generated layout
+
+Once these are complete, the system is ready for real bathhouse modules and gameplay features.
+
