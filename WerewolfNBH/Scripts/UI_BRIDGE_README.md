@@ -45,8 +45,16 @@ This bridge lets you run repeatable UI scaffolding from the terminal.
     - `/Game/UI/Widgets/HUD/WBP_HUDBottomLeftStack`
     - `/Game/UI/Widgets/HUD/WBP_HUDBottomRightStack`
   - Adds prompt scaffold in `/Game/UI/Widgets/HUD/WBP_HUDInteractionPrompt`.
+- `scaffold_widget_pack`
+  - Scaffolds the remaining required UI widgets under:
+    - `/Game/UI/Widgets/HUD`
+    - `/Game/UI/Widgets/Investigation`
+    - `/Game/UI/Widgets/Social`
+    - `/Game/UI/Widgets/Settings`
+    - `/Game/UI/Widgets/Shared`
+  - Adds placeholder labels/values, named slots, and starter controls (sliders/toggle/progress rows).
 - `scaffold_all_ui`
-  - Runs all scaffold actions in one pass.
+  - Runs all scaffold actions in one pass, including `scaffold_widget_pack`.
 
 ## Quick Start
 

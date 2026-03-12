@@ -28,6 +28,7 @@ private:
     bool ScaffoldHudRoot(const FString& AssetPath, FBridgeResult& OutResult) const;
     bool ScaffoldMeterTotemBase(const FString& AssetPath, FBridgeResult& OutResult) const;
     bool ScaffoldHudSupportWidgets(FBridgeResult& OutResult) const;
+    bool ScaffoldWidgetPack(FBridgeResult& OutResult) const;
     bool SaveAsset(UObject* Asset) const;
     void WriteResultFile(const FString& ResultPath, const FBridgeResult& Result, bool bSucceeded) const;
 };

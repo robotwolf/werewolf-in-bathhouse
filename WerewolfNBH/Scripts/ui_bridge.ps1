@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-all", "run-json", "show-last")]
+    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-pack", "scaffold-all", "run-json", "show-last")]
     [string]$Action = "scaffold-hud",
 
     [string]$EditorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe",
@@ -67,6 +67,18 @@ elseif ($Action -eq "scaffold-support") {
   "actions": [
     {
       "type": "scaffold_hud_support"
+    }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "scaffold-pack") {
+    $json = @"
+{
+  "actions": [
+    {
+      "type": "scaffold_widget_pack"
     }
   ]
 }
