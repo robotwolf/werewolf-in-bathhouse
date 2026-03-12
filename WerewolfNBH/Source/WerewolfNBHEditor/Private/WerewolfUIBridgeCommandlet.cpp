@@ -3,6 +3,12 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Components/NamedSlot.h"
+#include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
+#include "Components/VerticalBox.h"
+#include "Components/VerticalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/Overlay.h"
 #include "Components/OverlaySlot.h"
@@ -18,6 +24,7 @@
 #include "UObject/SavePackage.h"
 #include "HAL/FileManager.h"
 #include "WidgetBlueprint.h"
+#include "Materials/MaterialInterface.h"
 
 namespace
 {
@@ -231,6 +238,28 @@ bool UWerewolfUIBridgeCommandlet::ProcessAction(const TSharedPtr<FJsonObject>& A
         ActionObject->TryGetStringField(TEXT("asset"), AssetPath);
         return ScaffoldHudRoot(AssetPath, OutResult);
     }
+    if (Type.Equals(TEXT("scaffold_meter_totem"), ESearchCase::IgnoreCase))
+    {
+        FString AssetPath = TEXT("/Game/UI/Widgets/Shared/WBP_MeterTotemBase");
+        ActionObject->TryGetStringField(TEXT("asset"), AssetPath);
+        return ScaffoldMeterTotemBase(AssetPath, OutResult);
+    }
+    if (Type.Equals(TEXT("scaffold_hud_support"), ESearchCase::IgnoreCase))
+    {
+        return ScaffoldHudSupportWidgets(OutResult);
+    }
+    if (Type.Equals(TEXT("scaffold_all_ui"), ESearchCase::IgnoreCase))
+    {
+        FString HudAssetPath = TEXT("/Game/UI/Widgets/HUD/WBP_HUDRoot");
+        FString MeterAssetPath = TEXT("/Game/UI/Widgets/Shared/WBP_MeterTotemBase");
+        ActionObject->TryGetStringField(TEXT("hud_asset"), HudAssetPath);
+        ActionObject->TryGetStringField(TEXT("meter_asset"), MeterAssetPath);
+
+        const bool bHudOk = ScaffoldHudRoot(HudAssetPath, OutResult);
+        const bool bMeterOk = ScaffoldMeterTotemBase(MeterAssetPath, OutResult);
+        const bool bSupportOk = ScaffoldHudSupportWidgets(OutResult);
+        return bHudOk && bMeterOk && bSupportOk;
+    }
 
     OutResult.Warnings.Add(FString::Printf(TEXT("Unsupported action type: %s"), *Type));
     return false;
@@ -348,6 +377,226 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldHudRoot(const FString& AssetPath, FBri
     OutResult.RequiresInteraction.Add(TEXT("Tune final typography, spacing, and fog readability at target resolutions (16:9 and ultrawide)."));
     OutResult.RequiresInteraction.Add(TEXT("Wire gameplay systems to HUD update functions (Steam, Moon, Suspicion, Cover, Door/Access, Objective)."));
     return true;
+}
+
+bool UWerewolfUIBridgeCommandlet::ScaffoldMeterTotemBase(const FString& AssetPath, FBridgeResult& OutResult) const
+{
+    UWidgetBlueprint* WidgetBlueprint = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
+    if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to load meter widget blueprint: %s"), *AssetPath));
+        return false;
+    }
+
+    USizeBox* SizeRoot = Cast<USizeBox>(WidgetBlueprint->WidgetTree->RootWidget);
+    if (!SizeRoot)
+    {
+        SizeRoot = WidgetBlueprint->WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass(), TEXT("SizeBox_Root"));
+        WidgetBlueprint->WidgetTree->RootWidget = SizeRoot;
+    }
+    SizeRoot->SetWidthOverride(72.0f);
+    SizeRoot->SetHeightOverride(280.0f);
+
+    UOverlay* OverlayRoot = Cast<UOverlay>(FindWidgetByName(WidgetBlueprint->WidgetTree, TEXT("Overlay_Root")));
+    if (!OverlayRoot)
+    {
+        OverlayRoot = WidgetBlueprint->WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Overlay_Root"));
+        SizeRoot->AddChild(OverlayRoot);
+    }
+
+    UImage* Backplate = Cast<UImage>(FindWidgetByName(WidgetBlueprint->WidgetTree, TEXT("Image_Backplate")));
+    if (!Backplate)
+    {
+        Backplate = WidgetBlueprint->WidgetTree->ConstructWidget<UImage>(UImage::StaticClass(), TEXT("Image_Backplate"));
+        UOverlaySlot* Slot = OverlayRoot->AddChildToOverlay(Backplate);
+        if (Slot)
+        {
+            Slot->SetHorizontalAlignment(HAlign_Fill);
+            Slot->SetVerticalAlignment(VAlign_Fill);
+        }
+    }
+
+    UProgressBar* MeterFill = Cast<UProgressBar>(FindWidgetByName(WidgetBlueprint->WidgetTree, TEXT("ProgressBar_Fill")));
+    if (!MeterFill)
+    {
+        MeterFill = WidgetBlueprint->WidgetTree->ConstructWidget<UProgressBar>(UProgressBar::StaticClass(), TEXT("ProgressBar_Fill"));
+        UOverlaySlot* Slot = OverlayRoot->AddChildToOverlay(MeterFill);
+        if (Slot)
+        {
+            Slot->SetPadding(FMargin(16.0f, 30.0f, 16.0f, 30.0f));
+            Slot->SetHorizontalAlignment(HAlign_Fill);
+            Slot->SetVerticalAlignment(VAlign_Fill);
+        }
+    }
+    MeterFill->SetPercent(0.5f);
+    MeterFill->SetFillColorAndOpacity(FLinearColor(0.86f, 0.88f, 0.87f, 0.95f));
+
+    UTextBlock* Label = Cast<UTextBlock>(FindWidgetByName(WidgetBlueprint->WidgetTree, TEXT("Text_Label")));
+    if (!Label)
+    {
+        Label = WidgetBlueprint->WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Text_Label"));
+        UOverlaySlot* Slot = OverlayRoot->AddChildToOverlay(Label);
+        if (Slot)
+        {
+            Slot->SetPadding(FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+            Slot->SetHorizontalAlignment(HAlign_Center);
+            Slot->SetVerticalAlignment(VAlign_Top);
+        }
+    }
+    Label->SetText(FText::FromString(TEXT("STEAM")));
+
+    UTextBlock* Value = Cast<UTextBlock>(FindWidgetByName(WidgetBlueprint->WidgetTree, TEXT("Text_Value")));
+    if (!Value)
+    {
+        Value = WidgetBlueprint->WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Text_Value"));
+        UOverlaySlot* Slot = OverlayRoot->AddChildToOverlay(Value);
+        if (Slot)
+        {
+            Slot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+            Slot->SetHorizontalAlignment(HAlign_Center);
+            Slot->SetVerticalAlignment(VAlign_Bottom);
+        }
+    }
+    Value->SetText(FText::FromString(TEXT("50%")));
+
+    if (UMaterialInterface* GlassMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/UI/Materials/Instances/MI_UI_Glass.MI_UI_Glass")))
+    {
+        Backplate->SetBrushFromMaterial(GlassMaterial);
+    }
+
+    FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(WidgetBlueprint);
+    FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
+    if (!SaveAsset(WidgetBlueprint))
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to save scaffolded meter widget: %s"), *AssetPath));
+        return false;
+    }
+
+    OutResult.Completed.Add(FString::Printf(TEXT("Scaffolded meter base internals in %s"), *AssetPath));
+    OutResult.RequiresInteraction.Add(TEXT("Bind Text_Label/Text_Value and ProgressBar_Fill to exposed meter variables/functions in WBP_MeterTotemBase."));
+    return true;
+}
+
+bool UWerewolfUIBridgeCommandlet::ScaffoldHudSupportWidgets(FBridgeResult& OutResult) const
+{
+    struct FStackSpec
+    {
+        FString AssetPath;
+        TArray<FString> SlotNames;
+        FString CompletedLabel;
+    };
+
+    const TArray<FStackSpec> StackSpecs = {
+        {
+            TEXT("/Game/UI/Widgets/HUD/WBP_HUDTopLeftStack"),
+            {TEXT("Slot_Steam"), TEXT("Slot_Moon"), TEXT("Slot_Suspicion"), TEXT("Slot_Cover")},
+            TEXT("Scaffolded top-left stack named slots")
+        },
+        {
+            TEXT("/Game/UI/Widgets/HUD/WBP_HUDTopRightStack"),
+            {TEXT("Slot_Objective"), TEXT("Slot_FullMoon")},
+            TEXT("Scaffolded top-right stack named slots")
+        },
+        {
+            TEXT("/Game/UI/Widgets/HUD/WBP_HUDBottomLeftStack"),
+            {TEXT("Slot_Towel"), TEXT("Slot_Access")},
+            TEXT("Scaffolded bottom-left stack named slots")
+        },
+        {
+            TEXT("/Game/UI/Widgets/HUD/WBP_HUDBottomRightStack"),
+            {TEXT("Slot_Door"), TEXT("Slot_Anomaly")},
+            TEXT("Scaffolded bottom-right stack named slots")
+        }};
+
+    bool bAllOk = true;
+    for (const FStackSpec& Spec : StackSpecs)
+    {
+        UWidgetBlueprint* WidgetBlueprint = LoadObject<UWidgetBlueprint>(nullptr, *Spec.AssetPath);
+        if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+        {
+            OutResult.Warnings.Add(FString::Printf(TEXT("Failed to load stack widget: %s"), *Spec.AssetPath));
+            bAllOk = false;
+            continue;
+        }
+
+        UVerticalBox* RootVertical = Cast<UVerticalBox>(WidgetBlueprint->WidgetTree->RootWidget);
+        if (!RootVertical)
+        {
+            RootVertical = WidgetBlueprint->WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Vertical_Root"));
+            WidgetBlueprint->WidgetTree->RootWidget = RootVertical;
+        }
+
+        for (const FString& SlotNameString : Spec.SlotNames)
+        {
+            const FName SlotName(*SlotNameString);
+            UNamedSlot* Named = Cast<UNamedSlot>(FindWidgetByName(WidgetBlueprint->WidgetTree, SlotName));
+            if (!Named)
+            {
+                Named = WidgetBlueprint->WidgetTree->ConstructWidget<UNamedSlot>(UNamedSlot::StaticClass(), SlotName);
+                UVerticalBoxSlot* VBoxSlot = RootVertical->AddChildToVerticalBox(Named);
+                if (VBoxSlot)
+                {
+                    VBoxSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+                }
+            }
+        }
+
+        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(WidgetBlueprint);
+        FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
+        if (!SaveAsset(WidgetBlueprint))
+        {
+            OutResult.Warnings.Add(FString::Printf(TEXT("Failed to save stack widget: %s"), *Spec.AssetPath));
+            bAllOk = false;
+            continue;
+        }
+
+        OutResult.Completed.Add(FString::Printf(TEXT("%s (%s)"), *Spec.CompletedLabel, *Spec.AssetPath));
+    }
+
+    UWidgetBlueprint* PromptBlueprint = LoadObject<UWidgetBlueprint>(nullptr, TEXT("/Game/UI/Widgets/HUD/WBP_HUDInteractionPrompt"));
+    if (!PromptBlueprint || !PromptBlueprint->WidgetTree)
+    {
+        OutResult.Warnings.Add(TEXT("Failed to load WBP_HUDInteractionPrompt for scaffold."));
+        bAllOk = false;
+    }
+    else
+    {
+        UOverlay* PromptRoot = Cast<UOverlay>(PromptBlueprint->WidgetTree->RootWidget);
+        if (!PromptRoot)
+        {
+            PromptRoot = PromptBlueprint->WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("Overlay_Root"));
+            PromptBlueprint->WidgetTree->RootWidget = PromptRoot;
+        }
+
+        UTextBlock* PromptText = Cast<UTextBlock>(FindWidgetByName(PromptBlueprint->WidgetTree, TEXT("Text_Prompt")));
+        if (!PromptText)
+        {
+            PromptText = PromptBlueprint->WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Text_Prompt"));
+            UOverlaySlot* Slot = PromptRoot->AddChildToOverlay(PromptText);
+            if (Slot)
+            {
+                Slot->SetPadding(FMargin(12.0f, 8.0f, 12.0f, 8.0f));
+                Slot->SetHorizontalAlignment(HAlign_Center);
+                Slot->SetVerticalAlignment(VAlign_Center);
+            }
+        }
+        PromptText->SetText(FText::FromString(TEXT("[E] Interact")));
+
+        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(PromptBlueprint);
+        FKismetEditorUtilities::CompileBlueprint(PromptBlueprint);
+        if (!SaveAsset(PromptBlueprint))
+        {
+            OutResult.Warnings.Add(TEXT("Failed to save WBP_HUDInteractionPrompt scaffold."));
+            bAllOk = false;
+        }
+        else
+        {
+            OutResult.Completed.Add(TEXT("Scaffolded WBP_HUDInteractionPrompt with default prompt text."));
+        }
+    }
+
+    OutResult.RequiresInteraction.Add(TEXT("Replace named slot placeholders with final child widgets inside HUD stack widgets."));
+    return bAllOk;
 }
 
 bool UWerewolfUIBridgeCommandlet::SaveAsset(UObject* Asset) const

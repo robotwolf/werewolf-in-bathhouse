@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("scaffold-hud", "run-json", "show-last")]
+    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-all", "run-json", "show-last")]
     [string]$Action = "scaffold-hud",
 
     [string]$EditorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe",
@@ -42,6 +42,45 @@ if ($Action -eq "scaffold-hud") {
     {
       "type": "scaffold_hud_root",
       "asset": "$AssetPath"
+    }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "scaffold-meter") {
+    $json = @"
+{
+  "actions": [
+    {
+      "type": "scaffold_meter_totem",
+      "asset": "/Game/UI/Widgets/Shared/WBP_MeterTotemBase"
+    }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "scaffold-support") {
+    $json = @"
+{
+  "actions": [
+    {
+      "type": "scaffold_hud_support"
+    }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "scaffold-all") {
+    $json = @"
+{
+  "actions": [
+    {
+      "type": "scaffold_all_ui",
+      "hud_asset": "$AssetPath",
+      "meter_asset": "/Game/UI/Widgets/Shared/WBP_MeterTotemBase"
     }
   ]
 }

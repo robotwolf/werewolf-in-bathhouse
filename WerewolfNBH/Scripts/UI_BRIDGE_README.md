@@ -29,11 +29,29 @@ This bridge lets you run repeatable UI scaffolding from the terminal.
     - `FX_Stress`
     - `FX_Insanity`
     - `FX_Ferality`
+- `scaffold_meter_totem`
+  - Builds base internals for `/Game/UI/Widgets/Shared/WBP_MeterTotemBase`.
+  - Adds:
+    - `SizeBox_Root`
+    - `Overlay_Root`
+    - `Image_Backplate`
+    - `ProgressBar_Fill`
+    - `Text_Label`
+    - `Text_Value`
+- `scaffold_hud_support`
+  - Adds named-slot stack scaffolds:
+    - `/Game/UI/Widgets/HUD/WBP_HUDTopLeftStack`
+    - `/Game/UI/Widgets/HUD/WBP_HUDTopRightStack`
+    - `/Game/UI/Widgets/HUD/WBP_HUDBottomLeftStack`
+    - `/Game/UI/Widgets/HUD/WBP_HUDBottomRightStack`
+  - Adds prompt scaffold in `/Game/UI/Widgets/HUD/WBP_HUDInteractionPrompt`.
+- `scaffold_all_ui`
+  - Runs all scaffold actions in one pass.
 
 ## Quick Start
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action scaffold-hud
+powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action scaffold-all
 ```
 
 ## Run With Custom JSON
