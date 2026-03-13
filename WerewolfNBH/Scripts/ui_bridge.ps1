@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-pack", "scaffold-wipe", "audit-core", "scaffold-all", "run-json", "show-last")]
+    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-pack", "scaffold-wipe", "audit-core", "audit-wipe", "scaffold-all", "run-json", "show-last")]
     [string]$Action = "scaffold-hud",
 
     [string]$EditorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe",
@@ -109,6 +109,16 @@ elseif ($Action -eq "audit-core") {
     { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_DoorStateBadge" },
     { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_AccessTagBadge" },
     { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_HUDRoot" }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "audit-wipe") {
+    $json = @"
+{
+  "actions": [
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/Shared/WBP_ScreenWipeFramework" }
   ]
 }
 "@

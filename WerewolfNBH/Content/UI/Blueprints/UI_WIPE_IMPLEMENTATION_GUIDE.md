@@ -20,6 +20,12 @@ It is written against the current project state:
 
 `WBP_ScreenWipeFramework` was scaffolded as a standalone overlay widget so it can be added on top of the HUD without touching the already-edited HUD root.
 
+The bridge can now also auto-assign the wipe material instances when they exist:
+
+- `MI_UI_WipeIris_Default` -> `FX_IrisMask`
+- `MI_UI_WipeSteam_Front` -> `FX_SteamWipeFront`
+- `MI_UI_WipeSteam_Back` -> `FX_SteamWipeBack`
+
 Expected named layers inside it:
 
 - `FX_WipeBaseBlack`
@@ -448,14 +454,16 @@ Reason:
 Once the editor is back up:
 
 1. Run `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\create_ui_wipe_materials.ps1`
-2. Open `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\UI\Widgets\Shared\WBP_ScreenWipeFramework.uasset`
-3. Assign the material instances to the image layers
-4. Create the DMI setup in `Event Construct`
-5. Create `ResetWipeState`, `SetIrisRadius`, and `SetBlackoutAlpha`
-6. Build `PlayIrisClose` first
-7. Test from a key press in PIE
-8. Add `PlaySteamWipeIn`
-9. Combine them into `PlayHybridClose`
+2. Run `powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action scaffold-wipe`
+3. Optional verification: run `powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action audit-wipe`
+4. Open `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\UI\Widgets\Shared\WBP_ScreenWipeFramework.uasset`
+5. Confirm the image layers now point at the correct material instances
+6. Create the DMI setup in `Event Construct`
+7. Create `ResetWipeState`, `SetIrisRadius`, and `SetBlackoutAlpha`
+8. Build `PlayIrisClose` first
+9. Test from a key press in PIE
+10. Add `PlaySteamWipeIn`
+11. Combine them into `PlayHybridClose`
 
 ## If You Want the Fastest Proof
 

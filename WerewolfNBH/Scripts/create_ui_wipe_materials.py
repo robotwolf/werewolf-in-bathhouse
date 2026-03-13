@@ -268,7 +268,6 @@ def main():
     iris_material = build_iris_material()
     steam_material = build_steam_material()
     build_instances(iris_material, steam_material)
-    unreal.EditorAssetLibrary.save_directory(PROJECT_MATERIALS, only_if_is_dirty=False, recursive=True)
     unreal.log("Created or updated UI wipe materials and instances.")
 
 

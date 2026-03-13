@@ -1701,6 +1701,16 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
         return false;
     }
 
+    UMaterialInterface* IrisMaterial = LoadObject<UMaterialInterface>(
+        nullptr,
+        TEXT("/Game/UI/Materials/Instances/MI_UI_WipeIris_Default.MI_UI_WipeIris_Default"));
+    UMaterialInterface* SteamFrontMaterial = LoadObject<UMaterialInterface>(
+        nullptr,
+        TEXT("/Game/UI/Materials/Instances/MI_UI_WipeSteam_Front.MI_UI_WipeSteam_Front"));
+    UMaterialInterface* SteamBackMaterial = LoadObject<UMaterialInterface>(
+        nullptr,
+        TEXT("/Game/UI/Materials/Instances/MI_UI_WipeSteam_Back.MI_UI_WipeSteam_Back"));
+
     UImage* BaseBlack = EnsureOverlayImage(
         WidgetBlueprint,
         OverlayRoot,
@@ -1721,6 +1731,11 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
     {
         IrisMask->SetRenderOpacity(0.0f);
         IrisMask->SetVisibility(ESlateVisibility::Collapsed);
+        if (IrisMaterial)
+        {
+            IrisMask->SetBrushFromMaterial(IrisMaterial);
+            IrisMask->SetColorAndOpacity(FLinearColor::White);
+        }
     }
 
     UImage* SteamFront = EnsureOverlayImage(
@@ -1732,6 +1747,11 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
     {
         SteamFront->SetRenderOpacity(0.0f);
         SteamFront->SetVisibility(ESlateVisibility::Collapsed);
+        if (SteamFrontMaterial)
+        {
+            SteamFront->SetBrushFromMaterial(SteamFrontMaterial);
+            SteamFront->SetColorAndOpacity(FLinearColor::White);
+        }
     }
 
     UImage* SteamBack = EnsureOverlayImage(
@@ -1743,9 +1763,14 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
     {
         SteamBack->SetRenderOpacity(0.0f);
         SteamBack->SetVisibility(ESlateVisibility::Collapsed);
+        if (SteamBackMaterial)
+        {
+            SteamBack->SetBrushFromMaterial(SteamBackMaterial);
+            SteamBack->SetColorAndOpacity(FLinearColor::White);
+        }
     }
 
-    EnsureOverlayText(
+    UTextBlock* DebugText = EnsureOverlayText(
         WidgetBlueprint,
         OverlayRoot,
         TEXT("Text_WipeDebug"),
@@ -1753,6 +1778,10 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
         HAlign_Center,
         VAlign_Top,
         FMargin(0.0f, 24.0f, 0.0f, 0.0f));
+    if (DebugText)
+    {
+        DebugText->SetVisibility(ESlateVisibility::Collapsed);
+    }
 
     EnsureAllWidgetGuids(WidgetBlueprint);
     FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(WidgetBlueprint);
@@ -1764,9 +1793,33 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
     }
 
     OutResult.Completed.Add(FString::Printf(TEXT("Scaffolded standalone wipe framework widget in %s"), *AssetPath));
+    if (IrisMaterial)
+    {
+        OutResult.Completed.Add(TEXT("Assigned MI_UI_WipeIris_Default to FX_IrisMask."));
+    }
+    else
+    {
+        OutResult.Warnings.Add(TEXT("MI_UI_WipeIris_Default was not found, so FX_IrisMask still needs a material assignment."));
+    }
+    if (SteamFrontMaterial)
+    {
+        OutResult.Completed.Add(TEXT("Assigned MI_UI_WipeSteam_Front to FX_SteamWipeFront."));
+    }
+    else
+    {
+        OutResult.Warnings.Add(TEXT("MI_UI_WipeSteam_Front was not found, so FX_SteamWipeFront still needs a material assignment."));
+    }
+    if (SteamBackMaterial)
+    {
+        OutResult.Completed.Add(TEXT("Assigned MI_UI_WipeSteam_Back to FX_SteamWipeBack."));
+    }
+    else
+    {
+        OutResult.Warnings.Add(TEXT("MI_UI_WipeSteam_Back was not found, so FX_SteamWipeBack still needs a material assignment."));
+    }
     OutResult.RequiresInteraction.AddUnique(TEXT("Place WBP_ScreenWipeFramework above gameplay HUD in your active HUD composition."));
-    OutResult.RequiresInteraction.AddUnique(TEXT("Create a UI material for FX_IrisMask that exposes iris center/radius parameters through a dynamic material instance."));
-    OutResult.RequiresInteraction.AddUnique(TEXT("Create steam wipe materials or textures for FX_SteamWipeFront and FX_SteamWipeBack, then drive opacity and pan values from Blueprint or Sequencer."));
+    OutResult.RequiresInteraction.AddUnique(TEXT("Create a dynamic material instance for FX_IrisMask in Event Construct so Blueprint can drive CenterX, CenterY, Radius, Softness, and Opacity."));
+    OutResult.RequiresInteraction.AddUnique(TEXT("Create dynamic material instances for FX_SteamWipeFront and FX_SteamWipeBack if you want Blueprint-driven steam progression and drift."));
     OutResult.RequiresInteraction.AddUnique(TEXT("If you want the wipe framework inside WBP_HUDRoot, add it manually because the current WBP_HUDRoot asset has local edits and was not overwritten by the bridge."));
     return true;
 }
