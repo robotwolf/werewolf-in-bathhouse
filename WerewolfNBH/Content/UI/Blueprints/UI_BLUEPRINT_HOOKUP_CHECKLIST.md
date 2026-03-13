@@ -56,6 +56,8 @@ Open each stack widget and place children into named slots:
 
 Add these public functions in each widget so gameplay code has clean entry points.
 
+These are recommended functions to create manually in Blueprint graphs. They are not already present just because the widgets were scaffolded.
+
 - `WBP_MeterTotemBase`: `SetMeterData(LabelText, Percent01, ValueText)`
 - `WBP_ObjectiveLine`: `SetObjectiveLine(ObjectiveText)`
 - `WBP_HUDInteractionPrompt`: `SetPrompt(PromptText, bVisible)`

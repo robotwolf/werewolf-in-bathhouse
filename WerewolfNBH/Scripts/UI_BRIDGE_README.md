@@ -53,6 +53,19 @@ This bridge lets you run repeatable UI scaffolding from the terminal.
     - `/Game/UI/Widgets/Settings`
     - `/Game/UI/Widgets/Shared`
   - Adds placeholder labels/values, named slots, and starter controls (sliders/toggle/progress rows).
+- `scaffold_screen_wipe_framework`
+  - Creates or updates `/Game/UI/Widgets/Shared/WBP_ScreenWipeFramework`.
+  - Adds starter layers for:
+    - `FX_WipeBaseBlack`
+    - `FX_IrisMask`
+    - `FX_SteamWipeFront`
+    - `FX_SteamWipeBack`
+  - Intended as a standalone overlay so it can be added without overwriting a locally edited `WBP_HUDRoot`.
+- `audit_widget`
+  - Reports:
+    - root widget name
+    - widget tree child names
+    - existing function graph names
 - `scaffold_all_ui`
   - Runs all scaffold actions in one pass, including `scaffold_widget_pack`.
 
@@ -60,6 +73,18 @@ This bridge lets you run repeatable UI scaffolding from the terminal.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action scaffold-all
+```
+
+Audit the current core widgets:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action audit-core
+```
+
+Create or refresh the wipe framework widget:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\ui_bridge.ps1" -Action scaffold-wipe
 ```
 
 ## Run With Custom JSON

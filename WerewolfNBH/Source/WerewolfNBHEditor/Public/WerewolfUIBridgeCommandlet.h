@@ -29,6 +29,9 @@ private:
     bool ScaffoldMeterTotemBase(const FString& AssetPath, FBridgeResult& OutResult) const;
     bool ScaffoldHudSupportWidgets(FBridgeResult& OutResult) const;
     bool ScaffoldWidgetPack(FBridgeResult& OutResult) const;
+    bool ScaffoldScreenWipeFramework(const FString& AssetPath, FBridgeResult& OutResult) const;
+    bool AuditWidget(const FString& AssetPath, FBridgeResult& OutResult) const;
+    class UWidgetBlueprint* LoadOrCreateWidgetBlueprint(const FString& AssetPath) const;
     bool SaveAsset(UObject* Asset) const;
     void WriteResultFile(const FString& ResultPath, const FBridgeResult& Result, bool bSucceeded) const;
 };

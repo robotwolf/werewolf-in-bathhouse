@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-pack", "scaffold-all", "run-json", "show-last")]
+    [ValidateSet("scaffold-hud", "scaffold-meter", "scaffold-support", "scaffold-pack", "scaffold-wipe", "audit-core", "scaffold-all", "run-json", "show-last")]
     [string]$Action = "scaffold-hud",
 
     [string]$EditorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe",
@@ -80,6 +80,35 @@ elseif ($Action -eq "scaffold-pack") {
     {
       "type": "scaffold_widget_pack"
     }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "scaffold-wipe") {
+    $json = @"
+{
+  "actions": [
+    {
+      "type": "scaffold_screen_wipe_framework",
+      "asset": "/Game/UI/Widgets/Shared/WBP_ScreenWipeFramework"
+    }
+  ]
+}
+"@
+    Set-Content -Path $CommandsPath -Value $json -Encoding UTF8
+}
+elseif ($Action -eq "audit-core") {
+    $json = @"
+{
+  "actions": [
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_SteamMeter" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/Shared/WBP_MeterTotemBase" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_HUDInteractionPrompt" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_ObjectiveLine" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_DoorStateBadge" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_AccessTagBadge" },
+    { "type": "audit_widget", "asset": "/Game/UI/Widgets/HUD/WBP_HUDRoot" }
   ]
 }
 "@

@@ -4,6 +4,8 @@ Project: WerewolfNBH
 Audience: Newer Unreal UI setup
 Goal: Copy these node chains into your Blueprints without needing to invent the structure from scratch.
 
+Important: names like `SetMeterData`, `SetPrompt`, and `UpdateSteam` are intended manual Blueprint functions unless you explicitly add them. The scaffold created widget trees and placeholder controls, not those graph functions.
+
 ## 1. PlayerController BeginPlay
 
 Use this in your PlayerController Event Graph.

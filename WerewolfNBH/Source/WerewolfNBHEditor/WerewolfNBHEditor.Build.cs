@@ -23,6 +23,7 @@ public class WerewolfNBHEditor : ModuleRules
                 "SlateCore",
                 "Json",
                 "JsonUtilities",
+                "AssetTools",
                 "UMGEditor",
                 "BlueprintGraph",
                 "KismetCompiler",

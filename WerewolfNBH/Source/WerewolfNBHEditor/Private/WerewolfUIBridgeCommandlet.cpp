@@ -1,6 +1,7 @@
 #include "WerewolfUIBridgeCommandlet.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "AssetToolsModule.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/CheckBox.h"
@@ -20,6 +21,7 @@
 #include "Components/VerticalBoxSlot.h"
 #include "Components/Image.h"
 #include "Dom/JsonObject.h"
+#include "EdGraph/EdGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
@@ -31,7 +33,10 @@
 #include "UObject/SavePackage.h"
 #include "HAL/FileManager.h"
 #include "WidgetBlueprint.h"
+#include "WidgetBlueprintFactory.h"
+#include "Blueprint/UserWidget.h"
 #include "Materials/MaterialInterface.h"
+#include "Modules/ModuleManager.h"
 
 namespace
 {
@@ -608,6 +613,23 @@ bool UWerewolfUIBridgeCommandlet::ProcessAction(const TSharedPtr<FJsonObject>& A
     {
         return ScaffoldWidgetPack(OutResult);
     }
+    if (Type.Equals(TEXT("scaffold_screen_wipe_framework"), ESearchCase::IgnoreCase))
+    {
+        FString AssetPath = TEXT("/Game/UI/Widgets/Shared/WBP_ScreenWipeFramework");
+        ActionObject->TryGetStringField(TEXT("asset"), AssetPath);
+        return ScaffoldScreenWipeFramework(AssetPath, OutResult);
+    }
+    if (Type.Equals(TEXT("audit_widget"), ESearchCase::IgnoreCase))
+    {
+        FString AssetPath;
+        ActionObject->TryGetStringField(TEXT("asset"), AssetPath);
+        if (AssetPath.IsEmpty())
+        {
+            OutResult.Warnings.Add(TEXT("audit_widget action requires an 'asset' field."));
+            return false;
+        }
+        return AuditWidget(AssetPath, OutResult);
+    }
     if (Type.Equals(TEXT("scaffold_all_ui"), ESearchCase::IgnoreCase))
     {
         FString HudAssetPath = TEXT("/Game/UI/Widgets/HUD/WBP_HUDRoot");
@@ -619,7 +641,9 @@ bool UWerewolfUIBridgeCommandlet::ProcessAction(const TSharedPtr<FJsonObject>& A
         const bool bMeterOk = ScaffoldMeterTotemBase(MeterAssetPath, OutResult);
         const bool bSupportOk = ScaffoldHudSupportWidgets(OutResult);
         const bool bPackOk = ScaffoldWidgetPack(OutResult);
-        return bHudOk && bMeterOk && bSupportOk && bPackOk;
+        const bool bWipeOk =
+            ScaffoldScreenWipeFramework(TEXT("/Game/UI/Widgets/Shared/WBP_ScreenWipeFramework"), OutResult);
+        return bHudOk && bMeterOk && bSupportOk && bPackOk && bWipeOk;
     }
 
     OutResult.Warnings.Add(FString::Printf(TEXT("Unsupported action type: %s"), *Type));
@@ -1635,6 +1659,164 @@ bool UWerewolfUIBridgeCommandlet::ScaffoldWidgetPack(FBridgeResult& OutResult) c
     }
 
     return bAllOk;
+}
+
+UWidgetBlueprint* UWerewolfUIBridgeCommandlet::LoadOrCreateWidgetBlueprint(const FString& AssetPath) const
+{
+    if (UWidgetBlueprint* Existing = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath))
+    {
+        return Existing;
+    }
+
+    FString PackagePath = AssetPath;
+    FString AssetName;
+    if (!PackagePath.Split(TEXT("/"), &PackagePath, &AssetName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+    {
+        return nullptr;
+    }
+
+    UWidgetBlueprintFactory* Factory = NewObject<UWidgetBlueprintFactory>();
+    Factory->ParentClass = UUserWidget::StaticClass();
+
+    FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
+    UObject* NewAsset = AssetToolsModule.Get().CreateAsset(AssetName, PackagePath, UWidgetBlueprint::StaticClass(), Factory);
+    return Cast<UWidgetBlueprint>(NewAsset);
+}
+
+bool UWerewolfUIBridgeCommandlet::ScaffoldScreenWipeFramework(
+    const FString& AssetPath,
+    FBridgeResult& OutResult) const
+{
+    UWidgetBlueprint* WidgetBlueprint = LoadOrCreateWidgetBlueprint(AssetPath);
+    if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to load or create wipe framework widget: %s"), *AssetPath));
+        return false;
+    }
+
+    UOverlay* OverlayRoot = EnsureOverlayRoot(WidgetBlueprint, TEXT("Overlay_Root"));
+    if (!OverlayRoot)
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to create overlay root for %s"), *AssetPath));
+        return false;
+    }
+
+    UImage* BaseBlack = EnsureOverlayImage(
+        WidgetBlueprint,
+        OverlayRoot,
+        TEXT("FX_WipeBaseBlack"),
+        FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    if (BaseBlack)
+    {
+        BaseBlack->SetRenderOpacity(0.0f);
+        BaseBlack->SetVisibility(ESlateVisibility::Collapsed);
+    }
+
+    UImage* IrisMask = EnsureOverlayImage(
+        WidgetBlueprint,
+        OverlayRoot,
+        TEXT("FX_IrisMask"),
+        FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+    if (IrisMask)
+    {
+        IrisMask->SetRenderOpacity(0.0f);
+        IrisMask->SetVisibility(ESlateVisibility::Collapsed);
+    }
+
+    UImage* SteamFront = EnsureOverlayImage(
+        WidgetBlueprint,
+        OverlayRoot,
+        TEXT("FX_SteamWipeFront"),
+        FLinearColor(0.84f, 0.86f, 0.85f, 0.9f));
+    if (SteamFront)
+    {
+        SteamFront->SetRenderOpacity(0.0f);
+        SteamFront->SetVisibility(ESlateVisibility::Collapsed);
+    }
+
+    UImage* SteamBack = EnsureOverlayImage(
+        WidgetBlueprint,
+        OverlayRoot,
+        TEXT("FX_SteamWipeBack"),
+        FLinearColor(0.68f, 0.71f, 0.70f, 0.8f));
+    if (SteamBack)
+    {
+        SteamBack->SetRenderOpacity(0.0f);
+        SteamBack->SetVisibility(ESlateVisibility::Collapsed);
+    }
+
+    EnsureOverlayText(
+        WidgetBlueprint,
+        OverlayRoot,
+        TEXT("Text_WipeDebug"),
+        TEXT("IRIS / STEAM WIPE"),
+        HAlign_Center,
+        VAlign_Top,
+        FMargin(0.0f, 24.0f, 0.0f, 0.0f));
+
+    EnsureAllWidgetGuids(WidgetBlueprint);
+    FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(WidgetBlueprint);
+    FKismetEditorUtilities::CompileBlueprint(WidgetBlueprint);
+    if (!SaveAsset(WidgetBlueprint))
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to save wipe framework widget: %s"), *AssetPath));
+        return false;
+    }
+
+    OutResult.Completed.Add(FString::Printf(TEXT("Scaffolded standalone wipe framework widget in %s"), *AssetPath));
+    OutResult.RequiresInteraction.AddUnique(TEXT("Place WBP_ScreenWipeFramework above gameplay HUD in your active HUD composition."));
+    OutResult.RequiresInteraction.AddUnique(TEXT("Create a UI material for FX_IrisMask that exposes iris center/radius parameters through a dynamic material instance."));
+    OutResult.RequiresInteraction.AddUnique(TEXT("Create steam wipe materials or textures for FX_SteamWipeFront and FX_SteamWipeBack, then drive opacity and pan values from Blueprint or Sequencer."));
+    OutResult.RequiresInteraction.AddUnique(TEXT("If you want the wipe framework inside WBP_HUDRoot, add it manually because the current WBP_HUDRoot asset has local edits and was not overwritten by the bridge."));
+    return true;
+}
+
+bool UWerewolfUIBridgeCommandlet::AuditWidget(const FString& AssetPath, FBridgeResult& OutResult) const
+{
+    UWidgetBlueprint* WidgetBlueprint = LoadObject<UWidgetBlueprint>(nullptr, *AssetPath);
+    if (!WidgetBlueprint || !WidgetBlueprint->WidgetTree)
+    {
+        OutResult.Warnings.Add(FString::Printf(TEXT("Failed to load widget for audit: %s"), *AssetPath));
+        return false;
+    }
+
+    TArray<UWidget*> Widgets;
+    WidgetBlueprint->WidgetTree->GetAllWidgets(Widgets);
+
+    TArray<FString> WidgetNames;
+    for (UWidget* Widget : Widgets)
+    {
+        if (Widget)
+        {
+            WidgetNames.Add(Widget->GetName());
+        }
+    }
+
+    TArray<FString> FunctionGraphNames;
+    for (UEdGraph* Graph : WidgetBlueprint->FunctionGraphs)
+    {
+        if (Graph)
+        {
+            FunctionGraphNames.Add(Graph->GetName());
+        }
+    }
+
+    WidgetNames.Sort();
+    FunctionGraphNames.Sort();
+
+    const FString RootName =
+        WidgetBlueprint->WidgetTree->RootWidget ? WidgetBlueprint->WidgetTree->RootWidget->GetName() : TEXT("None");
+
+    OutResult.Completed.Add(
+        FString::Printf(TEXT("Audit %s :: Root=%s"), *AssetPath, *RootName));
+    OutResult.Completed.Add(
+        FString::Printf(TEXT("Audit %s :: Widgets=%s"), *AssetPath, *FString::Join(WidgetNames, TEXT(", "))));
+    OutResult.Completed.Add(
+        FString::Printf(
+            TEXT("Audit %s :: FunctionGraphs=%s"),
+            *AssetPath,
+            FunctionGraphNames.Num() > 0 ? *FString::Join(FunctionGraphNames, TEXT(", ")) : TEXT("(none)")));
+    return true;
 }
 
 bool UWerewolfUIBridgeCommandlet::SaveAsset(UObject* Asset) const
