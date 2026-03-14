@@ -12,7 +12,9 @@ enum class ERoomConnectorDirection : uint8
     North,
     South,
     East,
-    West
+    West,
+    Up,
+    Down
 };
 
 UENUM(BlueprintType)

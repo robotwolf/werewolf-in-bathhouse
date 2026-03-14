@@ -2,15 +2,23 @@ import unreal
 
 
 GENERATOR_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator.BP_RoomGenerator"
-HUB_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_Room_Hub.BP_Room_Hub_C"
-CORRIDOR_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_Room_Corridor.BP_Room_Corridor_C"
-DEADEND_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_Room_DeadEnd.BP_Room_DeadEnd_C"
+ENTRY_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception.BP_Room_EntryReception_C"
+LOCKER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall.BP_Room_LockerHall_C"
+PUBLIC_HALL_STRAIGHT_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight.BP_Room_PublicHall_Straight_C"
+PUBLIC_HALL_CORNER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner.BP_Room_PublicHall_Corner_C"
 LTURN_E_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E.BP_Room_PublicHall_LTurn_E_C"
 LTURN_W_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_W.BP_Room_PublicHall_LTurn_W_C"
 
 
 def log(message: str) -> None:
     unreal.log(f"[configure_assembler_blueprints] {message}")
+
+
+def append_unique(items, new_item):
+    if not new_item:
+        return
+    if new_item not in items:
+        items.append(new_item)
 
 
 def main() -> None:
@@ -24,66 +32,84 @@ def main() -> None:
 
     cdo = unreal.get_default_object(generated_class)
 
-    hub_class = unreal.load_class(None, HUB_PATH)
-    corridor_class = unreal.load_class(None, CORRIDOR_PATH)
-    deadend_class = unreal.load_class(None, DEADEND_PATH)
+    entry_class = unreal.load_class(None, ENTRY_PATH)
+    locker_class = unreal.load_class(None, LOCKER_PATH)
+    public_hall_straight_class = unreal.load_class(None, PUBLIC_HALL_STRAIGHT_PATH)
+    public_hall_corner_class = unreal.load_class(None, PUBLIC_HALL_CORNER_PATH)
     lturn_e_class = unreal.load_class(None, LTURN_E_PATH)
     lturn_w_class = unreal.load_class(None, LTURN_W_PATH)
 
-    if not hub_class or not corridor_class or not deadend_class:
-        raise RuntimeError("Could not load one or more room blueprint classes")
+    if not entry_class or not locker_class or not public_hall_straight_class or not public_hall_corner_class:
+        raise RuntimeError("Could not load one or more bathhouse room blueprint classes")
 
-    cdo.set_editor_property("StartRoomClass", hub_class)
-    cdo.set_editor_property("DeadEndRoomClass", deadend_class)
-    available_rooms = [corridor_class, deadend_class]
-    if lturn_e_class:
-        available_rooms.append(lturn_e_class)
-    if lturn_w_class:
-        available_rooms.append(lturn_w_class)
+    primary_hall_class = public_hall_straight_class
+
+    cdo.set_editor_property("StartRoomClass", entry_class)
+    cdo.set_editor_property("DeadEndRoomClass", None)
+    available_rooms = []
+    append_unique(available_rooms, locker_class)
+    append_unique(available_rooms, primary_hall_class)
+    append_unique(available_rooms, public_hall_corner_class)
     cdo.set_editor_property("AvailableRooms", available_rooms)
     if hasattr(cdo, "ConnectorFallbackRooms"):
-        cdo.set_editor_property("ConnectorFallbackRooms", [corridor_class])
+        fallback_rooms = []
+        append_unique(fallback_rooms, primary_hall_class)
+        append_unique(fallback_rooms, public_hall_corner_class)
+        cdo.set_editor_property("ConnectorFallbackRooms", fallback_rooms)
+    if hasattr(cdo, "bEnableHallwayChains"):
+        cdo.set_editor_property("bEnableHallwayChains", True)
+    if hasattr(cdo, "MaxHallwayChainSegments"):
+        cdo.set_editor_property("MaxHallwayChainSegments", 3)
     cdo.set_editor_property("RunSeed", 1337)
     cdo.set_editor_property("MaxRooms", 6)
     cdo.set_editor_property("AttemptsPerDoor", 5)
+    if hasattr(cdo, "VerticalSnapSize"):
+        cdo.set_editor_property("VerticalSnapSize", 10.0)
     cdo.set_editor_property("bUseNewSeedOnGenerate", True)
     cdo.set_editor_property("bDebugDrawBounds", True)
     cdo.set_editor_property("bDebugDrawDoors", True)
     cdo.set_editor_property("bPrintDebugMessages", True)
+    if hasattr(cdo, "bOverrideRoomSliceDebug"):
+        cdo.set_editor_property("bOverrideRoomSliceDebug", False)
+    if hasattr(cdo, "bGlobalSliceDebugEnabled"):
+        cdo.set_editor_property("bGlobalSliceDebugEnabled", False)
+    if hasattr(cdo, "GlobalSliceDebugDuration"):
+        cdo.set_editor_property("GlobalSliceDebugDuration", 8.0)
     cdo.set_editor_property("bGenerateOnBeginPlay", True)
 
     if hasattr(unreal, "RoomClassEntry") and hasattr(cdo, "RoomClassPool"):
-        corridor_entry = unreal.RoomClassEntry()
-        corridor_entry.set_editor_property("RoomClass", corridor_class)
-        corridor_entry.set_editor_property("Weight", 1.0)
-        corridor_entry.set_editor_property("MinRoomsBetweenUses", 0)
+        pool_entries = unreal.Array(unreal.RoomClassEntry)
 
-        deadend_entry = unreal.RoomClassEntry()
-        deadend_entry.set_editor_property("RoomClass", deadend_class)
-        deadend_entry.set_editor_property("Weight", 0.6)
-        deadend_entry.set_editor_property("MinRoomsBetweenUses", 1)
+        locker_entry = unreal.RoomClassEntry()
+        locker_entry.set_editor_property("RoomClass", locker_class)
+        locker_entry.set_editor_property("Weight", 1.0)
+        locker_entry.set_editor_property("MinRoomsBetweenUses", 1)
 
-        pool_entries = [corridor_entry, deadend_entry]
+        hall_entry = unreal.RoomClassEntry()
+        hall_entry.set_editor_property("RoomClass", primary_hall_class)
+        hall_entry.set_editor_property("Weight", 1.3)
+        hall_entry.set_editor_property("MinRoomsBetweenUses", 0)
 
-        if lturn_e_class:
-            lturn_e_entry = unreal.RoomClassEntry()
-            lturn_e_entry.set_editor_property("RoomClass", lturn_e_class)
-            lturn_e_entry.set_editor_property("Weight", 0.9)
-            lturn_e_entry.set_editor_property("MinRoomsBetweenUses", 0)
-            pool_entries.append(lturn_e_entry)
+        corner_entry = unreal.RoomClassEntry()
+        corner_entry.set_editor_property("RoomClass", public_hall_corner_class)
+        corner_entry.set_editor_property("Weight", 0.9)
+        corner_entry.set_editor_property("MinRoomsBetweenUses", 0)
 
-        if lturn_w_class:
-            lturn_w_entry = unreal.RoomClassEntry()
-            lturn_w_entry.set_editor_property("RoomClass", lturn_w_class)
-            lturn_w_entry.set_editor_property("Weight", 0.9)
-            lturn_w_entry.set_editor_property("MinRoomsBetweenUses", 0)
-            pool_entries.append(lturn_w_entry)
+        pool_entries.append(locker_entry)
+        pool_entries.append(hall_entry)
+        pool_entries.append(corner_entry)
 
         cdo.set_editor_property("RoomClassPool", pool_entries)
-        log("Configured RoomClassPool with corridor + dead end + L-turn entries.")
+        readback = cdo.get_editor_property("RoomClassPool")
+        debug_classes = []
+        for entry in readback:
+            room_class = entry.get_editor_property("RoomClass")
+            debug_classes.append(room_class.get_path_name() if room_class else "None")
+        log(f"Configured RoomClassPool with bathhouse rooms only: {debug_classes}")
 
+    unreal.BlueprintEditorLibrary.compile_blueprint(generator_bp)
     unreal.EditorAssetLibrary.save_asset("/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator")
-    log("Configured BP_RoomGenerator defaults to use Blueprint room subclasses.")
+    log("Configured BP_RoomGenerator defaults to use bathhouse room subclasses.")
 
 
 if __name__ == "__main__":

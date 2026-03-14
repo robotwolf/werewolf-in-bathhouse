@@ -62,6 +62,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     float OverlapTolerance = 2.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation", meta=(ClampMin="1.0"))
+    float VerticalSnapSize = 10.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     bool bDebugDrawBounds = true;
 
@@ -70,6 +73,15 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     bool bPrintDebugMessages = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|SliceDebug")
+    bool bOverrideRoomSliceDebug = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|SliceDebug", meta=(EditCondition="bOverrideRoomSliceDebug"))
+    bool bGlobalSliceDebugEnabled = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|SliceDebug", meta=(EditCondition="bOverrideRoomSliceDebug", ClampMin="0.1", ClampMax="120.0"))
+    float GlobalSliceDebugDuration = 8.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     TSubclassOf<ARoomModuleBase> StartRoomClass;
@@ -85,6 +97,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     TArray<TSubclassOf<ARoomModuleBase>> ConnectorFallbackRooms;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain")
+    bool bEnableHallwayChains = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain", meta=(ClampMin="1", ClampMax="4", EditCondition="bEnableHallwayChains"))
+    int32 MaxHallwayChainSegments = 3;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<TObjectPtr<ARoomModuleBase>> SpawnedRooms;
@@ -116,9 +134,9 @@ protected:
     bool TryPlaceRoomForDoor(UPrototypeRoomConnectorComponent* TargetConnector, TSubclassOf<ARoomModuleBase> CandidateClass);
     bool AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRoomConnectorComponent* NewRoomConnector, UPrototypeRoomConnectorComponent* TargetConnector) const;
     bool ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, const ARoomModuleBase* IgnoredRoom) const;
+    bool TryPlaceHallwayChain(UPrototypeRoomConnectorComponent* TargetConnector, int32 RemainingSegments);
     void CloseDoor(UPrototypeRoomConnectorComponent* Connector) const;
     TArray<TSubclassOf<ARoomModuleBase>> BuildCandidateList(const UPrototypeRoomConnectorComponent* TargetConnector, const TArray<TSubclassOf<ARoomModuleBase>>* OverrideList = nullptr, bool bIgnoreCooldown = false) const;
-    UPrototypeRoomConnectorComponent* ChooseConnectorForCandidate(ARoomModuleBase* CandidateRoom, const UPrototypeRoomConnectorComponent* TargetConnector) const;
     int32 FindNextOpenDoorIndex() const;
     bool ValidateReachability() const;
     void DrawDebugState() const;
