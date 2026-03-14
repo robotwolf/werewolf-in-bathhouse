@@ -31,17 +31,31 @@ This guide explains how to use the current assembler stack (C++ + Blueprints + P
   - Deterministic generation via `RunSeed`.
   - Weighted pool + cooldown + connector fallback list.
   - Vertical-ready snapping (`VerticalSnapSize`) to keep future multi-floor alignment deterministic.
+  - Can trigger the `Butch` decoration pass after layout generation.
+
+- `AButchDecorator`
+  - Post-assembly dressing pass.
+  - Reads `UButchDecorationMarkerComponent` markers from spawned room modules.
+  - Current first pass spawns simple cylinder pipe runs from `PipeLane` markers and placeholder meshes for leaks, audio points, window views, and generic props.
+  - Does not participate in structural overlap or connector logic.
+  - `Ginny` can resolve an existing `Butch` actor or auto-spawn one if the map forgot to include him.
+
+- `UButchDecorationMarkerComponent`
+  - Marker component attached to room modules for post-pass dressing.
+  - Used for pipe lanes, leak candidates, audio points, window views, and generic prop anchors.
 
 ## Current Assembler Content
 
 - Generator BP:
   - `/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator`
+  - `AButchDecorator` is a native actor; `Ginny` can spawn one automatically if the map does not already contain a decorator.
 
 - Bathhouse room BPs (script-managed, stock room mode):
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
 
 ## One-Time Setup / Refresh
 
@@ -82,12 +96,13 @@ What it does:
 1. Verifies required paths and root repo.
 2. Fails fast if `UnrealEditor` is open (Live Coding lock prevention).
 3. Builds C++ module.
-4. Runs room setup commandlet.
-5. Runs generator config commandlet.
-6. Syncs generator actors in `GeneratorTest` to the latest blueprint defaults.
-7. Warns if duplicate east L-turn assets are present.
-8. Optionally runs L-turn naming standardization.
-9. Optionally runs deterministic assembler smoke tests.
+4. Rebuilds assembler test materials.
+5. Runs room setup commandlet.
+6. Runs generator config commandlet.
+7. Syncs generator and `Butch` actors in `GeneratorTest` to the latest blueprint defaults.
+8. Warns if duplicate east L-turn assets are present.
+9. Optionally runs L-turn naming standardization.
+10. Optionally runs deterministic assembler smoke tests.
 
 Optional flags:
 - `-SkipBuild`
@@ -101,6 +116,9 @@ Manual equivalent:
 ```powershell
 # Build C++
 D:\EPIC\UE_5.7\Engine\Build\BatchFiles\Build.bat WerewolfNBHEditor Win64 Development -Project="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -WaitMutex -FromMsBuild
+
+# Rebuild assembler test materials
+D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -run=pythonscript -script="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\create_assembler_test_materials.py" -unattended -nop4 -nosourcecontrol
 
 # Rebuild/refresh room blueprints
 D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -run=pythonscript -script="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py" -unattended -nop4 -nosourcecontrol
@@ -149,19 +167,26 @@ Important:
 
 - Pool integration:
   - Current generator defaults use `BP_Room_PublicHall_Straight` plus `BP_Room_PublicHall_Corner` for hallway chaining.
+  - `BP_Room_PublicHall_Stair_Up` is in the general pool with low weight for first-pass vertical expansion.
+  - Because the generator rotates room modules, the stair room can serve as either an up-transition or down-transition depending on which connector it matches.
   - Legacy large L-turn classes remain in content for comparison/testing, but are no longer part of the default generator pool.
   - `ConnectorFallbackRooms` now includes straight hall plus the tiny corner module for chain assembly.
   - `bEnableHallwayChains` is on by default, with `MaxHallwayChainSegments = 3`.
+  - `bRunButchAfterGeneration` is on by default.
+  - `bSpawnButchIfMissing` is also on by default, so `Ginny` will auto-spawn `Butch` when the map forgot him, which is sloppy but now survivable.
   - Canonical east-turn asset naming is `_E`.
   - Current default blockout uses `StockAssemblySettings` to derive a walkable interior from `RoomBoundsBox`; overlap still uses the box, not true wall footprint.
+  - Vertical placement is bounded by `bAllowVerticalTransitions` and `MaxVerticalDisplacement` so stairs can reach one upper level without building a ridiculous goat tower.
+  - Marker-driven decoration is separate from assembly. `Ginny` builds; `Butch` decorates.
 
 - Design note:
   - Assembler logic connects by connectors and bounds.
   - In stock graybox mode, doorway holes are cut procedurally in generated wall pieces using connector-facing walls.
-  - Current room setup script assigns prototype materials by default:
-    - floor: `/Game/LevelPrototyping/Materials/MI_PrototypeGrid_TopDark`
-    - walls: `/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray`
-    - ceiling: `/Game/LevelPrototyping/Materials/MI_PrototypeGrid_Gray_02`
+  - Current room setup script assigns obvious test materials by default:
+    - floor: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Floor`
+    - walls: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Wall`
+    - ceiling: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Ceiling`
+    - extra accent material available: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Accent`
 
 ## Adding a New Room Module (Checklist)
 
@@ -171,12 +196,15 @@ Important:
 4. Size `RoomBoundsBox` to the intended stock room volume.
 5. Enable `StockAssemblySettings.bEnabled` if you want the room to generate floor/ceiling/walls from bounds instead of showing a single cube mesh.
 6. If the room is a tiny corner module, set `StockAssemblySettings.FootprintType` to `CornerSouthEast` and let generator rotation handle the other quadrants.
-7. Set `FloorMaterialOverride`, `WallMaterialOverride`, and `CeilingMaterialOverride` if you want something other than the default cube material tint.
-8. Keep `ParametricSettings.bEnabled = false` unless you are explicitly experimenting outside the current assembler scope.
-9. Add `UPrototypeRoomConnectorComponent` connectors (direction + location + rotation).
-10. Ensure connector compatibility flags match intended network.
-11. Add room class to `RoomClassPool` (with weight/cooldown) or `AvailableRooms`.
-12. Test generation with fixed seed and debug draw enabled.
+7. If the room is a stair transition, set `StockAssemblySettings.FootprintType` to `StairSouthToNorthUp` and place the upper connector at the landing's elevated `Z`.
+8. Set `FloorMaterialOverride`, `WallMaterialOverride`, and `CeilingMaterialOverride` if you want something other than the default cube material tint.
+9. Keep `ParametricSettings.bEnabled = false` unless you are explicitly experimenting outside the current assembler scope.
+10. Add `UPrototypeRoomConnectorComponent` connectors (direction + location + rotation).
+11. For elevated doorways, keep connector `Z` at doorway center height so stock wall carving opens the door at the correct level.
+12. Add `UButchDecorationMarkerComponent` markers if the room should expose pipe lanes, leak candidates, audio points, or prop anchors to `Butch`.
+13. Ensure connector compatibility flags match intended network.
+14. Add room class to `RoomClassPool` (with weight/cooldown) or `AvailableRooms`.
+15. Test generation with fixed seed and debug draw enabled.
 
 ## Debug / Validation
 

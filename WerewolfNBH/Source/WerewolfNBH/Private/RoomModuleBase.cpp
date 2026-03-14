@@ -371,14 +371,30 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     const float FloorThickness = FMath::Clamp(StockAssemblySettings.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
     const float MaxCeilingThickness = FMath::Max(0.0f, FullSize.Z - FloorThickness - 50.0f);
     const float CeilingThickness = FMath::Clamp(StockAssemblySettings.CeilingThickness, 0.0f, MaxCeilingThickness);
+    const float FloorBottomZ = BoxMin.Z;
     const float FloorTopZ = BoxMin.Z + FloorThickness;
     const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
     const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
     const float WallThickness = FMath::Clamp(StockAssemblySettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
     const float DoorWidth = FMath::Max(50.0f, StockAssemblySettings.DoorWidth);
     const float DoorHeight = FMath::Clamp(StockAssemblySettings.DoorHeight, 50.0f, WallHeight);
-    const float HeaderHeight = FMath::Max(0.0f, WallHeight - DoorHeight);
     const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
+
+    auto AddSolidPrism = [this](float MinX, float MaxX, float MinY, float MaxY, float MinZ, float MaxZ)
+    {
+        const float SizeX = MaxX - MinX;
+        const float SizeY = MaxY - MinY;
+        const float SizeZ = MaxZ - MinZ;
+        if (SizeX <= 1.0f || SizeY <= 1.0f || SizeZ <= 1.0f)
+        {
+            return;
+        }
+
+        GeneratedFloorMesh->AddInstance(FTransform(
+            FRotator::ZeroRotator,
+            FVector((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, (MinZ + MaxZ) * 0.5f),
+            FVector(SizeX / 100.0f, SizeY / 100.0f, SizeZ / 100.0f)));
+    };
 
     if (StockAssemblySettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
     {
@@ -400,10 +416,38 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
         return;
     }
 
-    GeneratedFloorMesh->AddInstance(FTransform(
-        FRotator::ZeroRotator,
-        FVector(BoxCenter.X, BoxCenter.Y, BoxMin.Z + FloorThickness * 0.5f),
-        FVector(FullSize.X / 100.0f, FullSize.Y / 100.0f, FloorThickness / 100.0f)));
+    if (StockAssemblySettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp)
+    {
+        const float LowerLandingDepth = FMath::Min(150.0f, FullSize.Y * 0.25f);
+        const float UpperLandingDepth = FMath::Min(150.0f, FullSize.Y * 0.25f);
+        const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
+        const int32 StepCount = 10;
+        const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
+        const float UpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + 400.0f);
+        const float UpperLandingHeight = FMath::Max(FloorThickness, UpperLandingTopZ - FloorBottomZ);
+        const float StepHeight = (UpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
+
+        const float SouthY = BoxMin.Y;
+        const float NorthY = BoxMax.Y;
+        const float LowerLandingMaxY = SouthY + LowerLandingDepth;
+        const float UpperLandingMinY = NorthY - UpperLandingDepth;
+
+        AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, LowerLandingMaxY, FloorBottomZ, FloorTopZ);
+
+        for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+        {
+            const float StepMinY = LowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
+            const float StepMaxY = StepMinY + StepDepth;
+            const float StepTopZ = FloorTopZ + (static_cast<float>(StepIndex) + 1.0f) * StepHeight;
+            AddSolidPrism(BoxMin.X, BoxMax.X, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
+        }
+
+        AddSolidPrism(BoxMin.X, BoxMax.X, UpperLandingMinY, NorthY, FloorBottomZ, UpperLandingTopZ);
+    }
+    else
+    {
+        AddSolidPrism(BoxMin.X, BoxMax.X, BoxMin.Y, BoxMax.Y, FloorBottomZ, FloorTopZ);
+    }
 
     if (CeilingThickness > 0.0f)
     {
@@ -413,10 +457,12 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             FVector(FullSize.X / 100.0f, FullSize.Y / 100.0f, CeilingThickness / 100.0f)));
     }
 
-    struct FInterval
+    struct FDoorCut
     {
         float Start = 0.0f;
         float End = 0.0f;
+        float BottomZ = 0.0f;
+        float TopZ = 0.0f;
     };
 
     struct FWallSpec
@@ -476,7 +522,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
 
     auto BuildWall = [&](const FWallSpec& Wall)
     {
-        TArray<FInterval> DoorCuts;
+        TArray<FDoorCut> DoorCuts;
         const float DoorHalfWidth = DoorWidth * 0.5f;
 
         for (const UPrototypeRoomConnectorComponent* Connector : SortedConnectors)
@@ -500,17 +546,20 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
                 continue;
             }
 
-            FInterval Cut;
+            FDoorCut Cut;
             const float CenterOnRunAxis = Wall.bConstantX ? ConnectorLocation.Y : ConnectorLocation.X;
             Cut.Start = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
             Cut.End = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
-            if (Cut.End - Cut.Start > 1.0f)
+            const float DoorCenterZ = ConnectorLocation.Z;
+            Cut.BottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
+            Cut.TopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, Cut.BottomZ + 1.0f, CeilingBottomZ);
+            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
             {
                 DoorCuts.Add(Cut);
             }
         }
 
-        DoorCuts.Sort([](const FInterval& A, const FInterval& B)
+        DoorCuts.Sort([](const FDoorCut& A, const FDoorCut& B)
         {
             if (!FMath::IsNearlyEqual(A.Start, B.Start))
             {
@@ -519,26 +568,21 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             return A.End < B.End;
         });
 
-        TArray<FInterval> MergedCuts;
-        for (const FInterval& Cut : DoorCuts)
-        {
-            if (MergedCuts.IsEmpty() || Cut.Start > MergedCuts.Last().End + 1.0f)
-            {
-                MergedCuts.Add(Cut);
-            }
-            else
-            {
-                MergedCuts.Last().End = FMath::Max(MergedCuts.Last().End, Cut.End);
-            }
-        }
-
         float Cursor = Wall.RunMin;
-        for (const FInterval& Cut : MergedCuts)
+        for (const FDoorCut& Cut : DoorCuts)
         {
             AddWallPiece(Wall, Cursor, Cut.Start, FloorTopZ, WallHeight);
+
+            const float LowerPieceHeight = Cut.BottomZ - FloorTopZ;
+            if (LowerPieceHeight > 1.0f)
+            {
+                AddWallPiece(Wall, Cut.Start, Cut.End, FloorTopZ, LowerPieceHeight);
+            }
+
+            const float HeaderHeight = CeilingBottomZ - Cut.TopZ;
             if (HeaderHeight > 1.0f)
             {
-                AddWallPiece(Wall, Cut.Start, Cut.End, FloorTopZ + DoorHeight, HeaderHeight);
+                AddWallPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, HeaderHeight);
             }
             Cursor = FMath::Max(Cursor, Cut.End);
         }

@@ -1,9 +1,11 @@
 #include "RoomGenerator.h"
 
+#include "ButchDecorator.h"
 #include "DrawDebugHelpers.h"
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
+#include "EngineUtils.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "PrototypeTestRooms.h"
 #include "RoomModuleBase.h"
@@ -27,6 +29,8 @@ ARoomGenerator::ARoomGenerator()
     DeadEndEntry.Weight = 0.6f;
     DeadEndEntry.MinRoomsBetweenUses = 1;
     RoomClassPool.Add(DeadEndEntry);
+
+    ButchDecoratorClass = AButchDecorator::StaticClass();
 }
 
 void ARoomGenerator::BeginPlay()
@@ -104,6 +108,14 @@ void ARoomGenerator::GenerateLayout()
     const bool bReachable = ValidateReachability();
     LogDebugMessage(FString::Printf(TEXT("RoomGenerator reachability = %s"), bReachable ? TEXT("PASS") : TEXT("FAIL")));
     DrawDebugState();
+
+    if (bRunButchAfterGeneration)
+    {
+        if (AButchDecorator* Decorator = ResolveButchDecorator())
+        {
+            Decorator->DecorateFromGenerator(this);
+        }
+    }
 }
 
 void ARoomGenerator::GenerateLayoutWithNewSeed()
@@ -115,6 +127,11 @@ void ARoomGenerator::GenerateLayoutWithNewSeed()
 
 void ARoomGenerator::ClearGeneratedLayout()
 {
+    if (AButchDecorator* Decorator = FindButchDecorator())
+    {
+        Decorator->ClearDecor();
+    }
+
     for (ARoomModuleBase* Room : SpawnedRooms)
     {
         if (IsValid(Room))
@@ -567,6 +584,11 @@ bool ARoomGenerator::TryPlaceRoomForDoor(UPrototypeRoomConnectorComponent* Targe
             continue;
         }
 
+        if (!ValidateVerticalPlacement(CandidateRoom))
+        {
+            continue;
+        }
+
         TargetConnector->bOccupied = true;
         CandidateConnector->bOccupied = true;
         TargetRoom->RegisterConnection(TargetConnector, CandidateConnector, CandidateRoom);
@@ -635,6 +657,41 @@ bool ARoomGenerator::ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, con
             LogDebugMessage(FString::Printf(TEXT("Rejected %s due to overlap with %s"), *CandidateRoom->GetName(), *ExistingRoom->GetName()));
             return false;
         }
+    }
+
+    return true;
+}
+
+bool ARoomGenerator::ValidateVerticalPlacement(const ARoomModuleBase* CandidateRoom) const
+{
+    if (!CandidateRoom)
+    {
+        return false;
+    }
+
+    const float VerticalDelta = FMath::Abs(CandidateRoom->GetActorLocation().Z - GetActorLocation().Z);
+    if (!bAllowVerticalTransitions)
+    {
+        if (VerticalDelta > FMath::Max(VerticalSnapSize, 1.0f))
+        {
+            LogDebugMessage(FString::Printf(
+                TEXT("Rejected %s due to vertical displacement %.1f while vertical transitions are disabled"),
+                *CandidateRoom->GetName(),
+                VerticalDelta));
+            return false;
+        }
+
+        return true;
+    }
+
+    if (MaxVerticalDisplacement > 0.0f && VerticalDelta > MaxVerticalDisplacement + FMath::Max(VerticalSnapSize, 1.0f))
+    {
+        LogDebugMessage(FString::Printf(
+            TEXT("Rejected %s due to vertical displacement %.1f > max %.1f"),
+            *CandidateRoom->GetName(),
+            VerticalDelta,
+            MaxVerticalDisplacement));
+        return false;
     }
 
     return true;
@@ -867,6 +924,72 @@ void ARoomGenerator::LogDebugMessage(const FString& Message) const
     {
         GEngine->AddOnScreenDebugMessage(-1, 8.0f, FColor::White, Message);
     }
+}
+
+AButchDecorator* ARoomGenerator::FindButchDecorator() const
+{
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+
+    for (TActorIterator<AButchDecorator> It(World); It; ++It)
+    {
+        return *It;
+    }
+
+    return nullptr;
+}
+
+AButchDecorator* ARoomGenerator::ResolveButchDecorator()
+{
+    if (AButchDecorator* ExistingDecorator = FindButchDecorator())
+    {
+        return ExistingDecorator;
+    }
+
+    if (!bRunButchAfterGeneration || !bSpawnButchIfMissing)
+    {
+        return nullptr;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return nullptr;
+    }
+
+    TSubclassOf<AButchDecorator> DecoratorClass = ButchDecoratorClass;
+    if (!DecoratorClass)
+    {
+        DecoratorClass = AButchDecorator::StaticClass();
+    }
+    if (!DecoratorClass)
+    {
+        LogDebugMessage(TEXT("RoomGenerator: Butch could not spawn because no decorator class is configured."));
+        return nullptr;
+    }
+
+    FActorSpawnParameters SpawnParams;
+    SpawnParams.Owner = this;
+    SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+    const FVector SpawnLocation = GetActorLocation() + FVector(0.0f, 0.0f, 40.0f);
+    AButchDecorator* SpawnedDecorator = World->SpawnActor<AButchDecorator>(DecoratorClass, SpawnLocation, FRotator::ZeroRotator, SpawnParams);
+    if (SpawnedDecorator)
+    {
+#if WITH_EDITOR
+        SpawnedDecorator->SetActorLabel(TEXT("Butch"));
+#endif
+        LogDebugMessage(FString::Printf(TEXT("RoomGenerator: spawned Butch decorator %s"), *SpawnedDecorator->GetName()));
+    }
+    else
+    {
+        LogDebugMessage(TEXT("RoomGenerator: failed to spawn Butch decorator."));
+    }
+
+    return SpawnedDecorator;
 }
 
 void ARoomGenerator::RegisterRoomUsage(ARoomModuleBase* Room)

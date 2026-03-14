@@ -2,10 +2,10 @@ import unreal
 
 
 ROOMS_PATH = "/Game/WerewolfBH/Blueprints/Rooms"
-MATERIALS_PATH = "/Game/LevelPrototyping/Materials"
-FLOOR_MATERIAL_PATH = f"{MATERIALS_PATH}/MI_PrototypeGrid_TopDark"
-WALL_MATERIAL_PATH = f"{MATERIALS_PATH}/MI_PrototypeGrid_Gray"
-CEILING_MATERIAL_PATH = f"{MATERIALS_PATH}/MI_PrototypeGrid_Gray_02"
+MATERIALS_PATH = "/Game/WerewolfBH/Materials/Assembler"
+FLOOR_MATERIAL_PATH = f"{MATERIALS_PATH}/M_Assembler_Test_Floor"
+WALL_MATERIAL_PATH = f"{MATERIALS_PATH}/M_Assembler_Test_Wall"
+CEILING_MATERIAL_PATH = f"{MATERIALS_PATH}/M_Assembler_Test_Ceiling"
 
 
 def log(message: str) -> None:
@@ -41,6 +41,21 @@ def find_connector(blueprint, name: str):
         if not obj:
             continue
         if isinstance(obj, unreal.PrototypeRoomConnectorComponent):
+            obj_name = obj.get_name()
+            if obj_name == name or obj_name == f"{name}_GEN_VARIABLE":
+                return obj, handle
+    return None, None
+
+
+def find_marker(blueprint, name: str):
+    subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    handles = subsys.k2_gather_subobject_data_for_blueprint(blueprint)
+    for handle in handles:
+        data = subsys.k2_find_subobject_data_from_handle(handle)
+        obj = unreal.SubobjectDataBlueprintFunctionLibrary.get_associated_object(data)
+        if not obj:
+            continue
+        if isinstance(obj, unreal.ButchDecorationMarkerComponent):
             obj_name = obj.get_name()
             if obj_name == name or obj_name == f"{name}_GEN_VARIABLE":
                 return obj, handle
@@ -158,6 +173,50 @@ def add_connector(blueprint, name: str, location: unreal.Vector, rotation: unrea
     comp.set_editor_property("Direction", direction)
 
 
+def add_marker(blueprint, name: str, location: unreal.Vector, rotation: unreal.Rotator, scale: unreal.Vector, marker_type, radius=80.0, allow_steam=False, tags=None):
+    existing, existing_handle = find_marker(blueprint, name)
+    if existing:
+        existing.set_editor_property("RelativeLocation", location)
+        existing.set_editor_property("RelativeRotation", rotation)
+        existing.set_editor_property("RelativeScale3D", scale)
+        existing.set_editor_property("MarkerID", name)
+        existing.set_editor_property("MarkerType", marker_type)
+        existing.set_editor_property("Radius", radius)
+        existing.set_editor_property("bAllowSteamFx", allow_steam)
+        existing.set_editor_property("SemanticTags", tags or [])
+        return
+
+    subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    handles = subsys.k2_gather_subobject_data_for_blueprint(blueprint)
+    if not handles:
+        raise RuntimeError(f"No subobject handles found for {blueprint.get_name()}")
+
+    params = unreal.AddNewSubobjectParams()
+    params.set_editor_property("parent_handle", handles[0])
+    params.set_editor_property("new_class", unreal.ButchDecorationMarkerComponent)
+    params.set_editor_property("blueprint_context", blueprint)
+    params.set_editor_property("conform_transform_to_parent", True)
+
+    new_handle, fail_reason = subsys.add_new_subobject(params)
+    if not unreal.SubobjectDataBlueprintFunctionLibrary.is_handle_valid(new_handle):
+        raise RuntimeError(f"Failed to add marker {name} to {blueprint.get_name()}: {fail_reason}")
+
+    subsys.rename_subobject(new_handle, name)
+    data = subsys.k2_find_subobject_data_from_handle(new_handle)
+    comp = unreal.SubobjectDataBlueprintFunctionLibrary.get_associated_object(data)
+    if not comp:
+        raise RuntimeError(f"Failed to resolve marker object for {name}")
+
+    comp.set_editor_property("RelativeLocation", location)
+    comp.set_editor_property("RelativeRotation", rotation)
+    comp.set_editor_property("RelativeScale3D", scale)
+    comp.set_editor_property("MarkerID", name)
+    comp.set_editor_property("MarkerType", marker_type)
+    comp.set_editor_property("Radius", radius)
+    comp.set_editor_property("bAllowSteamFx", allow_steam)
+    comp.set_editor_property("SemanticTags", tags or [])
+
+
 def remove_unwanted_connectors(blueprint, allowed_names):
     subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
     handles = subsys.k2_gather_subobject_data_for_blueprint(blueprint)
@@ -174,6 +233,27 @@ def remove_unwanted_connectors(blueprint, allowed_names):
         comp_name = obj.get_name()
         base_name = comp_name.replace("_GEN_VARIABLE", "")
         if base_name.startswith("Conn_") and base_name not in allowed_names:
+            to_delete.append(handle)
+
+    if to_delete:
+        subsys.delete_subobjects(root_handle, to_delete, blueprint)
+
+
+def remove_unwanted_markers(blueprint, allowed_names):
+    subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    handles = subsys.k2_gather_subobject_data_for_blueprint(blueprint)
+    if not handles:
+        return
+
+    root_handle = handles[0]
+    to_delete = []
+    for handle in handles:
+        data = subsys.k2_find_subobject_data_from_handle(handle)
+        obj = unreal.SubobjectDataBlueprintFunctionLibrary.get_associated_object(data)
+        if not obj or not isinstance(obj, unreal.ButchDecorationMarkerComponent):
+            continue
+        obj_name = obj.get_name().replace("_GEN_VARIABLE", "")
+        if obj_name.startswith("Mark_") and obj_name not in allowed_names:
             to_delete.append(handle)
 
     if to_delete:
@@ -202,6 +282,55 @@ def add_cardinal_connectors(blueprint, full_size, include_east=True, include_wes
     remove_unwanted_connectors(blueprint, allowed)
 
 
+def set_entry_markers(blueprint):
+    allowed = set()
+    add_marker(blueprint, "Mark_PropDesk", unreal.Vector(0.0, 0.0, 40.0), unreal.Rotator(), unreal.Vector(1.2, 0.5, 0.8), unreal.ButchDecorationMarkerType.GENERIC_PROP, radius=90.0)
+    allowed.add("Mark_PropDesk")
+    add_marker(blueprint, "Mark_AudioAmbience", unreal.Vector(0.0, 0.0, 300.0), unreal.Rotator(), unreal.Vector(0.25, 0.25, 0.25), unreal.ButchDecorationMarkerType.AUDIO_POINT, radius=150.0)
+    allowed.add("Mark_AudioAmbience")
+    remove_unwanted_markers(blueprint, allowed)
+
+
+def set_locker_markers(blueprint):
+    allowed = set()
+    add_marker(blueprint, "Mark_LockersWest", unreal.Vector(-420.0, 0.0, 60.0), unreal.Rotator(), unreal.Vector(0.45, 2.8, 1.5), unreal.ButchDecorationMarkerType.GENERIC_PROP, radius=100.0)
+    allowed.add("Mark_LockersWest")
+    add_marker(blueprint, "Mark_PipeCeiling", unreal.Vector(0.0, 0.0, 310.0), unreal.Rotator(0.0, 90.0, 0.0), unreal.Vector(8.0, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=120.0)
+    allowed.add("Mark_PipeCeiling")
+    remove_unwanted_markers(blueprint, allowed)
+
+
+def set_straight_hall_markers(blueprint):
+    allowed = set()
+    add_marker(blueprint, "Mark_PipeRun", unreal.Vector(0.0, 0.0, 290.0), unreal.Rotator(0.0, 90.0, 0.0), unreal.Vector(5.5, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=100.0)
+    allowed.add("Mark_PipeRun")
+    add_marker(blueprint, "Mark_LeakEast", unreal.Vector(150.0, 0.0, 220.0), unreal.Rotator(), unreal.Vector(0.12, 0.12, 0.4), unreal.ButchDecorationMarkerType.LEAK_CANDIDATE, radius=80.0, allow_steam=True)
+    allowed.add("Mark_LeakEast")
+    remove_unwanted_markers(blueprint, allowed)
+
+
+def set_corner_markers(blueprint):
+    allowed = set()
+    add_marker(blueprint, "Mark_PipeSouth", unreal.Vector(0.0, -80.0, 290.0), unreal.Rotator(0.0, 90.0, 0.0), unreal.Vector(2.0, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=90.0)
+    allowed.add("Mark_PipeSouth")
+    add_marker(blueprint, "Mark_PipeEast", unreal.Vector(80.0, 0.0, 290.0), unreal.Rotator(0.0, 0.0, 0.0), unreal.Vector(2.0, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=90.0)
+    allowed.add("Mark_PipeEast")
+    add_marker(blueprint, "Mark_LeakCorner", unreal.Vector(110.0, -110.0, 220.0), unreal.Rotator(), unreal.Vector(0.12, 0.12, 0.4), unreal.ButchDecorationMarkerType.STEAM_VENT_CANDIDATE, radius=80.0, allow_steam=True)
+    allowed.add("Mark_LeakCorner")
+    remove_unwanted_markers(blueprint, allowed)
+
+
+def set_stair_markers(blueprint):
+    allowed = set()
+    add_marker(blueprint, "Mark_PipeLower", unreal.Vector(130.0, -180.0, 300.0), unreal.Rotator(0.0, 90.0, 0.0), unreal.Vector(2.2, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=100.0)
+    allowed.add("Mark_PipeLower")
+    add_marker(blueprint, "Mark_PipeUpper", unreal.Vector(-130.0, 180.0, 620.0), unreal.Rotator(0.0, 90.0, 0.0), unreal.Vector(2.2, 0.12, 0.12), unreal.ButchDecorationMarkerType.PIPE_LANE, radius=100.0)
+    allowed.add("Mark_PipeUpper")
+    add_marker(blueprint, "Mark_LeakUpper", unreal.Vector(150.0, 220.0, 560.0), unreal.Rotator(), unreal.Vector(0.12, 0.12, 0.4), unreal.ButchDecorationMarkerType.LEAK_CANDIDATE, radius=90.0, allow_steam=True)
+    allowed.add("Mark_LeakUpper")
+    remove_unwanted_markers(blueprint, allowed)
+
+
 def compile_and_save(blueprint):
     unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
     asset_path = unreal.EditorAssetLibrary.get_path_name_for_loaded_asset(blueprint)
@@ -225,6 +354,7 @@ def main():
     enable_entry_player_start(entry)
     # Two primary exits for prototype: north + south.
     add_cardinal_connectors(entry, entry_size, include_east=False, include_west=False, include_north=True, include_south=True)
+    set_entry_markers(entry)
     compile_and_save(entry)
 
     # Locker Hall
@@ -236,6 +366,7 @@ def main():
     enable_stock_graybox(locker)
     set_stock_materials(locker, floor_material, wall_material, ceiling_material)
     add_cardinal_connectors(locker, locker_size, include_east=True, include_west=True, include_north=True, include_south=True)
+    set_locker_markers(locker)
     compile_and_save(locker)
 
     # Public Hallway Straight
@@ -247,6 +378,7 @@ def main():
     enable_stock_graybox(hall)
     set_stock_materials(hall, floor_material, wall_material, ceiling_material)
     add_cardinal_connectors(hall, hall_size, include_east=False, include_west=False, include_north=True, include_south=True)
+    set_straight_hall_markers(hall)
     compile_and_save(hall)
 
     # Public Hallway Corner Cell (South + East, rotates to other quadrants)
@@ -259,7 +391,23 @@ def main():
     set_stock_footprint(corner, unreal.RoomStockFootprintType.CORNER_SOUTH_EAST)
     set_stock_materials(corner, floor_material, wall_material, ceiling_material)
     add_cardinal_connectors(corner, corner_size, include_east=True, include_west=False, include_north=False, include_south=True)
+    set_corner_markers(corner)
     compile_and_save(corner)
+
+    # Public Hallway Stair Up (enters south at ground, exits north one level up)
+    stair = create_blueprint("BP_Room_PublicHall_Stair_Up")
+    set_room_defaults(stair, "PublicHallStairUp", "PublicHallStair", 0.35, 2, 2, False, unreal.LinearColor(0.85, 0.72, 0.35, 1.0))
+    stair_size = unreal.Vector(400.0, 800.0, 760.0)
+    set_room_bounds(stair, stair_size)
+    disable_parametric_base(stair)
+    enable_stock_graybox(stair)
+    set_stock_footprint(stair, unreal.RoomStockFootprintType.STAIR_SOUTH_TO_NORTH_UP)
+    set_stock_materials(stair, floor_material, wall_material, ceiling_material)
+    add_connector(stair, "Conn_S", unreal.Vector(0.0, -stair_size.y * 0.5, 150.0), unreal.Rotator(pitch=0.0, yaw=-90.0, roll=0.0), unreal.RoomConnectorDirection.SOUTH)
+    add_connector(stair, "Conn_N", unreal.Vector(0.0, stair_size.y * 0.5, 550.0), unreal.Rotator(pitch=0.0, yaw=90.0, roll=0.0), unreal.RoomConnectorDirection.NORTH)
+    remove_unwanted_connectors(stair, {"Conn_S", "Conn_N"})
+    set_stair_markers(stair)
+    compile_and_save(stair)
 
     log("Room setup complete.")
 

@@ -44,6 +44,7 @@ $repoRoot = Split-Path -Parent $projectDir
 $uproject = Join-Path $projectDir "WerewolfNBH.uproject"
 $buildBat = "D:\EPIC\UE_5.7\Engine\Build\BatchFiles\Build.bat"
 $editorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
+$materialSetupScript = Join-Path $scriptDir "create_assembler_test_materials.py"
 $roomSetupScript = Join-Path $scriptDir "setup_bathhouse_rooms.py"
 $standardizeLTurnScript = Join-Path $scriptDir "standardize_lturn_assets.py"
 $generatorConfigScript = Join-Path $scriptDir "configure_assembler_blueprints.py"
@@ -53,6 +54,7 @@ $smokeTestScript = Join-Path $scriptDir "smoke_test_assembler.py"
 Throw-IfMissing $uproject "uproject"
 Throw-IfMissing $buildBat "Build.bat"
 Throw-IfMissing $editorCmd "UnrealEditor-Cmd.exe"
+Throw-IfMissing $materialSetupScript "assembler material setup script"
 Throw-IfMissing $roomSetupScript "room setup script"
 Throw-IfMissing $generatorConfigScript "generator config script"
 Throw-IfMissing $syncGeneratorScript "generator instance sync script"
@@ -95,6 +97,15 @@ else {
 }
 
 if (-not $SkipRoomSetup) {
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
+        "-script=$materialSetupScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Assembler Test Material Setup"
+
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,
         "-run=pythonscript",

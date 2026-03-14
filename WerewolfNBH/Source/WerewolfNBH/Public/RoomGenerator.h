@@ -5,6 +5,7 @@
 #include "RoomGenerator.generated.h"
 
 class ARoomModuleBase;
+class AButchDecorator;
 class UPrototypeRoomConnectorComponent;
 
 USTRUCT()
@@ -65,6 +66,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation", meta=(ClampMin="1.0"))
     float VerticalSnapSize = 10.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Vertical")
+    bool bAllowVerticalTransitions = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Vertical", meta=(ClampMin="0.0", EditCondition="bAllowVerticalTransitions"))
+    float MaxVerticalDisplacement = 420.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     bool bDebugDrawBounds = true;
 
@@ -104,6 +111,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain", meta=(ClampMin="1", ClampMax="4", EditCondition="bEnableHallwayChains"))
     int32 MaxHallwayChainSegments = 3;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration")
+    bool bRunButchAfterGeneration = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration", meta=(EditCondition="bRunButchAfterGeneration"))
+    bool bSpawnButchIfMissing = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration", meta=(EditCondition="bRunButchAfterGeneration"))
+    TSubclassOf<AButchDecorator> ButchDecoratorClass;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<TObjectPtr<ARoomModuleBase>> SpawnedRooms;
 
@@ -133,6 +149,7 @@ protected:
     bool TryExpandFromDoor(FOpenDoorState& DoorState);
     bool TryPlaceRoomForDoor(UPrototypeRoomConnectorComponent* TargetConnector, TSubclassOf<ARoomModuleBase> CandidateClass);
     bool AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRoomConnectorComponent* NewRoomConnector, UPrototypeRoomConnectorComponent* TargetConnector) const;
+    bool ValidateVerticalPlacement(const ARoomModuleBase* CandidateRoom) const;
     bool ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, const ARoomModuleBase* IgnoredRoom) const;
     bool TryPlaceHallwayChain(UPrototypeRoomConnectorComponent* TargetConnector, int32 RemainingSegments);
     void CloseDoor(UPrototypeRoomConnectorComponent* Connector) const;
@@ -141,6 +158,8 @@ protected:
     bool ValidateReachability() const;
     void DrawDebugState() const;
     void LogDebugMessage(const FString& Message) const;
+    AButchDecorator* FindButchDecorator() const;
+    AButchDecorator* ResolveButchDecorator();
     void RegisterRoomUsage(ARoomModuleBase* Room);
     int32 GetRoomsSinceLastUse(TSubclassOf<ARoomModuleBase> RoomClass) const;
     float GetCandidateWeight(TSubclassOf<ARoomModuleBase> CandidateClass) const;

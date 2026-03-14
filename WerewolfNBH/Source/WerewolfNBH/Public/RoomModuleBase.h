@@ -136,7 +136,8 @@ UENUM(BlueprintType)
 enum class ERoomStockFootprintType : uint8
 {
     Rectangle,
-    CornerSouthEast
+    CornerSouthEast,
+    StairSouthToNorthUp
 };
 
 USTRUCT(BlueprintType)

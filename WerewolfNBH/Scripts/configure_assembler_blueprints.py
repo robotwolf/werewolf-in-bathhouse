@@ -6,6 +6,7 @@ ENTRY_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception.BP_Room_E
 LOCKER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall.BP_Room_LockerHall_C"
 PUBLIC_HALL_STRAIGHT_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight.BP_Room_PublicHall_Straight_C"
 PUBLIC_HALL_CORNER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner.BP_Room_PublicHall_Corner_C"
+PUBLIC_HALL_STAIR_UP_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up.BP_Room_PublicHall_Stair_Up_C"
 LTURN_E_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E.BP_Room_PublicHall_LTurn_E_C"
 LTURN_W_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_W.BP_Room_PublicHall_LTurn_W_C"
 
@@ -36,10 +37,11 @@ def main() -> None:
     locker_class = unreal.load_class(None, LOCKER_PATH)
     public_hall_straight_class = unreal.load_class(None, PUBLIC_HALL_STRAIGHT_PATH)
     public_hall_corner_class = unreal.load_class(None, PUBLIC_HALL_CORNER_PATH)
+    public_hall_stair_up_class = unreal.load_class(None, PUBLIC_HALL_STAIR_UP_PATH)
     lturn_e_class = unreal.load_class(None, LTURN_E_PATH)
     lturn_w_class = unreal.load_class(None, LTURN_W_PATH)
 
-    if not entry_class or not locker_class or not public_hall_straight_class or not public_hall_corner_class:
+    if not entry_class or not locker_class or not public_hall_straight_class or not public_hall_corner_class or not public_hall_stair_up_class:
         raise RuntimeError("Could not load one or more bathhouse room blueprint classes")
 
     primary_hall_class = public_hall_straight_class
@@ -50,6 +52,7 @@ def main() -> None:
     append_unique(available_rooms, locker_class)
     append_unique(available_rooms, primary_hall_class)
     append_unique(available_rooms, public_hall_corner_class)
+    append_unique(available_rooms, public_hall_stair_up_class)
     cdo.set_editor_property("AvailableRooms", available_rooms)
     if hasattr(cdo, "ConnectorFallbackRooms"):
         fallback_rooms = []
@@ -60,11 +63,21 @@ def main() -> None:
         cdo.set_editor_property("bEnableHallwayChains", True)
     if hasattr(cdo, "MaxHallwayChainSegments"):
         cdo.set_editor_property("MaxHallwayChainSegments", 3)
+    if hasattr(cdo, "bRunButchAfterGeneration"):
+        cdo.set_editor_property("bRunButchAfterGeneration", True)
+    if hasattr(cdo, "bSpawnButchIfMissing"):
+        cdo.set_editor_property("bSpawnButchIfMissing", True)
+    if hasattr(cdo, "ButchDecoratorClass"):
+        cdo.set_editor_property("ButchDecoratorClass", unreal.ButchDecorator)
     cdo.set_editor_property("RunSeed", 1337)
     cdo.set_editor_property("MaxRooms", 6)
     cdo.set_editor_property("AttemptsPerDoor", 5)
     if hasattr(cdo, "VerticalSnapSize"):
         cdo.set_editor_property("VerticalSnapSize", 10.0)
+    if hasattr(cdo, "bAllowVerticalTransitions"):
+        cdo.set_editor_property("bAllowVerticalTransitions", True)
+    if hasattr(cdo, "MaxVerticalDisplacement"):
+        cdo.set_editor_property("MaxVerticalDisplacement", 420.0)
     cdo.set_editor_property("bUseNewSeedOnGenerate", True)
     cdo.set_editor_property("bDebugDrawBounds", True)
     cdo.set_editor_property("bDebugDrawDoors", True)
@@ -95,9 +108,15 @@ def main() -> None:
         corner_entry.set_editor_property("Weight", 0.9)
         corner_entry.set_editor_property("MinRoomsBetweenUses", 0)
 
+        stair_entry = unreal.RoomClassEntry()
+        stair_entry.set_editor_property("RoomClass", public_hall_stair_up_class)
+        stair_entry.set_editor_property("Weight", 0.35)
+        stair_entry.set_editor_property("MinRoomsBetweenUses", 2)
+
         pool_entries.append(locker_entry)
         pool_entries.append(hall_entry)
         pool_entries.append(corner_entry)
+        pool_entries.append(stair_entry)
 
         cdo.set_editor_property("RoomClassPool", pool_entries)
         readback = cdo.get_editor_property("RoomClassPool")
