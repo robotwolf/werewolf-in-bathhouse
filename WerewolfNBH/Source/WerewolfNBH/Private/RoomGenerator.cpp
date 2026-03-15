@@ -106,7 +106,8 @@ void ARoomGenerator::BeginPlay()
 void ARoomGenerator::GenerateLayout()
 {
     UWorld* World = GetWorld();
-    if (!World || !StartRoomClass)
+    const TSubclassOf<ARoomModuleBase> EffectiveStartRoomClass = GetConfiguredStartRoomClass();
+    if (!World || !EffectiveStartRoomClass)
     {
         LogDebugMessage(TEXT("RoomGenerator: Missing world or StartRoomClass."));
         return;
@@ -118,7 +119,7 @@ void ARoomGenerator::GenerateLayout()
     }
 
     bool bSucceeded = false;
-    const int32 LayoutAttempts = FMath::Max(1, MaxLayoutAttempts);
+    const int32 LayoutAttempts = FMath::Max(1, GetConfiguredMaxLayoutAttempts());
     int32 FinalAttemptSeed = RunSeed;
 
     for (int32 AttemptIndex = 0; AttemptIndex < LayoutAttempts; ++AttemptIndex)
@@ -134,10 +135,10 @@ void ARoomGenerator::GenerateLayout()
         const FVector Origin(
             FMath::GridSnap(GetActorLocation().X, 100.0f),
             FMath::GridSnap(GetActorLocation().Y, 100.0f),
-            FMath::GridSnap(GetActorLocation().Z, VerticalSnapSize));
+            FMath::GridSnap(GetActorLocation().Z, GetConfiguredVerticalSnapSize()));
         const FRotator Rotation(0.0f, FMath::GridSnap(GetActorRotation().Yaw, 90.0f), 0.0f);
 
-        ARoomModuleBase* StartRoom = SpawnRoom(StartRoomClass, FTransform(Rotation, Origin));
+        ARoomModuleBase* StartRoom = SpawnRoom(EffectiveStartRoomClass, FTransform(Rotation, Origin));
         if (!StartRoom)
         {
             LastValidationIssues.Add(TEXT("Failed to spawn start room."));
@@ -186,7 +187,7 @@ void ARoomGenerator::GenerateLayout()
     BuildGenerationSummary(bSucceeded, FinalAttemptSeed);
     DrawDebugState();
 
-    if (bSucceeded && bRunButchAfterGeneration)
+    if (bSucceeded && GetConfiguredRunButchAfterGeneration())
     {
         if (AButchDecorator* Decorator = ResolveButchDecorator())
         {
@@ -337,7 +338,8 @@ bool ARoomGenerator::TryPlaceHallwayChain(
     ARoomModuleBase*& OutPlacedRoom)
 {
     OutPlacedRoom = nullptr;
-    if (!TargetConnector || TargetConnector->bOccupied || RemainingSegments <= 0 || ConnectorFallbackRooms.IsEmpty())
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
+    if (!TargetConnector || TargetConnector->bOccupied || RemainingSegments <= 0 || ConfiguredFallbackRooms.IsEmpty())
     {
         return false;
     }
@@ -427,11 +429,11 @@ bool ARoomGenerator::TryPlaceHallwayChain(
 
     TArray<TSubclassOf<ARoomModuleBase>> HallCandidates = BuildCandidateList(
         TargetConnector,
-        &ConnectorFallbackRooms,
+        &ConfiguredFallbackRooms,
         true,
         EGeneratorPathContext::HallwayChain,
         DepthFromStart);
-    for (int32 Attempt = 0; Attempt < AttemptsPerDoor && !HallCandidates.IsEmpty(); ++Attempt)
+    for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !HallCandidates.IsEmpty(); ++Attempt)
     {
         const int32 PickedIndex = ChooseWeightedCandidateIndex(HallCandidates);
         if (!HallCandidates.IsValidIndex(PickedIndex))
@@ -662,7 +664,7 @@ bool ARoomGenerator::AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRo
     const FVector SnappedLocation(
         FMath::GridSnap(DesiredLocation.X, 100.0f),
         FMath::GridSnap(DesiredLocation.Y, 100.0f),
-        FMath::GridSnap(DesiredLocation.Z, VerticalSnapSize));
+        FMath::GridSnap(DesiredLocation.Z, GetConfiguredVerticalSnapSize()));
 
     NewRoom->SetActorLocation(SnappedLocation);
     return true;
@@ -703,9 +705,10 @@ bool ARoomGenerator::ValidateVerticalPlacement(const ARoomModuleBase* CandidateR
     }
 
     const float VerticalDelta = FMath::Abs(CandidateRoom->GetActorLocation().Z - GetActorLocation().Z);
-    if (!bAllowVerticalTransitions)
+    const float VerticalSnap = GetConfiguredVerticalSnapSize();
+    if (!GetConfiguredAllowVerticalTransitions())
     {
-        if (VerticalDelta > FMath::Max(VerticalSnapSize, 1.0f))
+        if (VerticalDelta > FMath::Max(VerticalSnap, 1.0f))
         {
             LogDebugMessage(FString::Printf(
                 TEXT("[Vertical] Rejected %s due to vertical displacement %.1f while vertical transitions are disabled"),
@@ -717,13 +720,14 @@ bool ARoomGenerator::ValidateVerticalPlacement(const ARoomModuleBase* CandidateR
         return true;
     }
 
-    if (MaxVerticalDisplacement > 0.0f && VerticalDelta > MaxVerticalDisplacement + FMath::Max(VerticalSnapSize, 1.0f))
+    const float MaxVertical = GetConfiguredMaxVerticalDisplacement();
+    if (MaxVertical > 0.0f && VerticalDelta > MaxVertical + FMath::Max(VerticalSnap, 1.0f))
     {
         LogDebugMessage(FString::Printf(
             TEXT("[Vertical] Rejected %s due to vertical displacement %.1f > max %.1f"),
             *CandidateRoom->GetName(),
             VerticalDelta,
-            MaxVerticalDisplacement));
+            MaxVertical));
         return false;
     }
 
@@ -779,21 +783,22 @@ TArray<TSubclassOf<ARoomModuleBase>> ARoomGenerator::BuildCandidateList(
 
     if (OverrideList)
     {
+        const TArray<FRoomClassEntry>& ConfiguredPool = GetConfiguredRoomClassPool();
         for (const TSubclassOf<ARoomModuleBase>& CandidateClass : *OverrideList)
         {
-            TryAddCandidate(CandidateClass, FindEntryForClass(RoomClassPool, CandidateClass));
+            TryAddCandidate(CandidateClass, FindEntryForClass(ConfiguredPool, CandidateClass));
         }
     }
-    else if (!RoomClassPool.IsEmpty())
+    else if (!GetConfiguredRoomClassPool().IsEmpty())
     {
-        for (const FRoomClassEntry& Entry : RoomClassPool)
+        for (const FRoomClassEntry& Entry : GetConfiguredRoomClassPool())
         {
             TryAddCandidate(Entry.RoomClass, &Entry);
         }
     }
     else
     {
-        for (const TSubclassOf<ARoomModuleBase>& CandidateClass : AvailableRooms)
+        for (const TSubclassOf<ARoomModuleBase>& CandidateClass : GetConfiguredAvailableRooms())
         {
             TryAddCandidate(CandidateClass, nullptr);
         }
@@ -866,7 +871,10 @@ bool ARoomGenerator::ValidateLayout(TArray<FString>& OutIssues) const
         return false;
     }
 
-    const int32 TargetSpineLength = FMath::Max(FMath::Clamp(MaxRooms - 2, 3, 5), RequiredMainPathRooms.Num() + 1);
+    const int32 ConfiguredMaxRooms = GetConfiguredMaxRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredRequiredMainPathRooms = GetConfiguredRequiredMainPathRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredRequiredBranchRooms = GetConfiguredRequiredBranchRooms();
+    const int32 TargetSpineLength = FMath::Max(FMath::Clamp(ConfiguredMaxRooms - 2, 3, 5), ConfiguredRequiredMainPathRooms.Num() + 1);
     if (GeneratedMainPathRooms.Num() < TargetSpineLength)
     {
         OutIssues.Add(FString::Printf(TEXT("Main spine too short: %d < %d"), GeneratedMainPathRooms.Num(), TargetSpineLength));
@@ -890,12 +898,12 @@ bool ARoomGenerator::ValidateLayout(TArray<FString>& OutIssues) const
         OutIssues.Add(FString::Printf(TEXT("Missing required %s room: %s"), Label, *GetNameSafe(RequiredClass)));
     };
 
-    RequireClassPresence(StartRoomClass, TEXT("start"));
-    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredMainPathRooms)
+    RequireClassPresence(GetConfiguredStartRoomClass(), TEXT("start"));
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : ConfiguredRequiredMainPathRooms)
     {
         RequireClassPresence(RequiredClass, TEXT("main-path"));
     }
-    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredBranchRooms)
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : ConfiguredRequiredBranchRooms)
     {
         RequireClassPresence(RequiredClass, TEXT("branch"));
     }
@@ -908,17 +916,19 @@ bool ARoomGenerator::ValidateLayout(TArray<FString>& OutIssues) const
         }
 
         const int32 ConnectionCount = Room->GetConnectionCount();
-        if (ConnectionCount < Room->MinConnections || ConnectionCount > Room->MaxConnections)
+        const int32 MinConnections = Room->GetResolvedMinConnections();
+        const int32 MaxConnections = Room->GetResolvedMaxConnections();
+        if (ConnectionCount < MinConnections || ConnectionCount > MaxConnections)
         {
             OutIssues.Add(FString::Printf(
                 TEXT("ConnectionBudget: %s has %d connections, expected %d-%d"),
                 *Room->GetName(),
                 ConnectionCount,
-                Room->MinConnections,
-                Room->MaxConnections));
+                MinConnections,
+                MaxConnections));
         }
 
-        const FRoomPlacementRules& Rules = Room->PlacementRules;
+        const FRoomPlacementRules& Rules = Room->GetResolvedPlacementRules();
         if (Room->GeneratedAssignedRole == ERoomPlacementRole::MainPath && !Rules.bAllowOnMainPath)
         {
             OutIssues.Add(FString::Printf(TEXT("Role: %s ended up on the main path illegally."), *Room->GetName()));
@@ -940,7 +950,7 @@ bool ARoomGenerator::ValidateLayout(TArray<FString>& OutIssues) const
                 continue;
             }
 
-            if (!Room->AllowsNeighborType(OtherRoom->RoomType) || !OtherRoom->AllowsNeighborType(Room->RoomType))
+            if (!Room->AllowsNeighborType(OtherRoom->GetResolvedRoomType()) || !OtherRoom->AllowsNeighborType(Room->GetResolvedRoomType()))
             {
                 OutIssues.Add(FString::Printf(TEXT("Adjacency: %s and %s are not allowed neighbors."), *Room->GetName(), *OtherRoom->GetName()));
             }
@@ -957,18 +967,21 @@ bool ARoomGenerator::BuildSpine()
         return false;
     }
 
-    const int32 TargetSpineLength = FMath::Max(FMath::Clamp(MaxRooms - 2, 3, 5), RequiredMainPathRooms.Num() + 1);
+    const int32 ConfiguredMaxRooms = GetConfiguredMaxRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredRequiredMainPathRooms = GetConfiguredRequiredMainPathRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
+    const int32 TargetSpineLength = FMath::Max(FMath::Clamp(ConfiguredMaxRooms - 2, 3, 5), ConfiguredRequiredMainPathRooms.Num() + 1);
     int32 RequiredIndex = 0;
     int32 SafetyCounter = 0;
 
-    while (SpawnedRooms.Num() < MaxRooms && GeneratedMainPathRooms.Num() < TargetSpineLength && SafetyCounter++ < MaxRooms * 8)
+    while (SpawnedRooms.Num() < ConfiguredMaxRooms && GeneratedMainPathRooms.Num() < TargetSpineLength && SafetyCounter++ < ConfiguredMaxRooms * 8)
     {
         ARoomModuleBase* PlacedRoom = nullptr;
         bool bPlacedSomething = false;
 
-        if (RequiredIndex < RequiredMainPathRooms.Num())
+        if (RequiredIndex < ConfiguredRequiredMainPathRooms.Num())
         {
-            const TSubclassOf<ARoomModuleBase> RequiredClass = RequiredMainPathRooms[RequiredIndex];
+            const TSubclassOf<ARoomModuleBase> RequiredClass = ConfiguredRequiredMainPathRooms[RequiredIndex];
             for (int32 AnchorIndex = GeneratedMainPathRooms.Num() - 1; AnchorIndex >= 0; --AnchorIndex)
             {
                 ARoomModuleBase* AnchorRoom = GeneratedMainPathRooms[AnchorIndex];
@@ -991,7 +1004,7 @@ bool ARoomGenerator::BuildSpine()
                 }
             }
 
-            if (!bPlacedSomething && SpawnedRooms.Num() < MaxRooms)
+            if (!bPlacedSomething && SpawnedRooms.Num() < ConfiguredMaxRooms)
             {
                 for (int32 AnchorIndex = GeneratedMainPathRooms.Num() - 1; AnchorIndex >= 0; --AnchorIndex)
                 {
@@ -1003,7 +1016,7 @@ bool ARoomGenerator::BuildSpine()
 
                     if (TryPlaceFromRoomOpenConnectors(
                         AnchorRoom,
-                        ConnectorFallbackRooms,
+                        ConfiguredFallbackRooms,
                         EGeneratorPathContext::HallwayChain,
                         ERoomPlacementRole::MainPath,
                         AnchorRoom->GeneratedDepthFromStart,
@@ -1051,7 +1064,7 @@ bool ARoomGenerator::BuildSpine()
         }
     }
 
-    return GeneratedMainPathRooms.Num() >= FMath::Min(TargetSpineLength, MaxRooms);
+    return GeneratedMainPathRooms.Num() >= FMath::Min(TargetSpineLength, ConfiguredMaxRooms);
 }
 
 void ARoomGenerator::FillBranches()
@@ -1081,8 +1094,11 @@ void ARoomGenerator::FillBranches()
 
     int32 RequiredIndex = 0;
     int32 SafetyCounter = 0;
+    const int32 ConfiguredMaxRooms = GetConfiguredMaxRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredRequiredBranchRooms = GetConfiguredRequiredBranchRooms();
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
 
-    while (SpawnedRooms.Num() < MaxRooms && SafetyCounter++ < MaxRooms * 8)
+    while (SpawnedRooms.Num() < ConfiguredMaxRooms && SafetyCounter++ < ConfiguredMaxRooms * 8)
     {
         const TArray<UPrototypeRoomConnectorComponent*> Connectors = CollectBranchConnectors();
         if (Connectors.IsEmpty())
@@ -1093,9 +1109,9 @@ void ARoomGenerator::FillBranches()
         ARoomModuleBase* PlacedRoom = nullptr;
         bool bPlacedSomething = false;
 
-        if (RequiredIndex < RequiredBranchRooms.Num())
+        if (RequiredIndex < ConfiguredRequiredBranchRooms.Num())
         {
-            const TSubclassOf<ARoomModuleBase> RequiredClass = RequiredBranchRooms[RequiredIndex];
+            const TSubclassOf<ARoomModuleBase> RequiredClass = ConfiguredRequiredBranchRooms[RequiredIndex];
             if (TryPlaceFromConnectorList(
                 Connectors,
                 {RequiredClass},
@@ -1109,7 +1125,7 @@ void ARoomGenerator::FillBranches()
             }
             else if (TryPlaceFromConnectorList(
                 Connectors,
-                ConnectorFallbackRooms,
+                ConfiguredFallbackRooms,
                 EGeneratorPathContext::HallwayChain,
                 ERoomPlacementRole::Branch,
                 0,
@@ -1194,7 +1210,7 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             ? BuildCandidateList(TargetConnector, nullptr, false, Context, ProposedDepth)
             : BuildCandidateList(TargetConnector, &CandidateClasses, false, Context, ProposedDepth);
 
-        for (int32 Attempt = 0; Attempt < AttemptsPerDoor && !Candidates.IsEmpty(); ++Attempt)
+        for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !Candidates.IsEmpty(); ++Attempt)
         {
             const int32 PickedIndex = ChooseWeightedCandidateIndex(Candidates);
             if (!Candidates.IsValidIndex(PickedIndex))
@@ -1212,10 +1228,11 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             Candidates.RemoveAt(PickedIndex);
         }
 
-        if (CandidateClasses.IsEmpty() && bEnableHallwayChains && MaxHallwayChainSegments > 0 && !ConnectorFallbackRooms.IsEmpty())
+        const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
+        if (CandidateClasses.IsEmpty() && GetConfiguredEnableHallwayChains() && GetConfiguredMaxHallwayChainSegments() > 0 && !ConfiguredFallbackRooms.IsEmpty())
         {
             ARoomModuleBase* ChainPlacedRoom = nullptr;
-            if (TryPlaceHallwayChain(TargetConnector, MaxHallwayChainSegments, Context, AssignedRole, ProposedDepth, ChainPlacedRoom))
+            if (TryPlaceHallwayChain(TargetConnector, GetConfiguredMaxHallwayChainSegments(), Context, AssignedRole, ProposedDepth, ChainPlacedRoom))
             {
                 ++LastHallwayChainUsageCount;
                 OutPlacedRoom = ChainPlacedRoom;
@@ -1318,7 +1335,7 @@ AButchDecorator* ARoomGenerator::ResolveButchDecorator()
         return ExistingDecorator;
     }
 
-    if (!bRunButchAfterGeneration || !bSpawnButchIfMissing)
+    if (!GetConfiguredRunButchAfterGeneration() || !GetConfiguredSpawnButchIfMissing())
     {
         return nullptr;
     }
@@ -1406,7 +1423,7 @@ float ARoomGenerator::GetCandidateWeight(TSubclassOf<ARoomModuleBase> CandidateC
     const float RoomWeight = CandidateCDO ? CandidateCDO->Weight : 1.0f;
     float EntryWeight = 1.0f;
 
-    for (const FRoomClassEntry& Entry : RoomClassPool)
+    for (const FRoomClassEntry& Entry : GetConfiguredRoomClassPool())
     {
         if (Entry.RoomClass == CandidateClass)
         {
@@ -1461,14 +1478,14 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
             return TEXT("None");
         }
 
-        if (!Room->RoomID.IsNone())
+        if (!Room->GetResolvedRoomID().IsNone())
         {
-            return Room->RoomID.ToString();
+            return Room->GetResolvedRoomID().ToString();
         }
 
-        if (!Room->RoomType.IsNone())
+        if (!Room->GetResolvedRoomType().IsNone())
         {
-            return Room->RoomType.ToString();
+            return Room->GetResolvedRoomType().ToString();
         }
 
         return Room->GetName();
@@ -1532,7 +1549,7 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
 
     FString RequiredMainMet;
     FString RequiredMainMissing;
-    FormatClassStatus(RequiredMainPathRooms, RequiredMainMet, RequiredMainMissing);
+    FormatClassStatus(GetConfiguredRequiredMainPathRooms(), RequiredMainMet, RequiredMainMissing);
     LastGenerationSummaryLines.Add(FString::Printf(
         TEXT("RequiredMain Met=[%s] Missing=[%s]"),
         *RequiredMainMet,
@@ -1540,25 +1557,25 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
 
     FString RequiredBranchMet;
     FString RequiredBranchMissing;
-    FormatClassStatus(RequiredBranchRooms, RequiredBranchMet, RequiredBranchMissing);
+    FormatClassStatus(GetConfiguredRequiredBranchRooms(), RequiredBranchMet, RequiredBranchMissing);
     LastGenerationSummaryLines.Add(FString::Printf(
         TEXT("RequiredBranch Met=[%s] Missing=[%s]"),
         *RequiredBranchMet,
         *RequiredBranchMissing));
 
     TSet<TSubclassOf<ARoomModuleBase>> ProgramClasses;
-    if (StartRoomClass)
+    if (GetConfiguredStartRoomClass())
     {
-        ProgramClasses.Add(StartRoomClass);
+        ProgramClasses.Add(GetConfiguredStartRoomClass());
     }
-    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredMainPathRooms)
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : GetConfiguredRequiredMainPathRooms())
     {
         if (RequiredClass)
         {
             ProgramClasses.Add(RequiredClass);
         }
     }
-    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredBranchRooms)
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : GetConfiguredRequiredBranchRooms())
     {
         if (RequiredClass)
         {
@@ -1580,11 +1597,12 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
             OptionalCounts.FindOrAdd(GetRoomLabel(Room))++;
         }
 
-        if (Room->TransitionType != ERoomTransitionType::None)
+        if (Room->GetResolvedTransitionType() != ERoomTransitionType::None)
         {
-            const FString TargetConfig = Room->TransitionTargetConfigId.IsNone()
+            const FName TransitionTarget = Room->GetResolvedTransitionTargetConfigId();
+            const FString TargetConfig = TransitionTarget.IsNone()
                 ? TEXT("None")
-                : Room->TransitionTargetConfigId.ToString();
+                : TransitionTarget.ToString();
             TransitionLabels.Add(FString::Printf(TEXT("%s->%s"), *GetRoomLabel(Room), *TargetConfig));
         }
     }
@@ -1631,13 +1649,13 @@ bool ARoomGenerator::IsCandidateAllowedForContext(
         return false;
     }
 
-    if (!TargetRoom->AllowsNeighborType(CandidateCDO->RoomType) || !CandidateCDO->AllowsNeighborType(TargetRoom->RoomType))
+    if (!TargetRoom->AllowsNeighborType(CandidateCDO->GetResolvedRoomType()) || !CandidateCDO->AllowsNeighborType(TargetRoom->GetResolvedRoomType()))
     {
         OutRejectReason = TEXT("[Adjacency]");
         return false;
     }
 
-    const FRoomPlacementRules& Rules = CandidateCDO->PlacementRules;
+    const FRoomPlacementRules& Rules = CandidateCDO->GetResolvedPlacementRules();
     switch (Context)
     {
     case EGeneratorPathContext::MainPath:
@@ -1655,7 +1673,7 @@ bool ARoomGenerator::IsCandidateAllowedForContext(
         }
         break;
     case EGeneratorPathContext::HallwayChain:
-        if (!ConnectorFallbackRooms.Contains(CandidateClass) || (!Rules.bAllowOnMainPath && !Rules.bAllowOnBranch))
+        if (!GetConfiguredConnectorFallbackRooms().Contains(CandidateClass) || (!Rules.bAllowOnMainPath && !Rules.bAllowOnBranch))
         {
             OutRejectReason = TEXT("[ChainPolicy]");
             return false;
@@ -1685,7 +1703,7 @@ bool ARoomGenerator::IsCandidateAllowedForContext(
         return false;
     }
 
-    if (Rules.PlacementRole == ERoomPlacementRole::Vertical && !bAllowVerticalTransitions)
+    if (Rules.PlacementRole == ERoomPlacementRole::Vertical && !GetConfiguredAllowVerticalTransitions())
     {
         OutRejectReason = TEXT("[Vertical]");
         return false;
@@ -1716,4 +1734,89 @@ int32 ARoomGenerator::CountSpawnedInstancesOfClass(TSubclassOf<ARoomModuleBase> 
     }
 
     return Count;
+}
+
+TSubclassOf<ARoomModuleBase> ARoomGenerator::GetConfiguredStartRoomClass() const
+{
+    return LayoutProfile && LayoutProfile->StartRoomClass ? LayoutProfile->StartRoomClass : StartRoomClass;
+}
+
+TSubclassOf<ARoomModuleBase> ARoomGenerator::GetConfiguredDeadEndRoomClass() const
+{
+    return LayoutProfile && LayoutProfile->DeadEndRoomClass ? LayoutProfile->DeadEndRoomClass : DeadEndRoomClass;
+}
+
+const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredAvailableRooms() const
+{
+    return LayoutProfile ? LayoutProfile->AvailableRooms : AvailableRooms;
+}
+
+const TArray<FRoomClassEntry>& ARoomGenerator::GetConfiguredRoomClassPool() const
+{
+    return LayoutProfile ? LayoutProfile->RoomClassPool : RoomClassPool;
+}
+
+const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredConnectorFallbackRooms() const
+{
+    return LayoutProfile ? LayoutProfile->ConnectorFallbackRooms : ConnectorFallbackRooms;
+}
+
+const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredRequiredMainPathRooms() const
+{
+    return LayoutProfile ? LayoutProfile->RequiredMainPathRooms : RequiredMainPathRooms;
+}
+
+const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredRequiredBranchRooms() const
+{
+    return LayoutProfile ? LayoutProfile->RequiredBranchRooms : RequiredBranchRooms;
+}
+
+int32 ARoomGenerator::GetConfiguredMaxRooms() const
+{
+    return LayoutProfile ? LayoutProfile->MaxRooms : MaxRooms;
+}
+
+int32 ARoomGenerator::GetConfiguredAttemptsPerDoor() const
+{
+    return LayoutProfile ? LayoutProfile->AttemptsPerDoor : AttemptsPerDoor;
+}
+
+float ARoomGenerator::GetConfiguredVerticalSnapSize() const
+{
+    return LayoutProfile ? LayoutProfile->VerticalSnapSize : VerticalSnapSize;
+}
+
+bool ARoomGenerator::GetConfiguredAllowVerticalTransitions() const
+{
+    return LayoutProfile ? LayoutProfile->bAllowVerticalTransitions : bAllowVerticalTransitions;
+}
+
+float ARoomGenerator::GetConfiguredMaxVerticalDisplacement() const
+{
+    return LayoutProfile ? LayoutProfile->MaxVerticalDisplacement : MaxVerticalDisplacement;
+}
+
+int32 ARoomGenerator::GetConfiguredMaxLayoutAttempts() const
+{
+    return LayoutProfile ? LayoutProfile->MaxLayoutAttempts : MaxLayoutAttempts;
+}
+
+bool ARoomGenerator::GetConfiguredEnableHallwayChains() const
+{
+    return LayoutProfile ? LayoutProfile->bEnableHallwayChains : bEnableHallwayChains;
+}
+
+int32 ARoomGenerator::GetConfiguredMaxHallwayChainSegments() const
+{
+    return LayoutProfile ? LayoutProfile->MaxHallwayChainSegments : MaxHallwayChainSegments;
+}
+
+bool ARoomGenerator::GetConfiguredRunButchAfterGeneration() const
+{
+    return LayoutProfile ? LayoutProfile->bRunButchAfterGeneration : bRunButchAfterGeneration;
+}
+
+bool ARoomGenerator::GetConfiguredSpawnButchIfMissing() const
+{
+    return LayoutProfile ? LayoutProfile->bSpawnButchIfMissing : bSpawnButchIfMissing;
 }

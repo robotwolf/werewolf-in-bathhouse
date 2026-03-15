@@ -71,6 +71,9 @@ def build_layout_signature(generator, seed: int):
         issues = generator.get_editor_property("LastValidationIssues")
         fail(f"Layout validation failed for seed {seed}: {issues}")
 
+    if not generator.get_editor_property("LayoutProfile"):
+        fail("Generator is missing LayoutProfile in the profile-backed baseline")
+
     signature = []
     room_set = set(spawned_rooms)
     adjacency = {}
@@ -92,6 +95,8 @@ def build_layout_signature(generator, seed: int):
         room_class_name = room.get_class().get_path_name()
         if PROTOTYPE_ROOM_PREFIX in room_class_name:
             fail(f"Prototype room leaked into default config for seed {seed}: {room_class_name}")
+        if not room.get_editor_property("RoomProfile"):
+            fail(f"Spawned room is missing RoomProfile for seed {seed}: {room.get_name()}")
 
         neighbors = set()
         for record in room.get_editor_property("ConnectedRooms"):
@@ -162,6 +167,9 @@ def build_layout_signature(generator, seed: int):
             fail(f"Stair room is missing transition semantics for seed {seed}")
         if stair_room.get_editor_property("TransitionTargetConfigId") != STAIR_TRANSITION_TARGET:
             fail(f"Stair room transition target mismatch for seed {seed}")
+        stair_profile = stair_room.get_editor_property("RoomProfile")
+        if not stair_profile:
+            fail(f"Stair room is missing its RoomProfile for seed {seed}")
 
     required_branch_types = {"Sauna", "BoilerService"}
     for required_type in required_branch_types:
@@ -196,10 +204,14 @@ def run_negative_validation_probe(generator):
         fail("Negative validation probe could not generate a layout")
 
     target_room = rooms[-1]
-    original_neighbors = list(target_room.get_editor_property("AllowedNeighborRoomTypes"))
-    target_room.set_editor_property("AllowedNeighborRoomTypes", ["DefinitelyNotARoomType"])
+    room_profile = target_room.get_editor_property("RoomProfile")
+    if not room_profile:
+        fail("Negative validation probe target room is missing RoomProfile")
+
+    original_neighbors = list(room_profile.get_editor_property("AllowedNeighborRoomTypes"))
+    room_profile.set_editor_property("AllowedNeighborRoomTypes", ["DefinitelyNotARoomType"])
     valid = generator.run_layout_validation(False)
-    target_room.set_editor_property("AllowedNeighborRoomTypes", original_neighbors)
+    room_profile.set_editor_property("AllowedNeighborRoomTypes", original_neighbors)
     if valid:
         fail("Negative validation probe expected failure, but validation passed")
     log("Negative validation probe behaved correctly.")

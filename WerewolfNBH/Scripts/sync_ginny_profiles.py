@@ -1,0 +1,229 @@
+import unreal
+
+
+DATA_ROOT = "/Game/WerewolfBH/Data/Ginny"
+OPENINGS_PATH = f"{DATA_ROOT}/Openings"
+ROOM_PROFILES_PATH = f"{DATA_ROOT}/Rooms"
+LAYOUTS_PATH = f"{DATA_ROOT}/Layouts"
+
+GENERATOR_BP_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator"
+
+ROOM_BLUEPRINT_PATHS = {
+    "EntryReception": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception",
+    "LockerHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall",
+    "PublicHallStraight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight",
+    "PublicHallCorner": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner",
+    "PublicHallStair": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up",
+    "WashShower": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_WashShower",
+    "PoolHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall",
+    "Sauna": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Sauna",
+    "BoilerService": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_BoilerService",
+    "ColdPlunge": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_ColdPlunge",
+    "SteamRoom": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom",
+    "Toilet": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet",
+    "Storage": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage",
+}
+
+STANDARD_OPENING_ASSET = "DA_GinnyOpening_Standard"
+DOUBLE_WIDE_OPENING_ASSET = "DA_GinnyOpening_DoubleWide"
+BATHHOUSE_LAYOUT_ASSET = "DA_GinnyLayout_Bathhouse_Default"
+STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
+
+
+def log(message: str) -> None:
+    unreal.log(f"[sync_ginny_profiles] {message}")
+
+
+def ensure_folder(path: str) -> None:
+    if not unreal.EditorAssetLibrary.does_directory_exist(path):
+        unreal.EditorAssetLibrary.make_directory(path)
+
+
+def load_asset(path: str):
+    asset = unreal.load_asset(path)
+    if not asset:
+        raise RuntimeError(f"Missing asset: {path}")
+    return asset
+
+
+def create_data_asset(asset_name: str, package_path: str, asset_class):
+    asset_path = f"{package_path}/{asset_name}"
+    existing = unreal.load_asset(asset_path)
+    if existing:
+        return existing
+
+    ensure_folder(package_path)
+    factory = unreal.DataAssetFactory()
+    configured = False
+    for property_name in ("DataAssetClass", "data_asset_class"):
+        try:
+            factory.set_editor_property(property_name, asset_class)
+            configured = True
+            break
+        except Exception:
+            continue
+
+    if not configured:
+        raise RuntimeError(f"Could not configure DataAssetFactory for {asset_class}")
+
+    asset = unreal.AssetToolsHelpers.get_asset_tools().create_asset(asset_name, package_path, asset_class, factory)
+    if not asset:
+        raise RuntimeError(f"Failed to create data asset: {asset_path}")
+    return asset
+
+
+def save_asset(asset) -> None:
+    unreal.EditorAssetLibrary.save_loaded_asset(asset)
+
+
+def get_cdo(blueprint):
+    generated = blueprint.generated_class()
+    if not generated:
+        raise RuntimeError(f"Blueprint has no generated class: {blueprint.get_name()}")
+    return unreal.get_default_object(generated)
+
+
+def load_blueprint(path: str):
+    blueprint = unreal.load_asset(path)
+    if not blueprint:
+        raise RuntimeError(f"Missing blueprint: {path}")
+    return blueprint
+
+
+def compile_and_save_blueprint(blueprint) -> None:
+    unreal.BlueprintEditorLibrary.compile_blueprint(blueprint)
+    unreal.EditorAssetLibrary.save_loaded_asset(blueprint)
+
+
+def find_connector(blueprint, name: str):
+    subsys = unreal.get_engine_subsystem(unreal.SubobjectDataSubsystem)
+    handles = subsys.k2_gather_subobject_data_for_blueprint(blueprint)
+    for handle in handles:
+        data = subsys.k2_find_subobject_data_from_handle(handle)
+        obj = unreal.SubobjectDataBlueprintFunctionLibrary.get_associated_object(data)
+        if not obj:
+            continue
+        if isinstance(obj, unreal.PrototypeRoomConnectorComponent):
+            obj_name = obj.get_name().replace("_GEN_VARIABLE", "")
+            if obj_name == name:
+                return obj
+    return None
+
+
+def configure_opening_profiles():
+    standard = create_data_asset(STANDARD_OPENING_ASSET, OPENINGS_PATH, unreal.GinnyOpeningProfile)
+    standard.set_editor_property("OpeningWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)
+    standard.set_editor_property("CustomOpeningWidth", 240.0)
+    standard.set_editor_property("OpeningHeight", 260.0)
+    standard.set_editor_property("bGenerateFramePieces", True)
+    standard.set_editor_property("FrameThickness", 12.0)
+    standard.set_editor_property("FrameDepth", 18.0)
+    standard.set_editor_property("bGenerateThresholdPiece", False)
+    standard.set_editor_property("ThresholdHeight", 8.0)
+    save_asset(standard)
+
+    double_wide = create_data_asset(DOUBLE_WIDE_OPENING_ASSET, OPENINGS_PATH, unreal.GinnyOpeningProfile)
+    double_wide.set_editor_property("OpeningWidthMode", unreal.RoomStockDoorWidthMode.DOUBLE_WIDE)
+    double_wide.set_editor_property("CustomOpeningWidth", 400.0)
+    double_wide.set_editor_property("OpeningHeight", 300.0)
+    double_wide.set_editor_property("bGenerateFramePieces", True)
+    double_wide.set_editor_property("FrameThickness", 16.0)
+    double_wide.set_editor_property("FrameDepth", 24.0)
+    double_wide.set_editor_property("bGenerateThresholdPiece", False)
+    double_wide.set_editor_property("ThresholdHeight", 8.0)
+    save_asset(double_wide)
+
+    return standard, double_wide
+
+
+def sync_room_profiles(default_opening_profile, stair_opening_profile):
+    room_blueprints = {}
+
+    for profile_name, blueprint_path in ROOM_BLUEPRINT_PATHS.items():
+        blueprint = load_blueprint(blueprint_path)
+        room_blueprints[profile_name] = blueprint
+        cdo = get_cdo(blueprint)
+
+        profile = create_data_asset(f"DA_GinnyRoom_{profile_name}", ROOM_PROFILES_PATH, unreal.GinnyRoomProfile)
+        profile.set_editor_property("RoomID", cdo.get_editor_property("RoomID"))
+        profile.set_editor_property("RoomType", cdo.get_editor_property("RoomType"))
+        profile.set_editor_property("Weight", cdo.get_editor_property("Weight"))
+        profile.set_editor_property("MinConnections", cdo.get_editor_property("MinConnections"))
+        profile.set_editor_property("MaxConnections", cdo.get_editor_property("MaxConnections"))
+        profile.set_editor_property("bRequired", cdo.get_editor_property("bRequired"))
+        profile.set_editor_property("PlacementRules", cdo.get_editor_property("PlacementRules"))
+        profile.set_editor_property("AllowedNeighborRoomTypes", list(cdo.get_editor_property("AllowedNeighborRoomTypes")))
+        profile.set_editor_property("TransitionType", cdo.get_editor_property("TransitionType"))
+        profile.set_editor_property("TransitionTargetConfigId", cdo.get_editor_property("TransitionTargetConfigId"))
+
+        stock_settings = cdo.get_editor_property("StockAssemblySettings")
+        stock_settings.set_editor_property("DoorWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)
+        profile.set_editor_property("StockAssemblySettings", stock_settings)
+        profile.set_editor_property("DefaultOpeningProfile", default_opening_profile)
+        save_asset(profile)
+
+        cdo.set_editor_property("RoomProfile", profile)
+        compile_and_save_blueprint(blueprint)
+
+    stair_blueprint = room_blueprints["PublicHallStair"]
+    stair_cdo = get_cdo(stair_blueprint)
+    stair_profile = stair_cdo.get_editor_property("RoomProfile")
+    stair_profile.set_editor_property("TransitionType", unreal.RoomTransitionType.CONFIG_HANDOFF)
+    stair_profile.set_editor_property("TransitionTargetConfigId", STAIR_TRANSITION_TARGET)
+    stair_profile.set_editor_property("DefaultOpeningProfile", default_opening_profile)
+    save_asset(stair_profile)
+
+    for connector_name in ("Conn_S", "Conn_N"):
+        connector = find_connector(stair_blueprint, connector_name)
+        if connector:
+            connector.set_editor_property("OpeningProfileOverride", stair_opening_profile)
+
+    compile_and_save_blueprint(stair_blueprint)
+    return room_blueprints
+
+
+def sync_layout_profile():
+    generator_bp = load_blueprint(GENERATOR_BP_PATH)
+    generator_cdo = get_cdo(generator_bp)
+
+    layout = create_data_asset(BATHHOUSE_LAYOUT_ASSET, LAYOUTS_PATH, unreal.GinnyLayoutProfile)
+    for property_name in (
+        "StartRoomClass",
+        "DeadEndRoomClass",
+        "AvailableRooms",
+        "RoomClassPool",
+        "ConnectorFallbackRooms",
+        "RequiredMainPathRooms",
+        "RequiredBranchRooms",
+        "MaxRooms",
+        "AttemptsPerDoor",
+        "VerticalSnapSize",
+        "bAllowVerticalTransitions",
+        "MaxVerticalDisplacement",
+        "MaxLayoutAttempts",
+        "bEnableHallwayChains",
+        "MaxHallwayChainSegments",
+        "bRunButchAfterGeneration",
+        "bSpawnButchIfMissing",
+    ):
+        layout.set_editor_property(property_name, generator_cdo.get_editor_property(property_name))
+    save_asset(layout)
+
+    generator_cdo.set_editor_property("LayoutProfile", layout)
+    compile_and_save_blueprint(generator_bp)
+
+
+def main():
+    ensure_folder(DATA_ROOT)
+    ensure_folder(OPENINGS_PATH)
+    ensure_folder(ROOM_PROFILES_PATH)
+    ensure_folder(LAYOUTS_PATH)
+
+    standard_opening, double_wide_opening = configure_opening_profiles()
+    sync_room_profiles(standard_opening, double_wide_opening)
+    sync_layout_profile()
+    log("Synchronized Ginny room, layout, and opening profiles.")
+
+
+if __name__ == "__main__":
+    main()

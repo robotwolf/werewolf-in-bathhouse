@@ -1,11 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GinnyProfiles.h"
 #include "GameFramework/Actor.h"
 #include "RoomGenerator.generated.h"
 
 class ARoomModuleBase;
 class AButchDecorator;
+class UGinnyLayoutProfile;
 class UPrototypeRoomConnectorComponent;
 enum class ERoomPlacementRole : uint8;
 
@@ -29,21 +31,6 @@ struct FOpenDoorState
 
     UPROPERTY()
     int32 FailedAttempts = 0;
-};
-
-USTRUCT(BlueprintType)
-struct FRoomClassEntry
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
-    TSubclassOf<ARoomModuleBase> RoomClass;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation", meta=(ClampMin="0.0"))
-    float Weight = 1.0f;
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation", meta=(ClampMin="0"))
-    int32 MinRoomsBetweenUses = 0;
 };
 
 UCLASS(Blueprintable)
@@ -124,6 +111,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Program")
     TArray<TSubclassOf<ARoomModuleBase>> RequiredBranchRooms;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Profiles")
+    TObjectPtr<UGinnyLayoutProfile> LayoutProfile = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain")
     bool bEnableHallwayChains = true;
@@ -246,4 +236,21 @@ protected:
         bool bIgnoreCooldown,
         FString& OutRejectReason) const;
     int32 CountSpawnedInstancesOfClass(TSubclassOf<ARoomModuleBase> RoomClass) const;
+    TSubclassOf<ARoomModuleBase> GetConfiguredStartRoomClass() const;
+    TSubclassOf<ARoomModuleBase> GetConfiguredDeadEndRoomClass() const;
+    const TArray<TSubclassOf<ARoomModuleBase>>& GetConfiguredAvailableRooms() const;
+    const TArray<FRoomClassEntry>& GetConfiguredRoomClassPool() const;
+    const TArray<TSubclassOf<ARoomModuleBase>>& GetConfiguredConnectorFallbackRooms() const;
+    const TArray<TSubclassOf<ARoomModuleBase>>& GetConfiguredRequiredMainPathRooms() const;
+    const TArray<TSubclassOf<ARoomModuleBase>>& GetConfiguredRequiredBranchRooms() const;
+    int32 GetConfiguredMaxRooms() const;
+    int32 GetConfiguredAttemptsPerDoor() const;
+    float GetConfiguredVerticalSnapSize() const;
+    bool GetConfiguredAllowVerticalTransitions() const;
+    float GetConfiguredMaxVerticalDisplacement() const;
+    int32 GetConfiguredMaxLayoutAttempts() const;
+    bool GetConfiguredEnableHallwayChains() const;
+    int32 GetConfiguredMaxHallwayChainSegments() const;
+    bool GetConfiguredRunButchAfterGeneration() const;
+    bool GetConfiguredSpawnButchIfMissing() const;
 };

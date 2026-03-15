@@ -41,6 +41,7 @@ props = [
     'ConnectorFallbackRooms',
     'RequiredMainPathRooms',
     'RequiredBranchRooms',
+    'LayoutProfile',
     'RunSeed',
     'MaxRooms',
     'AttemptsPerDoor',

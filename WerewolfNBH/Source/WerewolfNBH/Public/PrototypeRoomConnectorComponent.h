@@ -5,6 +5,7 @@
 
 class UArrowComponent;
 class ARoomModuleBase;
+class UGinnyOpeningProfile;
 
 UENUM(BlueprintType)
 enum class ERoomConnectorDirection : uint8
@@ -67,6 +68,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
     bool bCanMoonriseShift = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Openings")
+    TObjectPtr<UGinnyOpeningProfile> OpeningProfileOverride = nullptr;
 
     UFUNCTION(BlueprintPure, Category="Connector")
     bool IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other) const;

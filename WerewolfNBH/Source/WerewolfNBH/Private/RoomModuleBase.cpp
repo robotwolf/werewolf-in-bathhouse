@@ -1,5 +1,6 @@
 #include "RoomModuleBase.h"
 
+#include "GinnyProfiles.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
@@ -56,6 +57,21 @@ namespace
             return BaseWidth * 2.0f;
         case ERoomStockDoorWidthMode::Custom:
             return FMath::Max(50.0f, Settings.CustomDoorWidth);
+        case ERoomStockDoorWidthMode::Standard:
+        default:
+            return BaseWidth;
+        }
+    }
+
+    float ResolveDoorOpeningWidth(const UGinnyOpeningProfile& Profile, const FRoomStockAssemblySettings& FallbackSettings)
+    {
+        const float BaseWidth = FMath::Max(50.0f, FallbackSettings.DoorWidth);
+        switch (Profile.OpeningWidthMode)
+        {
+        case ERoomStockDoorWidthMode::DoubleWide:
+            return BaseWidth * 2.0f;
+        case ERoomStockDoorWidthMode::Custom:
+            return FMath::Max(50.0f, Profile.CustomOpeningWidth);
         case ERoomStockDoorWidthMode::Standard:
         default:
             return BaseWidth;
@@ -226,7 +242,118 @@ TArray<UPrototypeRoomConnectorComponent*> ARoomModuleBase::GetOpenConnectors() c
 
 bool ARoomModuleBase::AllowsNeighborType(FName CandidateRoomType) const
 {
-    return AllowedNeighborRoomTypes.IsEmpty() || AllowedNeighborRoomTypes.Contains(CandidateRoomType);
+    const TArray<FName>& AllowedTypes = GetResolvedAllowedNeighborRoomTypes();
+    return AllowedTypes.IsEmpty() || AllowedTypes.Contains(CandidateRoomType);
+}
+
+const UGinnyRoomProfile* ARoomModuleBase::GetResolvedRoomProfile() const
+{
+    return RoomProfile;
+}
+
+const UGinnyOpeningProfile* ARoomModuleBase::GetResolvedOpeningProfile(const UPrototypeRoomConnectorComponent* Connector) const
+{
+    if (Connector && Connector->OpeningProfileOverride)
+    {
+        return Connector->OpeningProfileOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->DefaultOpeningProfile;
+    }
+
+    return nullptr;
+}
+
+const FRoomPlacementRules& ARoomModuleBase::GetResolvedPlacementRules() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->PlacementRules;
+    }
+
+    return PlacementRules;
+}
+
+const FRoomStockAssemblySettings& ARoomModuleBase::GetResolvedStockAssemblySettings() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->StockAssemblySettings;
+    }
+
+    return StockAssemblySettings;
+}
+
+const TArray<FName>& ARoomModuleBase::GetResolvedAllowedNeighborRoomTypes() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->AllowedNeighborRoomTypes;
+    }
+
+    return AllowedNeighborRoomTypes;
+}
+
+FName ARoomModuleBase::GetResolvedRoomID() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->RoomID;
+    }
+
+    return RoomID;
+}
+
+FName ARoomModuleBase::GetResolvedRoomType() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->RoomType;
+    }
+
+    return RoomType;
+}
+
+int32 ARoomModuleBase::GetResolvedMinConnections() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->MinConnections;
+    }
+
+    return MinConnections;
+}
+
+int32 ARoomModuleBase::GetResolvedMaxConnections() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->MaxConnections;
+    }
+
+    return MaxConnections;
+}
+
+ERoomTransitionType ARoomModuleBase::GetResolvedTransitionType() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->TransitionType;
+    }
+
+    return TransitionType;
+}
+
+FName ARoomModuleBase::GetResolvedTransitionTargetConfigId() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->TransitionTargetConfigId;
+    }
+
+    return TransitionTargetConfigId;
 }
 
 void ARoomModuleBase::RegisterConnection(UPrototypeRoomConnectorComponent* ThisConnector, UPrototypeRoomConnectorComponent* OtherConnector, ARoomModuleBase* OtherRoom)
@@ -295,9 +422,11 @@ void ARoomModuleBase::UpdateRoomNameLabel()
         return;
     }
 
-    const FName DisplayName = !RoomID.IsNone()
-        ? RoomID
-        : (!RoomType.IsNone() ? RoomType : FName(*GetClass()->GetName()));
+    const FName ResolvedRoomID = GetResolvedRoomID();
+    const FName ResolvedRoomType = GetResolvedRoomType();
+    const FName DisplayName = !ResolvedRoomID.IsNone()
+        ? ResolvedRoomID
+        : (!ResolvedRoomType.IsNone() ? ResolvedRoomType : FName(*GetClass()->GetName()));
 
     RoomNameLabel->SetText(FText::FromName(DisplayName));
     RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
@@ -502,22 +631,29 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
 
     ClearGeneratedGrayboxInstances();
 
+    const FRoomStockAssemblySettings& EffectiveStockSettings = GetResolvedStockAssemblySettings();
     const FVector BoxExtent = RoomBoundsBox->GetUnscaledBoxExtent();
     const FVector BoxCenter = RoomBoundsBox->GetRelativeLocation();
     const FVector BoxMin = BoxCenter - BoxExtent;
     const FVector BoxMax = BoxCenter + BoxExtent;
     const FVector FullSize = BoxExtent * 2.0f;
 
-    const float FloorThickness = FMath::Clamp(StockAssemblySettings.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
+    const float FloorThickness = FMath::Clamp(EffectiveStockSettings.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
     const float MaxCeilingThickness = FMath::Max(0.0f, FullSize.Z - FloorThickness - 50.0f);
-    const float CeilingThickness = FMath::Clamp(StockAssemblySettings.CeilingThickness, 0.0f, MaxCeilingThickness);
+    const float CeilingThickness = FMath::Clamp(EffectiveStockSettings.CeilingThickness, 0.0f, MaxCeilingThickness);
     const float FloorBottomZ = BoxMin.Z;
     const float FloorTopZ = BoxMin.Z + FloorThickness;
     const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
     const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
-    const float WallThickness = FMath::Clamp(StockAssemblySettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
-    const float DoorWidth = ResolveDoorOpeningWidth(StockAssemblySettings);
-    const float DoorHeight = FMath::Clamp(StockAssemblySettings.DoorHeight, 50.0f, WallHeight);
+    const float WallThickness = FMath::Clamp(EffectiveStockSettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+    const UGinnyOpeningProfile* DefaultOpeningProfile = GetResolvedOpeningProfile(nullptr);
+    const float DefaultDoorWidth = DefaultOpeningProfile
+        ? ResolveDoorOpeningWidth(*DefaultOpeningProfile, EffectiveStockSettings)
+        : ResolveDoorOpeningWidth(EffectiveStockSettings);
+    const float DefaultDoorHeight = FMath::Clamp(
+        DefaultOpeningProfile ? DefaultOpeningProfile->OpeningHeight : EffectiveStockSettings.DoorHeight,
+        50.0f,
+        WallHeight);
     const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
 
     auto AddSolidPrism = [this](float MinX, float MaxX, float MinY, float MaxY, float MinZ, float MaxZ)
@@ -536,7 +672,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             FVector(SizeX / 100.0f, SizeY / 100.0f, SizeZ / 100.0f)));
     };
 
-    if (StockAssemblySettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
+    if (EffectiveStockSettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
     {
         const float CellSize = FMath::Max(25.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
         TSet<FIntPoint> OccupiedCells;
@@ -552,11 +688,11 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             WallThickness,
             WallHeight,
             CeilingThickness,
-            DoorWidth);
+            DefaultDoorWidth);
         return;
     }
 
-    const bool bIsStairFootprint = StockAssemblySettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp;
+    const bool bIsStairFootprint = EffectiveStockSettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp;
     float StairUpperLandingTopZ = FloorTopZ;
     float StairLowerLandingMaxY = BoxMin.Y;
     float StairUpperLandingMinY = BoxMax.Y;
@@ -564,8 +700,8 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     if (bIsStairFootprint)
     {
         const float MaxWalkWidth = FMath::Max(100.0f, FullSize.X - (WallThickness * 2.0f));
-        const float StairSideInset = FMath::Clamp(StockAssemblySettings.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
-        const float RequestedWalkWidth = FMath::Clamp(StockAssemblySettings.StairWalkWidth, 100.0f, MaxWalkWidth);
+        const float StairSideInset = FMath::Clamp(EffectiveStockSettings.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
+        const float RequestedWalkWidth = FMath::Clamp(EffectiveStockSettings.StairWalkWidth, 100.0f, MaxWalkWidth);
         const float StairWalkWidth = FMath::Clamp(
             RequestedWalkWidth,
             100.0f,
@@ -573,12 +709,12 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
         const float StairMinX = BoxCenter.X - StairWalkWidth * 0.5f;
         const float StairMaxX = BoxCenter.X + StairWalkWidth * 0.5f;
 
-        const float LowerLandingDepth = FMath::Clamp(StockAssemblySettings.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
-        const float UpperLandingDepth = FMath::Clamp(StockAssemblySettings.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
+        const float LowerLandingDepth = FMath::Clamp(EffectiveStockSettings.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
+        const float UpperLandingDepth = FMath::Clamp(EffectiveStockSettings.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
         const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
-        const int32 StepCount = FMath::Clamp(StockAssemblySettings.StairStepCount, 3, 64);
+        const int32 StepCount = FMath::Clamp(EffectiveStockSettings.StairStepCount, 3, 64);
         const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
-        StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, StockAssemblySettings.StairRiseHeight));
+        StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, EffectiveStockSettings.StairRiseHeight));
         const float StepHeight = (StairUpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
 
         const float SouthY = BoxMin.Y;
@@ -617,6 +753,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
         float End = 0.0f;
         float BottomZ = 0.0f;
         float TopZ = 0.0f;
+        const UGinnyOpeningProfile* OpeningProfile = nullptr;
     };
 
     struct FWallSpec
@@ -690,7 +827,6 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     auto BuildWall = [&](const FWallSpec& Wall)
     {
         TArray<FDoorCut> DoorCuts;
-        const float DoorHalfWidth = DoorWidth * 0.5f;
 
         for (const UPrototypeRoomConnectorComponent* Connector : SortedConnectors)
         {
@@ -715,22 +851,38 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
 
             const float CenterOnRunAxis = Wall.bConstantX ? ConnectorLocation.Y : ConnectorLocation.X;
             const float DoorCenterZ = ConnectorLocation.Z;
+            const UGinnyOpeningProfile* OpeningProfile = GetResolvedOpeningProfile(Connector);
+            const float DoorWidth = OpeningProfile ? ResolveDoorOpeningWidth(*OpeningProfile, EffectiveStockSettings) : DefaultDoorWidth;
+            const float DoorHeight = FMath::Clamp(
+                OpeningProfile ? OpeningProfile->OpeningHeight : DefaultDoorHeight,
+                50.0f,
+                WallHeight);
+            const float DoorHalfWidth = DoorWidth * 0.5f;
             const float CutStart = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
             const float CutEnd = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
             const float CutBottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
             const float CutTopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, CutBottomZ + 1.0f, CeilingBottomZ);
-            AddDoorCut(DoorCuts, CutStart, CutEnd, CutBottomZ, CutTopZ);
+            FDoorCut Cut;
+            Cut.Start = CutStart;
+            Cut.End = CutEnd;
+            Cut.BottomZ = CutBottomZ;
+            Cut.TopZ = CutTopZ;
+            Cut.OpeningProfile = OpeningProfile;
+            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
+            {
+                DoorCuts.Add(Cut);
+            }
         }
 
-        if (bIsStairFootprint && Wall.bConstantX && StockAssemblySettings.bCreateStairLandingSideOpenings)
+        if (bIsStairFootprint && Wall.bConstantX && EffectiveStockSettings.bCreateStairLandingSideOpenings)
         {
             const float StairSideOpeningWidth = FMath::Clamp(
-                StockAssemblySettings.StairLandingSideOpeningWidth,
+                EffectiveStockSettings.StairLandingSideOpeningWidth,
                 50.0f,
                 FMath::Max(50.0f, Wall.RunMax - Wall.RunMin));
             const float StairSideOpeningHalfWidth = StairSideOpeningWidth * 0.5f;
             const float StairSideOpeningHeight = FMath::Clamp(
-                StockAssemblySettings.StairLandingSideOpeningHeight,
+                EffectiveStockSettings.StairLandingSideOpeningHeight,
                 50.0f,
                 FMath::Max(50.0f, CeilingBottomZ - FloorTopZ));
 
@@ -761,6 +913,67 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             return A.End < B.End;
         });
 
+        auto AddTrimPiece = [&](const FWallSpec& TrimWall, float TrimStart, float TrimEnd, float BottomZ, float PieceHeight, float Depth)
+        {
+            const float PieceLength = TrimEnd - TrimStart;
+            if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
+            {
+                return;
+            }
+
+            if (TrimWall.bConstantX)
+            {
+                const FVector Location(
+                    TrimWall.ConstantCoord + TrimWall.Normal.X * Depth * 0.5f,
+                    (TrimStart + TrimEnd) * 0.5f,
+                    BottomZ + PieceHeight * 0.5f);
+                GeneratedWallMesh->AddInstance(FTransform(
+                    FRotator::ZeroRotator,
+                    Location,
+                    FVector(Depth / 100.0f, PieceLength / 100.0f, PieceHeight / 100.0f)));
+                return;
+            }
+
+            const FVector Location(
+                (TrimStart + TrimEnd) * 0.5f,
+                TrimWall.ConstantCoord + TrimWall.Normal.Y * Depth * 0.5f,
+                BottomZ + PieceHeight * 0.5f);
+            GeneratedWallMesh->AddInstance(FTransform(
+                FRotator::ZeroRotator,
+                Location,
+                FVector(PieceLength / 100.0f, Depth / 100.0f, PieceHeight / 100.0f)));
+        };
+
+        auto AddOpeningTrim = [&](const FDoorCut& Cut)
+        {
+            const UGinnyOpeningProfile* OpeningProfile = Cut.OpeningProfile;
+            if (!OpeningProfile)
+            {
+                return;
+            }
+
+            const float FrameThickness = FMath::Clamp(OpeningProfile->FrameThickness, 1.0f, 60.0f);
+            const float FrameDepth = FMath::Clamp(OpeningProfile->FrameDepth, 1.0f, WallThickness * 2.0f);
+
+            if (OpeningProfile->bGenerateFramePieces)
+            {
+                AddTrimPiece(Wall, Cut.Start - FrameThickness, Cut.Start, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
+                AddTrimPiece(Wall, Cut.End, Cut.End + FrameThickness, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
+                AddTrimPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, FrameThickness, FrameDepth);
+            }
+
+            if (OpeningProfile->bGenerateThresholdPiece)
+            {
+                AddTrimPiece(
+                    Wall,
+                    Cut.Start,
+                    Cut.End,
+                    Cut.BottomZ,
+                    FMath::Clamp(OpeningProfile->ThresholdHeight, 1.0f, 40.0f),
+                    FrameDepth);
+            }
+        };
+
         float Cursor = Wall.RunMin;
         for (const FDoorCut& Cut : DoorCuts)
         {
@@ -777,6 +990,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
             {
                 AddWallPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, HeaderHeight);
             }
+            AddOpeningTrim(Cut);
             Cursor = FMath::Max(Cursor, Cut.End);
         }
 

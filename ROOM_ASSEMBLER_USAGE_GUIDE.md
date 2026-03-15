@@ -17,18 +17,50 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
 
 ## Core Classes
 
+- `UGinnyOpeningProfile`
+  - Data asset that defines what a stock-generated connector opening looks like.
+  - Current v1 supports rectangular openings only.
+  - Carries reusable opening settings:
+    - `Standard`
+    - `DoubleWide`
+    - `Custom`
+  - Also owns adjacent construction settings such as frame and threshold generation.
+
+- `UGinnyRoomProfile`
+  - Data asset that defines room semantics and stock assembly defaults.
+  - Intended to be the long-term source of truth for:
+    - room id / room type
+    - placement rules
+    - allowed neighbors
+    - connection budgets
+    - transition metadata
+    - default opening profile
+    - stock graybox settings
+
+- `UGinnyLayoutProfile`
+  - Data asset that defines generator policy for a whole local layout regime.
+  - Intended to be the long-term source of truth for:
+    - start room
+    - required main path
+    - required branches
+    - optional room pool
+    - hallway fallback pool
+    - room budget / attempts
+    - vertical enablement
+    - optional landmark content such as the stair
+
 - `ARoomModuleBase`
   - Base class for stock room modules.
   - Uses `RoomBoundsBox` as the authoritative footprint/overlap volume.
   - Generates walkable graybox interiors from bounds using floor, ceiling, and wall cube pieces.
   - Supports connector-driven door openings.
-  - Supports reusable stock door opening profiles: `Standard`, `DoubleWide`, and `Custom`.
+  - Supports profile-driven connector openings with precedence:
+    1. connector `OpeningProfileOverride`
+    2. room profile `DefaultOpeningProfile`
+    3. legacy stock settings fallback
   - Provides optional room-name labels and connector debug-arrow visibility control for faster layout inspection.
   - Supports transition-room metadata with `TransitionType` and `TransitionTargetConfigId`.
-  - Stores room semantics:
-    - `RoomType`
-    - `AllowedNeighborRoomTypes`
-    - `PlacementRules`
+  - Resolves room semantics from `RoomProfile` first, then falls back to BP-authored legacy fields.
   - Tracks runtime generation info:
     - `GeneratedDepthFromStart`
     - `GeneratedAssignedRole`
@@ -38,6 +70,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Door/link point component.
   - Directional, occupiable, and deterministic.
   - Still the basis for alignment.
+  - Can override its opening behavior with `OpeningProfileOverride`.
   - Debug arrows stay visible in-editor and hide by default during play.
 
 - `ARoomGenerator`
@@ -48,6 +81,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Uses deterministic retries via `MaxLayoutAttempts`.
   - Performs final semantic validation before accepting a layout.
   - Stores a generation-complete report in `LastGenerationSummaryLines`.
+  - Resolves layout policy from `LayoutProfile` first, then falls back to legacy generator properties.
   - Logs to `LogGinny`.
 
 - `AButchDecorator`
@@ -138,20 +172,42 @@ The current stable program is:
 - Generator BP:
   - `/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator`
 
+- Bathhouse layout profile:
+  - `/Game/WerewolfBH/Data/Ginny/Layouts/DA_GinnyLayout_Bathhouse_Default`
+
+- Opening profiles:
+  - `/Game/WerewolfBH/Data/Ginny/Openings/DA_GinnyOpening_Standard`
+  - `/Game/WerewolfBH/Data/Ginny/Openings/DA_GinnyOpening_DoubleWide`
+
 - Room BPs managed by the setup script:
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_WashShower`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Sauna`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_BoilerService`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_ColdPlunge`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
-- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Sauna`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_BoilerService`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_ColdPlunge`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
+
+- Room profiles:
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_EntryReception`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_LockerHall`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_WashShower`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PoolHall`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_Sauna`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_BoilerService`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_ColdPlunge`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_SteamRoom`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_Toilet`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_Storage`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallStraight`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallCorner`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallStair`
 
 Notes:
 
@@ -266,9 +322,14 @@ If all attempts fail:
 
 ## Default Generator Config
 
-Healthy default generator settings are authored by:
+Healthy default generator settings are now primarily authored by:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Ginny\Layouts\DA_GinnyLayout_Bathhouse_Default`
+
+Migration/bootstrap helpers still in use:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 
 Expected healthy defaults:
@@ -303,6 +364,7 @@ Key scripts:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\refresh_assembler.ps1`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
 
@@ -312,14 +374,16 @@ Key scripts:
 
 - determinism on repeated seed
 - no prototype rooms in healthy default
-- no stair room in healthy default
 - no `Butch` actor in healthy default
+- generator has a `LayoutProfile`
+- spawned rooms have `RoomProfile`
 - first room is `EntryReception`
 - first room after entry is `PublicHallStraight`
 - `LockerHall` is not directly adjacent to `EntryReception`
 - hallway fallback list contains only straight/corner hall pieces
 - all rooms satisfy connection budgets
 - main path length is at least `3`
+- stair appears at most once, never on the main path, and reports `SecondFloor_PrivateCubicles` if present
 - negative validation probe correctly fails when adjacency is corrupted
 
 Current healthy test seeds:
@@ -331,16 +395,35 @@ Current healthy test seeds:
 ## Adding or Updating a Room
 
 1. Make the BP inherit from `ARoomModuleBase`.
-2. Set `RoomType`.
-3. Set `AllowedNeighborRoomTypes` explicitly.
-4. Set `PlacementRules`.
-5. Size `RoomBoundsBox`.
-6. Enable stock graybox generation.
+2. Duplicate or assign a `UGinnyRoomProfile`.
+3. Set the profile's `RoomType`, neighbor rules, placement rules, and connection budget.
+4. Size `RoomBoundsBox`.
+5. Enable stock graybox generation.
+6. Assign a default `UGinnyOpeningProfile` if the room needs something other than legacy fallback behavior.
 7. Add only the connectors the room honestly needs.
-8. Keep the room within the bathhouse program instead of inventing a new architectural religion on the spot.
-9. For placeholder bathing/service reads, primitive feature meshes are fine:
+8. Override a connector's `OpeningProfileOverride` only when that connector should differ from the room default.
+9. Keep the room inside the active layout program instead of inventing a new architectural religion on the spot.
+10. For placeholder bathing/service reads, primitive feature meshes are fine:
    - flattened cylinders for plunge/pool basins
    - cubes for benches, shelving, stalls, counters, and simple fixtures
+
+## Profile Precedence
+
+Room semantics resolve in this order:
+
+1. `RoomProfile`
+2. legacy BP-authored fields on `ARoomModuleBase`
+
+Opening behavior resolves in this order:
+
+1. connector `OpeningProfileOverride`
+2. room profile `DefaultOpeningProfile`
+3. legacy `StockAssemblySettings`
+
+Generator policy resolves in this order:
+
+1. `LayoutProfile`
+2. legacy BP-authored fields on `ARoomGenerator`
 
 ## Debugging
 
@@ -376,10 +459,14 @@ Standard rejection labels:
 These are intentionally not part of the healthy default right now:
 
 - `Butch` decoration pass
-- stairs / vertical generation
 - multi-floor assembly
 - outside theater staging
 - fancy parametric geometry experiments
+
+Clarification:
+
+- the stair exists in the healthy default as an optional branch landmark and future transition seam
+- actual upstairs generation and vertical continuation are still paused
 
 They are paused, not deleted.
 

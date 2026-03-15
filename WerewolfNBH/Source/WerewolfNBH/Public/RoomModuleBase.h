@@ -13,6 +13,8 @@ class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UTextRenderComponent;
+class UGinnyOpeningProfile;
+class UGinnyRoomProfile;
 
 UENUM(BlueprintType)
 enum class ERoomParametricFootprintType : uint8
@@ -353,6 +355,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     FRoomStockAssemblySettings StockAssemblySettings;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Profiles")
+    TObjectPtr<UGinnyRoomProfile> RoomProfile = nullptr;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> LegacyRoomMaterialOverride = nullptr;
 
@@ -413,6 +418,28 @@ public:
     UFUNCTION(BlueprintPure, Category="Room")
     bool AllowsNeighborType(FName CandidateRoomType) const;
 
+    UFUNCTION(BlueprintPure, Category="Room")
+    FName GetResolvedRoomID() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    FName GetResolvedRoomType() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    int32 GetResolvedMinConnections() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    int32 GetResolvedMaxConnections() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    ERoomTransitionType GetResolvedTransitionType() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    FName GetResolvedTransitionTargetConfigId() const;
+
+    const FRoomPlacementRules& GetResolvedPlacementRules() const;
+
+    const FRoomStockAssemblySettings& GetResolvedStockAssemblySettings() const;
+
     UFUNCTION(BlueprintCallable, Category="Room")
     void RegisterConnection(UPrototypeRoomConnectorComponent* ThisConnector, UPrototypeRoomConnectorComponent* OtherConnector, ARoomModuleBase* OtherRoom);
 
@@ -435,6 +462,9 @@ protected:
     TObjectPtr<UMaterialInterface> DefaultMaterial;
 
     UPrototypeRoomConnectorComponent* CreateConnector(const FName Name, const FVector& RelativeLocation, const FRotator& RelativeRotation, ERoomConnectorDirection Direction);
+    const UGinnyRoomProfile* GetResolvedRoomProfile() const;
+    const UGinnyOpeningProfile* GetResolvedOpeningProfile(const UPrototypeRoomConnectorComponent* Connector) const;
+    const TArray<FName>& GetResolvedAllowedNeighborRoomTypes() const;
 
     void BuildParametricGraybox();
     void BuildStockBoundsGraybox();
