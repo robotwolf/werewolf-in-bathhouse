@@ -1,5 +1,6 @@
 #include "RoomModuleBase.h"
 
+#include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/ChildActorComponent.h"
@@ -8,6 +9,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerStart.h"
@@ -44,11 +46,27 @@ namespace
     {
         return FVector2D((static_cast<float>(Cell.X) + 0.5f) * CellSize, (static_cast<float>(Cell.Y) + 0.5f) * CellSize);
     }
+
+    float ResolveDoorOpeningWidth(const FRoomStockAssemblySettings& Settings)
+    {
+        const float BaseWidth = FMath::Max(50.0f, Settings.DoorWidth);
+        switch (Settings.DoorWidthMode)
+        {
+        case ERoomStockDoorWidthMode::DoubleWide:
+            return BaseWidth * 2.0f;
+        case ERoomStockDoorWidthMode::Custom:
+            return FMath::Max(50.0f, Settings.CustomDoorWidth);
+        case ERoomStockDoorWidthMode::Standard:
+        default:
+            return BaseWidth;
+        }
+    }
 }
 
 ARoomModuleBase::ARoomModuleBase()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
@@ -114,11 +132,24 @@ ARoomModuleBase::ARoomModuleBase()
     }
 }
 
+void ARoomModuleBase::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    UpdateRoomNameBillboard();
+}
+
+bool ARoomModuleBase::ShouldTickIfViewportsOnly() const
+{
+    return bShowRoomNameLabel && bBillboardRoomNameLabel;
+}
+
 void ARoomModuleBase::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
     RefreshConnectorCache();
+    UpdateConnectorDebugVisualization();
 
     if (ParametricSettings.bEnabled)
     {
@@ -148,6 +179,7 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
 
     UpdatePlayerStartPlacement();
     UpdateRoomNameLabel();
+    UpdateRoomNameBillboard();
 }
 
 void ARoomModuleBase::RefreshConnectorCache()
@@ -161,6 +193,20 @@ void ARoomModuleBase::RefreshConnectorCache()
         {
             DoorSockets.Add(Connector);
         }
+    }
+}
+
+void ARoomModuleBase::UpdateConnectorDebugVisualization()
+{
+    for (UPrototypeRoomConnectorComponent* Connector : DoorSockets)
+    {
+        if (!Connector || !Connector->ArrowComponent)
+        {
+            continue;
+        }
+
+        Connector->ArrowComponent->SetVisibility(bShowConnectorDebugArrows);
+        Connector->ArrowComponent->SetHiddenInGame(Connector->bHideArrowInGame || !bShowConnectorDebugArrows);
     }
 }
 
@@ -256,6 +302,32 @@ void ARoomModuleBase::UpdateRoomNameLabel()
     RoomNameLabel->SetText(FText::FromName(DisplayName));
     RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
     RoomNameLabel->SetRelativeLocation(RoomBoundsBox->GetRelativeLocation() + RoomNameLabelOffset);
+    RoomNameLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+    RoomNameLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+}
+
+void ARoomModuleBase::UpdateRoomNameBillboard()
+{
+    if (!RoomNameLabel || !bShowRoomNameLabel || !bBillboardRoomNameLabel)
+    {
+        return;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World || World->ViewLocationsRenderedLastFrame.IsEmpty())
+    {
+        return;
+    }
+
+    FVector ToView = World->ViewLocationsRenderedLastFrame[0] - RoomNameLabel->GetComponentLocation();
+    ToView.Z = 0.0f;
+    if (ToView.IsNearlyZero())
+    {
+        return;
+    }
+
+    const FRotator FacingRotation = FRotationMatrix::MakeFromX(ToView).Rotator();
+    RoomNameLabel->SetWorldRotation(FRotator(0.0f, FacingRotation.Yaw + 180.0f, 0.0f));
 }
 
 FBox ARoomModuleBase::GetWorldBounds(float ShrinkBy) const
@@ -444,7 +516,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
     const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
     const float WallThickness = FMath::Clamp(StockAssemblySettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
-    const float DoorWidth = FMath::Max(50.0f, StockAssemblySettings.DoorWidth);
+    const float DoorWidth = ResolveDoorOpeningWidth(StockAssemblySettings);
     const float DoorHeight = FMath::Clamp(StockAssemblySettings.DoorHeight, 50.0f, WallHeight);
     const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
 
@@ -484,33 +556,47 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
         return;
     }
 
-    if (StockAssemblySettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp)
+    const bool bIsStairFootprint = StockAssemblySettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp;
+    float StairUpperLandingTopZ = FloorTopZ;
+    float StairLowerLandingMaxY = BoxMin.Y;
+    float StairUpperLandingMinY = BoxMax.Y;
+
+    if (bIsStairFootprint)
     {
-        const float LowerLandingDepth = FMath::Min(150.0f, FullSize.Y * 0.25f);
-        const float UpperLandingDepth = FMath::Min(150.0f, FullSize.Y * 0.25f);
+        const float MaxWalkWidth = FMath::Max(100.0f, FullSize.X - (WallThickness * 2.0f));
+        const float StairSideInset = FMath::Clamp(StockAssemblySettings.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
+        const float RequestedWalkWidth = FMath::Clamp(StockAssemblySettings.StairWalkWidth, 100.0f, MaxWalkWidth);
+        const float StairWalkWidth = FMath::Clamp(
+            RequestedWalkWidth,
+            100.0f,
+            FMath::Max(100.0f, FullSize.X - StairSideInset * 2.0f));
+        const float StairMinX = BoxCenter.X - StairWalkWidth * 0.5f;
+        const float StairMaxX = BoxCenter.X + StairWalkWidth * 0.5f;
+
+        const float LowerLandingDepth = FMath::Clamp(StockAssemblySettings.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
+        const float UpperLandingDepth = FMath::Clamp(StockAssemblySettings.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
         const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
-        const int32 StepCount = 10;
+        const int32 StepCount = FMath::Clamp(StockAssemblySettings.StairStepCount, 3, 64);
         const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
-        const float UpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + 400.0f);
-        const float UpperLandingHeight = FMath::Max(FloorThickness, UpperLandingTopZ - FloorBottomZ);
-        const float StepHeight = (UpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
+        StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, StockAssemblySettings.StairRiseHeight));
+        const float StepHeight = (StairUpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
 
         const float SouthY = BoxMin.Y;
         const float NorthY = BoxMax.Y;
-        const float LowerLandingMaxY = SouthY + LowerLandingDepth;
-        const float UpperLandingMinY = NorthY - UpperLandingDepth;
+        StairLowerLandingMaxY = SouthY + LowerLandingDepth;
+        StairUpperLandingMinY = NorthY - UpperLandingDepth;
 
-        AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, LowerLandingMaxY, FloorBottomZ, FloorTopZ);
+        AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, StairLowerLandingMaxY, FloorBottomZ, FloorTopZ);
 
         for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
         {
-            const float StepMinY = LowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
+            const float StepMinY = StairLowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
             const float StepMaxY = StepMinY + StepDepth;
             const float StepTopZ = FloorTopZ + (static_cast<float>(StepIndex) + 1.0f) * StepHeight;
-            AddSolidPrism(BoxMin.X, BoxMax.X, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
+            AddSolidPrism(StairMinX, StairMaxX, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
         }
 
-        AddSolidPrism(BoxMin.X, BoxMax.X, UpperLandingMinY, NorthY, FloorBottomZ, UpperLandingTopZ);
+        AddSolidPrism(BoxMin.X, BoxMax.X, StairUpperLandingMinY, NorthY, FloorBottomZ, StairUpperLandingTopZ);
     }
     else
     {
@@ -540,6 +626,19 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
         float RunMin = 0.0f;
         float RunMax = 0.0f;
         FVector2D Normal = FVector2D::ZeroVector;
+    };
+
+    auto AddDoorCut = [](TArray<FDoorCut>& DoorCuts, float Start, float End, float BottomZ, float TopZ)
+    {
+        FDoorCut Cut;
+        Cut.Start = Start;
+        Cut.End = End;
+        Cut.BottomZ = BottomZ;
+        Cut.TopZ = TopZ;
+        if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
+        {
+            DoorCuts.Add(Cut);
+        }
     };
 
     TArray<const UPrototypeRoomConnectorComponent*> SortedConnectors;
@@ -614,17 +713,43 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
                 continue;
             }
 
-            FDoorCut Cut;
             const float CenterOnRunAxis = Wall.bConstantX ? ConnectorLocation.Y : ConnectorLocation.X;
-            Cut.Start = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
-            Cut.End = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
             const float DoorCenterZ = ConnectorLocation.Z;
-            Cut.BottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
-            Cut.TopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, Cut.BottomZ + 1.0f, CeilingBottomZ);
-            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
-            {
-                DoorCuts.Add(Cut);
-            }
+            const float CutStart = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
+            const float CutEnd = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
+            const float CutBottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
+            const float CutTopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, CutBottomZ + 1.0f, CeilingBottomZ);
+            AddDoorCut(DoorCuts, CutStart, CutEnd, CutBottomZ, CutTopZ);
+        }
+
+        if (bIsStairFootprint && Wall.bConstantX && StockAssemblySettings.bCreateStairLandingSideOpenings)
+        {
+            const float StairSideOpeningWidth = FMath::Clamp(
+                StockAssemblySettings.StairLandingSideOpeningWidth,
+                50.0f,
+                FMath::Max(50.0f, Wall.RunMax - Wall.RunMin));
+            const float StairSideOpeningHalfWidth = StairSideOpeningWidth * 0.5f;
+            const float StairSideOpeningHeight = FMath::Clamp(
+                StockAssemblySettings.StairLandingSideOpeningHeight,
+                50.0f,
+                FMath::Max(50.0f, CeilingBottomZ - FloorTopZ));
+
+            const float LowerLandingCenterY = (BoxMin.Y + StairLowerLandingMaxY) * 0.5f;
+            const float UpperLandingCenterY = (StairUpperLandingMinY + BoxMax.Y) * 0.5f;
+
+            AddDoorCut(
+                DoorCuts,
+                FMath::Max(Wall.RunMin, LowerLandingCenterY - StairSideOpeningHalfWidth),
+                FMath::Min(Wall.RunMax, LowerLandingCenterY + StairSideOpeningHalfWidth),
+                FloorTopZ,
+                FMath::Clamp(FloorTopZ + StairSideOpeningHeight, FloorTopZ + 1.0f, CeilingBottomZ));
+
+            AddDoorCut(
+                DoorCuts,
+                FMath::Max(Wall.RunMin, UpperLandingCenterY - StairSideOpeningHalfWidth),
+                FMath::Min(Wall.RunMax, UpperLandingCenterY + StairSideOpeningHalfWidth),
+                StairUpperLandingTopZ,
+                FMath::Clamp(StairUpperLandingTopZ + StairSideOpeningHeight, StairUpperLandingTopZ + 1.0f, CeilingBottomZ));
         }
 
         DoorCuts.Sort([](const FDoorCut& A, const FDoorCut& B)

@@ -101,6 +101,7 @@ def main() -> None:
     append_unique(available_rooms, steam_class)
     append_unique(available_rooms, toilet_class)
     append_unique(available_rooms, storage_class)
+    append_unique(available_rooms, public_hall_stair_up_class)
     append_unique(available_rooms, primary_hall_class)
     append_unique(available_rooms, public_hall_corner_class)
     cdo.set_editor_property("AvailableRooms", available_rooms)
@@ -194,6 +195,11 @@ def main() -> None:
         storage_entry.set_editor_property("Weight", 0.24)
         storage_entry.set_editor_property("MinRoomsBetweenUses", 2)
 
+        stair_entry = unreal.RoomClassEntry()
+        stair_entry.set_editor_property("RoomClass", public_hall_stair_up_class)
+        stair_entry.set_editor_property("Weight", 0.18)
+        stair_entry.set_editor_property("MinRoomsBetweenUses", 4)
+
         hall_entry = unreal.RoomClassEntry()
         hall_entry.set_editor_property("RoomClass", primary_hall_class)
         hall_entry.set_editor_property("Weight", 1.4)
@@ -213,6 +219,7 @@ def main() -> None:
         pool_entries.append(steam_entry)
         pool_entries.append(toilet_entry)
         pool_entries.append(storage_entry)
+        pool_entries.append(stair_entry)
         pool_entries.append(hall_entry)
         pool_entries.append(corner_entry)
 

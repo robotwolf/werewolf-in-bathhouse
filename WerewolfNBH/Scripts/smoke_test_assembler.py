@@ -6,6 +6,7 @@ SEEDS = (1337, 1338, 1351)
 PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
 STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
 BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_ButchDecorator_C"
+STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
 
 
 def log(message: str) -> None:
@@ -91,8 +92,6 @@ def build_layout_signature(generator, seed: int):
         room_class_name = room.get_class().get_path_name()
         if PROTOTYPE_ROOM_PREFIX in room_class_name:
             fail(f"Prototype room leaked into default config for seed {seed}: {room_class_name}")
-        if STAIR_CLASS_FRAGMENT in room_class_name:
-            fail(f"Stair room appeared in healthy 2D default config for seed {seed}: {room_class_name}")
 
         neighbors = set()
         for record in room.get_editor_property("ConnectedRooms"):
@@ -141,11 +140,47 @@ def build_layout_signature(generator, seed: int):
     if not fallback_paths or any(("PublicHall_Straight" not in path and "PublicHall_Corner" not in path) for path in fallback_paths):
         fail(f"ConnectorFallbackRooms contains non-hallway classes: {sorted(fallback_paths)}")
 
+    available_paths = {cls.get_path_name() for cls in generator.get_editor_property("AvailableRooms") if cls}
+    if not any(STAIR_CLASS_FRAGMENT in path for path in available_paths):
+        fail("Stair room is not present in AvailableRooms despite being part of the optional branch policy")
+
     butch_class = unreal.load_class(None, BUTCH_CLASS_PATH)
     if butch_class:
         butch_actors = unreal.GameplayStatics.get_all_actors_of_class(generator.get_world(), butch_class)
         if butch_actors:
             fail(f"Butch should be frozen in healthy default config, but found {len(butch_actors)} actor(s)")
+
+    stair_rooms = [room for room in spawned_rooms if STAIR_CLASS_FRAGMENT in room.get_class().get_path_name()]
+    if len(stair_rooms) > 1:
+        fail(f"Expected at most one stair room, found {len(stair_rooms)} for seed {seed}")
+
+    main_path_set = set(ordered_main_path)
+    for stair_room in stair_rooms:
+        if stair_room in main_path_set:
+            fail(f"Stair room should not appear on the main path for seed {seed}")
+        if stair_room.get_editor_property("TransitionType") == unreal.RoomTransitionType.NONE:
+            fail(f"Stair room is missing transition semantics for seed {seed}")
+        if stair_room.get_editor_property("TransitionTargetConfigId") != STAIR_TRANSITION_TARGET:
+            fail(f"Stair room transition target mismatch for seed {seed}")
+
+    required_branch_types = {"Sauna", "BoilerService"}
+    for required_type in required_branch_types:
+        if not any(room.get_editor_property("RoomType") == required_type for room in spawned_rooms):
+            fail(f"Missing required branch room {required_type} for seed {seed}")
+
+    summary_lines = list(generator.get_editor_property("LastGenerationSummaryLines"))
+    if not summary_lines:
+        fail(f"Generation summary was empty for seed {seed}")
+    if not any(f"Seed={seed}" in line for line in summary_lines):
+        fail(f"Generation summary did not report seed {seed}")
+    if not any("RequiredMain " in line for line in summary_lines):
+        fail("Generation summary missing RequiredMain line")
+    if not any("RequiredBranch " in line for line in summary_lines):
+        fail("Generation summary missing RequiredBranch line")
+    if not any("Transitions=" in line for line in summary_lines):
+        fail("Generation summary missing Transitions line")
+    if stair_rooms and not any(STAIR_TRANSITION_TARGET in line for line in summary_lines):
+        fail(f"Generation summary did not mention stair transition target {STAIR_TRANSITION_TARGET}")
 
     signature.sort()
     log(f"Seed {seed} spawned {len(spawned_rooms)} reachable rooms.")

@@ -149,6 +149,15 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<FString> LastValidationIssues;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    TArray<FString> LastGenerationSummaryLines;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    int32 LastGenerationAttemptSeed = 0;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    int32 LastHallwayChainUsageCount = 0;
+
     UPROPERTY(VisibleInstanceOnly, Category="Generation")
     TArray<FOpenDoorState> OpenDoors;
 
@@ -226,6 +235,7 @@ protected:
     int32 GetRoomsSinceLastUse(TSubclassOf<ARoomModuleBase> RoomClass) const;
     float GetCandidateWeight(TSubclassOf<ARoomModuleBase> CandidateClass) const;
     int32 ChooseWeightedCandidateIndex(const TArray<TSubclassOf<ARoomModuleBase>>& Candidates);
+    void BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed);
     bool IsCandidateAllowedForContext(
         const ARoomModuleBase* TargetRoom,
         const ARoomModuleBase* CandidateCDO,

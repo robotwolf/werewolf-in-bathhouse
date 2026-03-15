@@ -177,6 +177,29 @@ enum class ERoomStockFootprintType : uint8
     StairSouthToNorthUp
 };
 
+UENUM(BlueprintType)
+enum class ERoomStockStairLayoutType : uint8
+{
+    Straight,
+    Dogleg,
+    Switchback
+};
+
+UENUM(BlueprintType)
+enum class ERoomStockDoorWidthMode : uint8
+{
+    Standard,
+    DoubleWide,
+    Custom
+};
+
+UENUM(BlueprintType)
+enum class ERoomTransitionType : uint8
+{
+    None,
+    ConfigHandoff
+};
+
 USTRUCT(BlueprintType)
 struct FRoomStockAssemblySettings
 {
@@ -200,8 +223,44 @@ struct FRoomStockAssemblySettings
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox", meta=(ClampMin="50.0"))
     float DoorWidth = 200.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox")
+    ERoomStockDoorWidthMode DoorWidthMode = ERoomStockDoorWidthMode::Standard;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox", meta=(ClampMin="50.0", EditCondition="DoorWidthMode==ERoomStockDoorWidthMode::Custom", EditConditionHides))
+    float CustomDoorWidth = 240.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox", meta=(ClampMin="50.0"))
     float DoorHeight = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs")
+    ERoomStockStairLayoutType StairLayoutType = ERoomStockStairLayoutType::Straight;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="100.0"))
+    float StairWalkWidth = 700.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="50.0"))
+    float StairLowerLandingDepth = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="50.0"))
+    float StairUpperLandingDepth = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="3", ClampMax="64"))
+    int32 StairStepCount = 12;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="100.0"))
+    float StairRiseHeight = 400.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="0.0"))
+    float StairSideInset = 80.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs")
+    bool bCreateStairLandingSideOpenings = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="50.0"))
+    float StairLandingSideOpeningWidth = 320.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Stairs", meta=(ClampMin="50.0"))
+    float StairLandingSideOpeningHeight = 260.0f;
 };
 
 UCLASS(Blueprintable)
@@ -213,6 +272,8 @@ public:
     ARoomModuleBase();
 
     virtual void OnConstruction(const FTransform& Transform) override;
+    virtual void Tick(float DeltaSeconds) override;
+    virtual bool ShouldTickIfViewportsOnly() const override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<USceneComponent> SceneRoot;
@@ -271,11 +332,17 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     bool bShowRoomNameLabel = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bBillboardRoomNameLabel = true;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug", meta=(ClampMin="8.0"))
     float RoomNameLabelWorldSize = 48.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     FVector RoomNameLabelOffset = FVector::ZeroVector;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bShowConnectorDebugArrows = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Placement")
     FRoomPlacementRules PlacementRules;
@@ -306,6 +373,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     TArray<FName> AllowedNeighborRoomTypes;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Transition")
+    ERoomTransitionType TransitionType = ERoomTransitionType::None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Transition")
+    FName TransitionTargetConfigId = NAME_None;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room")
     TArray<TObjectPtr<UPrototypeRoomConnectorComponent>> DoorSockets;
@@ -369,6 +442,8 @@ protected:
     void UpdateGeneratedGrayboxMaterial();
     void UpdatePlayerStartPlacement();
     void UpdateRoomNameLabel();
+    void UpdateRoomNameBillboard();
+    void UpdateConnectorDebugVisualization();
     void BuildFootprintCells(TSet<FIntPoint>& OutCells) const;
     void AddRectangleCells(TSet<FIntPoint>& OutCells, const FVector2D& Size) const;
     void AddPolygonCells(TSet<FIntPoint>& OutCells, const TArray<FVector2D>& Vertices) const;

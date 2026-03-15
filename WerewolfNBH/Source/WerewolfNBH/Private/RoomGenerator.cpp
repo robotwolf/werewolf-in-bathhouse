@@ -119,12 +119,14 @@ void ARoomGenerator::GenerateLayout()
 
     bool bSucceeded = false;
     const int32 LayoutAttempts = FMath::Max(1, MaxLayoutAttempts);
+    int32 FinalAttemptSeed = RunSeed;
 
     for (int32 AttemptIndex = 0; AttemptIndex < LayoutAttempts; ++AttemptIndex)
     {
         ClearGeneratedLayout();
 
         const int32 AttemptSeed = RunSeed + (AttemptIndex * 9973);
+        FinalAttemptSeed = AttemptSeed;
         RandomStream.Initialize(AttemptSeed);
         LastValidationIssues.Reset();
         LogDebugMessage(FString::Printf(TEXT("RoomGenerator seed = %d (attempt %d/%d)"), AttemptSeed, AttemptIndex + 1, LayoutAttempts));
@@ -180,6 +182,8 @@ void ARoomGenerator::GenerateLayout()
         LastValidationIssues.Add(TEXT("Layout generation failed without a specific validation issue."));
     }
 
+    LastGenerationAttemptSeed = FinalAttemptSeed;
+    BuildGenerationSummary(bSucceeded, FinalAttemptSeed);
     DrawDebugState();
 
     if (bSucceeded && bRunButchAfterGeneration)
@@ -218,6 +222,9 @@ void ARoomGenerator::ClearGeneratedLayout()
     OpenDoors.Reset();
     LastUsedIndex.Reset();
     LastValidationIssues.Reset();
+    LastGenerationSummaryLines.Reset();
+    LastGenerationAttemptSeed = 0;
+    LastHallwayChainUsageCount = 0;
     RoomSpawnIndex = 0;
 }
 
@@ -1210,6 +1217,7 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             ARoomModuleBase* ChainPlacedRoom = nullptr;
             if (TryPlaceHallwayChain(TargetConnector, MaxHallwayChainSegments, Context, AssignedRole, ProposedDepth, ChainPlacedRoom))
             {
+                ++LastHallwayChainUsageCount;
                 OutPlacedRoom = ChainPlacedRoom;
                 return true;
             }
@@ -1440,6 +1448,171 @@ int32 ARoomGenerator::ChooseWeightedCandidateIndex(const TArray<TSubclassOf<ARoo
     }
 
     return Candidates.Num() - 1;
+}
+
+void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
+{
+    LastGenerationSummaryLines.Reset();
+
+    auto GetRoomLabel = [](const ARoomModuleBase* Room) -> FString
+    {
+        if (!Room)
+        {
+            return TEXT("None");
+        }
+
+        if (!Room->RoomID.IsNone())
+        {
+            return Room->RoomID.ToString();
+        }
+
+        if (!Room->RoomType.IsNone())
+        {
+            return Room->RoomType.ToString();
+        }
+
+        return Room->GetName();
+    };
+
+    auto GetClassLabel = [&](TSubclassOf<ARoomModuleBase> RoomClass) -> FString
+    {
+        const ARoomModuleBase* CDO = RoomClass ? RoomClass->GetDefaultObject<ARoomModuleBase>() : nullptr;
+        return GetRoomLabel(CDO);
+    };
+
+    auto FormatClassStatus = [&](const TArray<TSubclassOf<ARoomModuleBase>>& RequiredClasses, FString& OutMet, FString& OutMissing)
+    {
+        TArray<FString> MetLabels;
+        TArray<FString> MissingLabels;
+
+        for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredClasses)
+        {
+            if (!RequiredClass)
+            {
+                continue;
+            }
+
+            const bool bFound = SpawnedRooms.ContainsByPredicate([&](const ARoomModuleBase* Room)
+            {
+                return Room && Room->GetClass() == RequiredClass;
+            });
+
+            if (bFound)
+            {
+                MetLabels.Add(GetClassLabel(RequiredClass));
+            }
+            else
+            {
+                MissingLabels.Add(GetClassLabel(RequiredClass));
+            }
+        }
+
+        OutMet = MetLabels.IsEmpty() ? TEXT("None") : FString::Join(MetLabels, TEXT(", "));
+        OutMissing = MissingLabels.IsEmpty() ? TEXT("None") : FString::Join(MissingLabels, TEXT(", "));
+    };
+
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("Result=%s Seed=%d Rooms=%d HallwayChains=%d"),
+        bSucceeded ? TEXT("PASS") : TEXT("FAIL"),
+        AttemptSeed,
+        SpawnedRooms.Num(),
+        LastHallwayChainUsageCount));
+
+    TArray<FString> MainPathLabels;
+    for (const ARoomModuleBase* Room : GeneratedMainPathRooms)
+    {
+        if (Room)
+        {
+            MainPathLabels.Add(GetRoomLabel(Room));
+        }
+    }
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("MainPath=%s"),
+        MainPathLabels.IsEmpty() ? TEXT("None") : *FString::Join(MainPathLabels, TEXT(" -> "))));
+
+    FString RequiredMainMet;
+    FString RequiredMainMissing;
+    FormatClassStatus(RequiredMainPathRooms, RequiredMainMet, RequiredMainMissing);
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("RequiredMain Met=[%s] Missing=[%s]"),
+        *RequiredMainMet,
+        *RequiredMainMissing));
+
+    FString RequiredBranchMet;
+    FString RequiredBranchMissing;
+    FormatClassStatus(RequiredBranchRooms, RequiredBranchMet, RequiredBranchMissing);
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("RequiredBranch Met=[%s] Missing=[%s]"),
+        *RequiredBranchMet,
+        *RequiredBranchMissing));
+
+    TSet<TSubclassOf<ARoomModuleBase>> ProgramClasses;
+    if (StartRoomClass)
+    {
+        ProgramClasses.Add(StartRoomClass);
+    }
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredMainPathRooms)
+    {
+        if (RequiredClass)
+        {
+            ProgramClasses.Add(RequiredClass);
+        }
+    }
+    for (const TSubclassOf<ARoomModuleBase>& RequiredClass : RequiredBranchRooms)
+    {
+        if (RequiredClass)
+        {
+            ProgramClasses.Add(RequiredClass);
+        }
+    }
+
+    TMap<FString, int32> OptionalCounts;
+    TArray<FString> TransitionLabels;
+    for (const ARoomModuleBase* Room : SpawnedRooms)
+    {
+        if (!Room)
+        {
+            continue;
+        }
+
+        if (!ProgramClasses.Contains(Room->GetClass()))
+        {
+            OptionalCounts.FindOrAdd(GetRoomLabel(Room))++;
+        }
+
+        if (Room->TransitionType != ERoomTransitionType::None)
+        {
+            const FString TargetConfig = Room->TransitionTargetConfigId.IsNone()
+                ? TEXT("None")
+                : Room->TransitionTargetConfigId.ToString();
+            TransitionLabels.Add(FString::Printf(TEXT("%s->%s"), *GetRoomLabel(Room), *TargetConfig));
+        }
+    }
+
+    TArray<FString> OptionalLabels;
+    for (const TPair<FString, int32>& Pair : OptionalCounts)
+    {
+        OptionalLabels.Add(FString::Printf(TEXT("%s x%d"), *Pair.Key, Pair.Value));
+    }
+    OptionalLabels.Sort();
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("OptionalChoices=%s"),
+        OptionalLabels.IsEmpty() ? TEXT("None") : *FString::Join(OptionalLabels, TEXT(", "))));
+
+    TransitionLabels.Sort();
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("Transitions=%s"),
+        TransitionLabels.IsEmpty() ? TEXT("None") : *FString::Join(TransitionLabels, TEXT(", "))));
+
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("ValidationIssues=%s"),
+        LastValidationIssues.IsEmpty() ? TEXT("None") : *FString::Join(LastValidationIssues, TEXT(" | "))));
+
+    LogDebugMessage(TEXT("GenerationComplete"));
+    for (const FString& SummaryLine : LastGenerationSummaryLines)
+    {
+        LogDebugMessage(FString::Printf(TEXT("  %s"), *SummaryLine));
+    }
 }
 
 bool ARoomGenerator::IsCandidateAllowedForContext(

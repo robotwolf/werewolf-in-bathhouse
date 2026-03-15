@@ -12,7 +12,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - `stock graybox rooms`
   - `RoomBoundsBox` drives placement and overlap
   - `Butch` decoration pass frozen
-  - `stairs frozen`
+  - `stairs are optional branch landmarks only`
   - `guided main spine + short branches`
 
 ## Core Classes
@@ -22,6 +22,9 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Uses `RoomBoundsBox` as the authoritative footprint/overlap volume.
   - Generates walkable graybox interiors from bounds using floor, ceiling, and wall cube pieces.
   - Supports connector-driven door openings.
+  - Supports reusable stock door opening profiles: `Standard`, `DoubleWide`, and `Custom`.
+  - Provides optional room-name labels and connector debug-arrow visibility control for faster layout inspection.
+  - Supports transition-room metadata with `TransitionType` and `TransitionTargetConfigId`.
   - Stores room semantics:
     - `RoomType`
     - `AllowedNeighborRoomTypes`
@@ -35,6 +38,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Door/link point component.
   - Directional, occupiable, and deterministic.
   - Still the basis for alignment.
+  - Debug arrows stay visible in-editor and hide by default during play.
 
 - `ARoomGenerator`
   - `Ginny`.
@@ -43,6 +47,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     2. `FillBranches`
   - Uses deterministic retries via `MaxLayoutAttempts`.
   - Performs final semantic validation before accepting a layout.
+  - Stores a generation-complete report in `LastGenerationSummaryLines`.
   - Logs to `LogGinny`.
 
 - `AButchDecorator`
@@ -124,7 +129,9 @@ The current stable program is:
   - branch-only service room
 
 - `PublicHallStair`
-  - frozen out of healthy default generation
+  - optional branch landmark only
+  - transition-ready handoff room
+  - currently goes nowhere by design
 
 ## Current Content
 
@@ -148,7 +155,8 @@ The current stable program is:
 
 Notes:
 
-- `BP_Room_PublicHall_Stair_Up` still exists, but is excluded from default generation.
+- `BP_Room_PublicHall_Stair_Up` can appear as a single optional branch landmark.
+- The stair blueprint now uses a broader public-stair profile and is marked as a future handoff to `SecondFloor_PrivateCubicles`.
 - Legacy large L-turn assets are not part of the healthy default pool.
 - `Butch` still exists, but default generator config keeps him asleep.
 - The new support rooms are optional pool/branch content, not part of the required core path.
@@ -162,6 +170,17 @@ These are centralized in `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNB
 - ceiling thickness: `20.0` uu (`0.2 m`)
 - doorway width: `200.0` uu
 - doorway height: `260.0` uu
+- opening width modes:
+  - `Standard` = `DoorWidth`
+  - `DoubleWide` = `DoorWidth * 2`
+  - `Custom` = `CustomDoorWidth`
+- default public stair profile:
+  - room bounds: `1200 x 1800 x 760`
+  - walk width: `1200`
+  - lower landing depth: `360`
+  - upper landing depth: `360`
+  - step count: `14`
+  - rise height: `420`
 
 Important:
 
@@ -198,6 +217,7 @@ Important:
 - Uses remaining room budget after the spine is built.
 - Expands from shallow eligible spine connectors.
 - Only candidates allowed on branches are considered.
+- May place one optional stair transition landmark if the branch candidate rules allow it.
 
 ### Hallway chains
 
@@ -222,6 +242,28 @@ If all attempts fail:
 - the last failed layout is kept in-editor for inspection
 - `LastValidationIssues` stores the failure summary
 
+### Generation-complete report
+
+- `Ginny` records:
+  - seed and attempt used
+  - total room count
+  - ordered main path
+  - required main/branch rooms met or missing
+  - optional room choices
+  - hallway-chain usage count
+  - transition rooms and their target config ids
+  - validation issues
+
+## Debug Readability
+
+- `ARoomModuleBase` exposes:
+  - `bShowRoomNameLabel`
+  - `bBillboardRoomNameLabel`
+  - `RoomNameLabelWorldSize`
+  - `RoomNameLabelOffset`
+  - `bShowConnectorDebugArrows`
+- Connector arrows are for editing/debugging and should remain invisible during play unless intentionally re-enabled.
+
 ## Default Generator Config
 
 Healthy default generator settings are authored by:
@@ -239,6 +281,7 @@ Expected healthy defaults:
 - `ConnectorFallbackRooms = [PublicHallStraight, PublicHallCorner]`
 - `RequiredMainPathRooms = [PublicHallStraight, LockerHall, WashShower, PublicHallStraight, PoolHall]`
 - `RequiredBranchRooms = [Sauna, BoilerService]`
+- optional branch landmark: `PublicHallStairUp`
 
 ## One-Time Setup / Refresh
 
