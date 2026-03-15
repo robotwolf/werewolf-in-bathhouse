@@ -1,16 +1,24 @@
 #include "ButchDecorator.h"
 
+#include "Components/AudioComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/StaticMesh.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Math/RotationMatrix.h"
+#include "Particles/ParticleSystem.h"
+#include "Particles/ParticleSystemComponent.h"
 #include "RoomGenerator.h"
 #include "RoomModuleBase.h"
+#include "Sound/SoundBase.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
 {
+    const FName TagCeilingPipe(TEXT("CeilingPipe"));
+    const FName TagWallPipe(TEXT("WallPipe"));
+
     void ConfigureMarkerMesh(UInstancedStaticMeshComponent* MeshComponent)
     {
         if (!MeshComponent)
@@ -44,22 +52,62 @@ namespace
         }
     }
 
-    FTransform BuildPipeInstanceTransform(const UButchDecorationMarkerComponent* Marker, const FVector& MarkerScaleMultiplier)
+    bool MarkerHasSemanticTag(const UButchDecorationMarkerComponent* Marker, const FName Tag)
+    {
+        return Marker && Marker->SemanticTags.Contains(Tag);
+    }
+
+    FVector ResolvePipeLocation(
+        const UButchDecorationMarkerComponent* Marker,
+        const FVector& BaseLocation,
+        const float CeilingPipeDrop,
+        const float WallPipeInset)
+    {
+        if (!Marker)
+        {
+            return BaseLocation;
+        }
+
+        FVector Result = BaseLocation;
+        const FVector UpVector = Marker->GetUpVector().GetSafeNormal();
+        const FVector RightVector = Marker->GetRightVector().GetSafeNormal();
+
+        if (MarkerHasSemanticTag(Marker, TagWallPipe) && !RightVector.IsNearlyZero())
+        {
+            Result -= RightVector * WallPipeInset;
+        }
+        else if (MarkerHasSemanticTag(Marker, TagCeilingPipe) || !UpVector.IsNearlyZero())
+        {
+            // Most current pipe markers are ceiling runs; pull them just below the shell
+            // so they read as intentional dressing instead of clipping into the ceiling slab.
+            Result -= UpVector * CeilingPipeDrop;
+        }
+
+        return Result;
+    }
+
+    FTransform BuildPipeInstanceTransform(
+        const UButchDecorationMarkerComponent* Marker,
+        const FVector& MarkerScaleMultiplier,
+        const float CeilingPipeDrop,
+        const float WallPipeInset)
     {
         const FTransform MarkerTransform = Marker->GetComponentTransform();
         const FVector RawScale = MarkerTransform.GetScale3D() * MarkerScaleMultiplier;
 
         const FVector PipeAxis = Marker->GetForwardVector().GetSafeNormal();
         const FVector SafePipeAxis = PipeAxis.IsNearlyZero() ? FVector::ForwardVector : PipeAxis;
-        const FQuat AlignRotation = FQuat::FindBetweenNormals(FVector::UpVector, SafePipeAxis);
+        const FRotator PipeRotation = FRotationMatrix::MakeFromX(SafePipeAxis).Rotator();
+        const float PipeRadiusY = FMath::Max(FMath::Abs(RawScale.Y), 0.04f);
+        const float PipeRadiusZ = FMath::Max(FMath::Abs(RawScale.Z), 0.04f);
 
         FTransform PipeTransform;
-        PipeTransform.SetLocation(MarkerTransform.GetLocation());
-        PipeTransform.SetRotation(AlignRotation);
+        PipeTransform.SetLocation(ResolvePipeLocation(Marker, MarkerTransform.GetLocation(), CeilingPipeDrop, WallPipeInset));
+        PipeTransform.SetRotation(PipeRotation.Quaternion());
         PipeTransform.SetScale3D(FVector(
-            FMath::Max(FMath::Abs(RawScale.Y), 0.04f),
-            FMath::Max(FMath::Abs(RawScale.Z), 0.04f),
-            FMath::Max(FMath::Abs(RawScale.X), 0.05f)));
+            FMath::Max(FMath::Abs(RawScale.X), 0.05f),
+            PipeRadiusY,
+            PipeRadiusZ));
         return PipeTransform;
     }
 }
@@ -112,12 +160,19 @@ AButchDecorator::AButchDecorator()
         PipeMarkerMesh->SetStaticMesh(DefaultCubeMesh);
     }
 
-    ApplyPlaceholderColors();
+    static ConstructorHelpers::FObjectFinder<UParticleSystem> SteamParticleFinder(TEXT("/Engine/Tutorial/SubEditors/TutorialAssets/TutorialParticleSystem.TutorialParticleSystem"));
+    if (SteamParticleFinder.Succeeded())
+    {
+        DefaultSteamParticle = SteamParticleFinder.Object;
+    }
+
 }
 
 void AButchDecorator::BeginPlay()
 {
     Super::BeginPlay();
+
+    ApplyPlaceholderColors();
 
     if (bDecorateOnBeginPlay)
     {
@@ -135,13 +190,13 @@ void AButchDecorator::ConfigurePlaceholderMesh(UInstancedStaticMeshComponent* Me
 
 void AButchDecorator::ApplyPlaceholderColors()
 {
-    static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-    if (!MaterialFinder.Succeeded())
+    UMaterialInterface* BaseMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
+    if (!BaseMaterial)
     {
         return;
     }
 
-    auto SetColoredMaterial = [this, BaseMaterial = MaterialFinder.Object](UInstancedStaticMeshComponent* MeshComponent, const FLinearColor& Color)
+    auto SetColoredMaterial = [this, BaseMaterial](UInstancedStaticMeshComponent* MeshComponent, const FLinearColor& Color)
     {
         if (!MeshComponent || !BaseMaterial)
         {
@@ -167,6 +222,30 @@ void AButchDecorator::ClearDecor()
     LeakMarkerMesh->ClearInstances();
     AudioMarkerMesh->ClearInstances();
     WindowMarkerMesh->ClearInstances();
+
+    for (UParticleSystemComponent* SteamComponent : SpawnedSteamComponents)
+    {
+        if (SteamComponent)
+        {
+            SteamComponent->DestroyComponent();
+        }
+    }
+    SpawnedSteamComponents.Reset();
+
+    for (UAudioComponent* AudioComponent : SpawnedAudioComponents)
+    {
+        if (AudioComponent)
+        {
+            AudioComponent->Stop();
+            AudioComponent->DestroyComponent();
+        }
+    }
+    SpawnedAudioComponents.Reset();
+
+    if (GetWorld())
+    {
+        FlushPersistentDebugLines(GetWorld());
+    }
 }
 
 TArray<ARoomModuleBase*> AButchDecorator::CollectRoomsFromLevel() const
@@ -188,12 +267,14 @@ TArray<ARoomModuleBase*> AButchDecorator::CollectRoomsFromLevel() const
 
 void AButchDecorator::DecorateCurrentLevel()
 {
+    ApplyPlaceholderColors();
     ClearDecor();
     ProcessRooms(CollectRoomsFromLevel());
 }
 
 void AButchDecorator::DecorateFromGenerator(ARoomGenerator* Generator)
 {
+    ApplyPlaceholderColors();
     ClearDecor();
 
     if (!Generator)
@@ -266,14 +347,14 @@ void AButchDecorator::AddMarker(UButchDecorationMarkerComponent* Marker)
         FTransform InstanceTransform = MarkerTransform;
         if (Marker->MarkerType == EButchDecorationMarkerType::PipeLane)
         {
-            InstanceTransform = BuildPipeInstanceTransform(Marker, MarkerScaleMultiplier);
+            InstanceTransform = BuildPipeInstanceTransform(Marker, MarkerScaleMultiplier, CeilingPipeDrop, WallPipeInset);
         }
         else
         {
             InstanceTransform.SetScale3D(MarkerTransform.GetScale3D() * MarkerScaleMultiplier);
         }
 
-        TargetMesh->AddInstance(InstanceTransform);
+        TargetMesh->AddInstance(InstanceTransform, true);
     }
 
     if (bDebugDrawMarkers && GetWorld())
@@ -284,9 +365,52 @@ void AButchDecorator::AddMarker(UButchDecorationMarkerComponent* Marker)
             Marker->Radius,
             12,
             GetMarkerColor(Marker->MarkerType).ToFColor(true),
-            true,
+            false,
             DebugDrawDuration,
             0,
             2.0f);
+    }
+
+    if (Marker->MarkerType == EButchDecorationMarkerType::LeakCandidate || Marker->MarkerType == EButchDecorationMarkerType::SteamVentCandidate)
+    {
+        if (bSpawnSteamFx && Marker->bAllowSteamFx && DefaultSteamParticle)
+        {
+            UParticleSystemComponent* SteamComponent = NewObject<UParticleSystemComponent>(this);
+            if (SteamComponent)
+            {
+                const float UniformScale = FMath::Max(0.1f, FMath::Min3(
+                    FMath::Abs(MarkerScaleMultiplier.X),
+                    FMath::Abs(MarkerScaleMultiplier.Y),
+                    FMath::Abs(MarkerScaleMultiplier.Z)));
+                const FVector SteamLocation = Marker->GetComponentLocation() + Marker->GetUpVector().GetSafeNormal() * SteamVerticalOffset;
+                SteamComponent->SetupAttachment(SceneRoot);
+                SteamComponent->SetTemplate(DefaultSteamParticle);
+                SteamComponent->SetRelativeScale3D(FVector(SteamScale * UniformScale));
+                SteamComponent->SetWorldLocationAndRotation(SteamLocation, Marker->GetComponentRotation());
+                SteamComponent->bAutoActivate = true;
+                SteamComponent->RegisterComponent();
+                SteamComponent->Activate(true);
+                SpawnedSteamComponents.Add(SteamComponent);
+            }
+        }
+    }
+
+    if (Marker->MarkerType == EButchDecorationMarkerType::AudioPoint)
+    {
+        if (bSpawnAudioFx && DefaultAmbientSound)
+        {
+            UAudioComponent* AudioComponent = NewObject<UAudioComponent>(this);
+            if (AudioComponent)
+            {
+                AudioComponent->SetupAttachment(SceneRoot);
+                AudioComponent->SetSound(DefaultAmbientSound);
+                AudioComponent->bAutoActivate = true;
+                AudioComponent->bIsUISound = false;
+                AudioComponent->SetWorldLocation(Marker->GetComponentLocation());
+                AudioComponent->RegisterComponent();
+                AudioComponent->Play();
+                SpawnedAudioComponents.Add(AudioComponent);
+            }
+        }
     }
 }

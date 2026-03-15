@@ -12,6 +12,19 @@ UPrototypeRoomConnectorComponent::UPrototypeRoomConnectorComponent()
     ArrowComponent->ArrowColor = FColor::Cyan;
     ArrowComponent->ArrowLength = 120.0f;
     ArrowComponent->bIsScreenSizeScaled = true;
+    ArrowComponent->SetHiddenInGame(bHideArrowInGame);
+    ArrowComponent->SetVisibility(true);
+}
+
+void UPrototypeRoomConnectorComponent::OnRegister()
+{
+    Super::OnRegister();
+
+    if (ArrowComponent)
+    {
+        ArrowComponent->SetHiddenInGame(bHideArrowInGame);
+        ArrowComponent->SetVisibility(true);
+    }
 }
 
 bool UPrototypeRoomConnectorComponent::IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other) const

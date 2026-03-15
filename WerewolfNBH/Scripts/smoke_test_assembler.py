@@ -2,8 +2,10 @@ import unreal
 
 
 MAP_PATH = "/Game/WerewolfBH/GeneratorTest"
-SEED_PRIMARY = 1337
-SEED_SECONDARY = 1338
+SEEDS = (1337, 1338, 1351)
+PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
+STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
+BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_ButchDecorator_C"
 
 
 def log(message: str) -> None:
@@ -64,9 +66,14 @@ def build_layout_signature(generator, seed: int):
     if len(spawned_rooms) > max_rooms:
         fail(f"Spawned {len(spawned_rooms)} rooms, but MaxRooms is {max_rooms}")
 
+    if not generator.run_layout_validation(True):
+        issues = generator.get_editor_property("LastValidationIssues")
+        fail(f"Layout validation failed for seed {seed}: {issues}")
+
     signature = []
     room_set = set(spawned_rooms)
     adjacency = {}
+    ordered_main_path = [room for room in generator.get_editor_property("GeneratedMainPathRooms") if room]
 
     for room in spawned_rooms:
         location = room.get_actor_location()
@@ -81,12 +88,24 @@ def build_layout_signature(generator, seed: int):
         )
         signature.append(sig_entry)
 
+        room_class_name = room.get_class().get_path_name()
+        if PROTOTYPE_ROOM_PREFIX in room_class_name:
+            fail(f"Prototype room leaked into default config for seed {seed}: {room_class_name}")
+        if STAIR_CLASS_FRAGMENT in room_class_name:
+            fail(f"Stair room appeared in healthy 2D default config for seed {seed}: {room_class_name}")
+
         neighbors = set()
         for record in room.get_editor_property("ConnectedRooms"):
             other = record.get_editor_property("OtherRoom")
             if other and other in room_set:
                 neighbors.add(other)
         adjacency[room] = neighbors
+
+        min_connections = room.get_editor_property("MinConnections")
+        max_connections = room.get_editor_property("MaxConnections")
+        connection_count = len(neighbors)
+        if connection_count < min_connections or connection_count > max_connections:
+            fail(f"Room {room.get_name()} violates connection budget: {connection_count} not in [{min_connections}, {max_connections}]")
 
     visited = set()
     stack = [spawned_rooms[0]]
@@ -100,26 +119,72 @@ def build_layout_signature(generator, seed: int):
     if len(visited) != len(spawned_rooms):
         fail(f"Reachability failed for seed {seed}: visited {len(visited)} / {len(spawned_rooms)} rooms")
 
+    if len(ordered_main_path) < 3:
+        fail(f"Main spine too short for seed {seed}: {len(ordered_main_path)}")
+
+    entry_room = ordered_main_path[0]
+    if entry_room.get_editor_property("RoomType") != "EntryReception":
+        fail(f"First room is not EntryReception for seed {seed}")
+
+    if len(ordered_main_path) < 2 or ordered_main_path[1].get_editor_property("RoomType") != "PublicHallStraight":
+        fail(f"First room after EntryReception is not PublicHallStraight for seed {seed}")
+
+    for room, neighbors in adjacency.items():
+        if room.get_editor_property("RoomType") != "LockerHall":
+            continue
+        for neighbor in neighbors:
+            if neighbor.get_editor_property("RoomType") == "EntryReception":
+                fail(f"LockerHall directly adjacent to EntryReception for seed {seed}")
+
+    fallback_classes = generator.get_editor_property("ConnectorFallbackRooms")
+    fallback_paths = {cls.get_path_name() for cls in fallback_classes if cls}
+    if not fallback_paths or any(("PublicHall_Straight" not in path and "PublicHall_Corner" not in path) for path in fallback_paths):
+        fail(f"ConnectorFallbackRooms contains non-hallway classes: {sorted(fallback_paths)}")
+
+    butch_class = unreal.load_class(None, BUTCH_CLASS_PATH)
+    if butch_class:
+        butch_actors = unreal.GameplayStatics.get_all_actors_of_class(generator.get_world(), butch_class)
+        if butch_actors:
+            fail(f"Butch should be frozen in healthy default config, but found {len(butch_actors)} actor(s)")
+
     signature.sort()
     log(f"Seed {seed} spawned {len(spawned_rooms)} reachable rooms.")
     return tuple(signature), len(spawned_rooms)
+
+
+def run_negative_validation_probe(generator):
+    generator.clear_generated_layout()
+    generator.set_editor_property("RunSeed", SEEDS[0])
+    generator.generate_layout()
+    rooms = [room for room in generator.get_editor_property("SpawnedRooms") if room]
+    if not rooms:
+        fail("Negative validation probe could not generate a layout")
+
+    target_room = rooms[-1]
+    original_neighbors = list(target_room.get_editor_property("AllowedNeighborRoomTypes"))
+    target_room.set_editor_property("AllowedNeighborRoomTypes", ["DefinitelyNotARoomType"])
+    valid = generator.run_layout_validation(False)
+    target_room.set_editor_property("AllowedNeighborRoomTypes", original_neighbors)
+    if valid:
+        fail("Negative validation probe expected failure, but validation passed")
+    log("Negative validation probe behaved correctly.")
 
 
 def main():
     world = load_test_world()
     generator = get_generator(world)
 
-    sig_a, count_a = build_layout_signature(generator, SEED_PRIMARY)
-    sig_b, count_b = build_layout_signature(generator, SEED_PRIMARY)
+    sig_a, count_a = build_layout_signature(generator, SEEDS[0])
+    sig_b, count_b = build_layout_signature(generator, SEEDS[0])
 
     if sig_a != sig_b or count_a != count_b:
         fail("Determinism failed: same seed produced different signatures")
 
-    sig_c, _ = build_layout_signature(generator, SEED_SECONDARY)
-    if sig_c == sig_a:
-        log("Warning: alternate seed produced identical signature (possible but uncommon)")
+    for seed in SEEDS[1:]:
+        build_layout_signature(generator, seed)
 
-    log("Smoke test passed: determinism and reachability checks are healthy.")
+    run_negative_validation_probe(generator)
+    log("Smoke test passed: determinism, semantic sanity, and validation checks are healthy.")
 
 
 if __name__ == "__main__":

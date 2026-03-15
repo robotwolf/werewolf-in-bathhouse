@@ -12,6 +12,7 @@ class UInstancedStaticMeshComponent;
 class UMaterialInterface;
 class UStaticMesh;
 class UStaticMeshComponent;
+class UTextRenderComponent;
 
 UENUM(BlueprintType)
 enum class ERoomParametricFootprintType : uint8
@@ -133,6 +134,42 @@ struct FRoomConnectionRecord
 };
 
 UENUM(BlueprintType)
+enum class ERoomPlacementRole : uint8
+{
+    Start,
+    MainPath,
+    Branch,
+    Vertical
+};
+
+USTRUCT(BlueprintType)
+struct FRoomPlacementRules
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    ERoomPlacementRole PlacementRole = ERoomPlacementRole::MainPath;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    bool bAllowOnMainPath = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    bool bAllowOnBranch = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    bool bCanTerminatePath = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement", meta=(ClampMin="0"))
+    int32 MinDepthFromStart = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    int32 MaxDepthFromStart = -1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Placement")
+    int32 MaxInstances = -1;
+};
+
+UENUM(BlueprintType)
 enum class ERoomStockFootprintType : uint8
 {
     Rectangle,
@@ -201,6 +238,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Gameplay")
     TObjectPtr<UChildActorComponent> PlayerStartAnchor;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Debug")
+    TObjectPtr<UTextRenderComponent> RoomNameLabel;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     FName RoomID = "Room";
 
@@ -227,6 +267,18 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     FLinearColor DebugColor = FLinearColor::White;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bShowRoomNameLabel = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug", meta=(ClampMin="8.0"))
+    float RoomNameLabelWorldSize = 48.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    FVector RoomNameLabelOffset = FVector::ZeroVector;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Placement")
+    FRoomPlacementRules PlacementRules;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     FRoomParametricSettings ParametricSettings;
@@ -267,6 +319,18 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TArray<FRoomConnectionRecord> ConnectedRooms;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room|Generation")
+    int32 GeneratedDepthFromStart = -1;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room|Generation")
+    ERoomPlacementRole GeneratedAssignedRole = ERoomPlacementRole::Branch;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room|Generation")
+    TObjectPtr<class ARoomModuleBase> GeneratedParentRoom = nullptr;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room|Generation")
+    bool bCarveOnlyConnectedDoorways = false;
+
     UFUNCTION(BlueprintCallable, Category="Room")
     void RefreshConnectorCache();
 
@@ -281,6 +345,12 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Room")
     void SetGrayboxDimensions(const FVector& FullSize);
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    int32 GetConnectionCount() const;
+
+    UFUNCTION(BlueprintPure, Category="Room")
+    bool IsConnectorConnected(const UPrototypeRoomConnectorComponent* Connector) const;
 
     FBox GetWorldBounds(float ShrinkBy = 0.0f) const;
 
@@ -298,6 +368,7 @@ protected:
     void ClearGeneratedGrayboxInstances();
     void UpdateGeneratedGrayboxMaterial();
     void UpdatePlayerStartPlacement();
+    void UpdateRoomNameLabel();
     void BuildFootprintCells(TSet<FIntPoint>& OutCells) const;
     void AddRectangleCells(TSet<FIntPoint>& OutCells, const FVector2D& Size) const;
     void AddPolygonCells(TSet<FIntPoint>& OutCells, const TArray<FVector2D>& Vertices) const;

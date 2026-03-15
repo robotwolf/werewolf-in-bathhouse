@@ -33,9 +33,13 @@ class WEREWOLFNBH_API UPrototypeRoomConnectorComponent : public USceneComponent
 
 public:
     UPrototypeRoomConnectorComponent();
+    virtual void OnRegister() override;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connector")
     TObjectPtr<UArrowComponent> ArrowComponent;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Debug")
+    bool bHideArrowInGame = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
     FName SocketID = NAME_None;

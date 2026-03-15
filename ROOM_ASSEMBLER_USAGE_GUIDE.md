@@ -1,259 +1,348 @@
 # Werewolf in Bathhouse - Room Assembler Usage Guide
 
-This guide explains how to use the current assembler stack (C++ + Blueprints + Python scripts) to generate deterministic graybox layouts from stock room actors, with `RoomBoundsBox` as the authoritative volume for placement and overlap.
+This is the sane baseline for the assembler: a deterministic, 2D, stock-room bathhouse builder where `RoomBoundsBox` is the one true collision monarch and `Ginny` is no longer allowed to freestyle architecture like a raccoon with a nail gun.
 
 ## Scope
 
 - Project root: `E:\Documents\Projects\werewolf-in-bathhouse`
 - UE project: `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject`
-- Focus: room assembly only (no gameplay systems)
-- Git source of truth: root repo at `E:\Documents\Projects\werewolf-in-bathhouse`
+- Focus: assembler only
+- Healthy default:
+  - `2D only`
+  - `stock graybox rooms`
+  - `RoomBoundsBox` drives placement and overlap
+  - `Butch` decoration pass frozen
+  - `stairs frozen`
+  - `guided main spine + short branches`
 
 ## Core Classes
 
 - `ARoomModuleBase`
-  - Base class for room modules.
-  - Uses `RoomBoundsBox` as authoritative bounds.
-  - Auto-fallback graybox uses engine cubes if no custom mesh is set.
-  - Current project default is stock room mode: room visuals are assembled from multiple cube instances derived from `RoomBoundsBox` (floor, ceiling, walls, door openings).
-  - Stock graybox rooms now support separate material overrides for legacy cube, floor, wall, and ceiling.
-  - The parametric/slice codepath still exists in C++, but assembler assets are configured with it disabled.
-  - Optional auto `PlayerStart` anchor for entry modules.
+  - Base class for stock room modules.
+  - Uses `RoomBoundsBox` as the authoritative footprint/overlap volume.
+  - Generates walkable graybox interiors from bounds using floor, ceiling, and wall cube pieces.
+  - Supports connector-driven door openings.
+  - Stores room semantics:
+    - `RoomType`
+    - `AllowedNeighborRoomTypes`
+    - `PlacementRules`
+  - Tracks runtime generation info:
+    - `GeneratedDepthFromStart`
+    - `GeneratedAssignedRole`
+    - `GeneratedParentRoom`
 
 - `UPrototypeRoomConnectorComponent`
-  - Connector component for door/link points.
-  - Supports compatibility checks (`ConnectionType`, allowed flags, occupied state).
-  - Includes an arrow visual for facing direction.
+  - Door/link point component.
+  - Directional, occupiable, and deterministic.
+  - Still the basis for alignment.
 
 - `ARoomGenerator`
-  - Spawns and links room modules from connectors.
-  - Grid snapping and overlap validation.
-  - Deterministic generation via `RunSeed`.
-  - Weighted pool + cooldown + connector fallback list.
-  - Vertical-ready snapping (`VerticalSnapSize`) to keep future multi-floor alignment deterministic.
-  - Can trigger the `Butch` decoration pass after layout generation.
+  - `Ginny`.
+  - Builds layouts in two phases:
+    1. `BuildSpine`
+    2. `FillBranches`
+  - Uses deterministic retries via `MaxLayoutAttempts`.
+  - Performs final semantic validation before accepting a layout.
+  - Logs to `LogGinny`.
 
 - `AButchDecorator`
-  - Post-assembly dressing pass.
-  - Reads `UButchDecorationMarkerComponent` markers from spawned room modules.
-  - Current first pass spawns simple cylinder pipe runs from `PipeLane` markers and placeholder meshes for leaks, audio points, window views, and generic props.
-  - Does not participate in structural overlap or connector logic.
-  - `Ginny` can resolve an existing `Butch` actor or auto-spawn one if the map forgot to include him.
+  - Still in the codebase.
+  - Not part of the healthy default assembler baseline.
+  - Decoration and FX are intentionally frozen until the structural bathhouse program is stable.
 
-- `UButchDecorationMarkerComponent`
-  - Marker component attached to room modules for post-pass dressing.
-  - Used for pipe lanes, leak candidates, audio points, window views, and generic prop anchors.
+## Room Roles
 
-## Current Assembler Content
+`PlacementRules.PlacementRole` is the authored semantic role for a room:
+
+- `Start`
+- `MainPath`
+- `Branch`
+- `Vertical`
+
+Supporting rules:
+
+- `bAllowOnMainPath`
+- `bAllowOnBranch`
+- `bCanTerminatePath`
+- `MinDepthFromStart`
+- `MaxDepthFromStart`
+- `MaxInstances`
+
+## Healthy Default Bathhouse Program
+
+The current stable program is:
+
+### Required main-path sequence
+
+1. `EntryReception`
+2. `PublicHallStraight`
+3. `LockerHall`
+4. `WashShower`
+5. `PublicHallStraight`
+6. `PoolHall`
+
+### Required branch rooms
+
+1. `Sauna`
+2. `BoilerService`
+
+### Default room policy
+
+- `EntryReception`
+  - start room
+  - one instance only
+  - only allowed neighbor: `PublicHallStraight`
+
+- `PublicHallStraight`
+  - hall/spine utility piece
+  - may appear on main path or branch
+  - can terminate a path if needed
+
+- `PublicHallCorner`
+  - small corner utility piece
+  - may appear on main path or branch
+  - can terminate a path if needed
+
+- `LockerHall`
+  - required transition room
+  - main path only
+  - not allowed directly off `EntryReception`
+
+- `WashShower`
+  - required transition room
+  - main path only
+
+- `PoolHall`
+  - main destination anchor
+  - main path only
+  - can terminate the main path
+
+- `Sauna`
+  - branch-only destination room
+
+- `BoilerService`
+  - branch-only service room
+
+- `PublicHallStair`
+  - frozen out of healthy default generation
+
+## Current Content
 
 - Generator BP:
   - `/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator`
-  - `AButchDecorator` is a native actor; `Ginny` can spawn one automatically if the map does not already contain a decorator.
 
-- Bathhouse room BPs (script-managed, stock room mode):
+- Room BPs managed by the setup script:
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall`
-  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
-  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
-  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_WashShower`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Sauna`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_BoilerService`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_ColdPlunge`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
+- `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
+
+Notes:
+
+- `BP_Room_PublicHall_Stair_Up` still exists, but is excluded from default generation.
+- Legacy large L-turn assets are not part of the healthy default pool.
+- `Butch` still exists, but default generator config keeps him asleep.
+- The new support rooms are optional pool/branch content, not part of the required core path.
+
+## Graybox Standards
+
+These are centralized in `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py`:
+
+- wall thickness: `30.0` uu (`0.3 m`)
+- floor thickness: `20.0` uu (`0.2 m`)
+- ceiling thickness: `20.0` uu (`0.2 m`)
+- doorway width: `200.0` uu
+- doorway height: `260.0` uu
+
+Important:
+
+- The assembler currently models doorway openings, not actual door slabs.
+- Do not add door-leaf thickness rules here yet.
+
+## Generator Behavior
+
+### Placement model
+
+- `RoomBoundsBox` is the only overlap authority.
+- Connector alignment + grid snapping determines transforms.
+- No footprint-accurate collision beyond the bounds box.
+
+### Staged generation
+
+1. Spawn `StartRoomClass`
+2. `BuildSpine`
+3. `FillBranches`
+4. `ValidateReachability`
+5. `ValidateLayout`
+
+### `BuildSpine`
+
+- Builds a readable main route first.
+- Uses most recent spine room first, then walks backward if needed.
+- Target spine length:
+  - `clamp(MaxRooms - 2, 3, 5)`
+  - also must satisfy required main-path sequence length
+- Only candidates allowed on the main path are considered.
+
+### `FillBranches`
+
+- Uses remaining room budget after the spine is built.
+- Expands from shallow eligible spine connectors.
+- Only candidates allowed on branches are considered.
+
+### Hallway chains
+
+- Only hallway utility pieces are allowed in default chain fallback:
+  - `BP_Room_PublicHall_Straight`
+  - `BP_Room_PublicHall_Corner`
+- Chain attempts roll back spawned rooms, connector occupancy, connection records, and usage bookkeeping if they fail.
+
+### Validation
+
+`Ginny` now validates more than “well, the boxes touch legally”:
+
+- required rooms are present
+- main spine length is sufficient
+- connection budgets are respected
+- illegal neighbor pairs are rejected
+- branch-only rooms do not land on the main spine
+- non-terminating rooms do not end paths
+
+If all attempts fail:
+
+- the last failed layout is kept in-editor for inspection
+- `LastValidationIssues` stores the failure summary
+
+## Default Generator Config
+
+Healthy default generator settings are authored by:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
+
+Expected healthy defaults:
+
+- `bRunButchAfterGeneration = false`
+- `bSpawnButchIfMissing = false`
+- `bAllowVerticalTransitions = false`
+- `MaxLayoutAttempts = 5`
+- `MaxRooms = 10`
+- `ConnectorFallbackRooms = [PublicHallStraight, PublicHallCorner]`
+- `RequiredMainPathRooms = [PublicHallStraight, LockerHall, WashShower, PublicHallStraight, PoolHall]`
+- `RequiredBranchRooms = [Sauna, BoilerService]`
 
 ## One-Time Setup / Refresh
 
-Quick repo-root check (recommended day-to-day):
+Repo-root check:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\assembler_check.ps1
 ```
 
-Script path:
-- `E:\Documents\Projects\werewolf-in-bathhouse\assembler_check.ps1`
-
-Default behavior:
-- Fast path: build + deterministic smoke test.
-- Skips room setup/config by default for speed.
-
-Optional flags:
-- `-SkipBuild`
-- `-FullRefresh` (runs setup + config + smoke)
-- `-RunStandardizeLTurn`
-
-Recommended (single command) from `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH`:
-
-```powershell
-.\Scripts\refresh_assembler.ps1
-```
-
-If PowerShell policy blocks local scripts:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\refresh_assembler.ps1
-```
-
-Script path:
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\refresh_assembler.ps1`
-
-What it does:
-1. Verifies required paths and root repo.
-2. Fails fast if `UnrealEditor` is open (Live Coding lock prevention).
-3. Builds C++ module.
-4. Rebuilds assembler test materials.
-5. Runs room setup commandlet.
-6. Runs generator config commandlet.
-7. Syncs generator and `Butch` actors in `GeneratorTest` to the latest blueprint defaults.
-8. Warns if duplicate east L-turn assets are present.
-9. Optionally runs L-turn naming standardization.
-10. Optionally runs deterministic assembler smoke tests.
-
-Optional flags:
-- `-SkipBuild`
-- `-SkipRoomSetup`
-- `-SkipGeneratorConfig`
-- `-RunStandardizeLTurn`
-- `-RunSmokeTest`
-
-Manual equivalent:
-
-```powershell
-# Build C++
-D:\EPIC\UE_5.7\Engine\Build\BatchFiles\Build.bat WerewolfNBHEditor Win64 Development -Project="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -WaitMutex -FromMsBuild
-
-# Rebuild assembler test materials
-D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -run=pythonscript -script="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\create_assembler_test_materials.py" -unattended -nop4 -nosourcecontrol
-
-# Rebuild/refresh room blueprints
-D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -run=pythonscript -script="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py" -unattended -nop4 -nosourcecontrol
-
-# Reconfigure generator defaults and class pools
-D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe "E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\WerewolfNBH.uproject" -run=pythonscript -script="E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py" -unattended -nop4 -nosourcecontrol
-```
-
-Important:
-- Close Unreal Editor before C++ builds if Live Coding is active.
-- SourceControl warnings from old paths may appear in commandlet output; these do not prevent script execution.
-
-## Generator Behavior (Current)
-
-- Determinism:
-  - `RunSeed` initializes `FRandomStream`.
-  - `bUseNewSeedOnGenerate` can randomize per run.
-
-- Candidate flow per open connector:
-  1. Build primary candidates from `RoomClassPool` (or `AvailableRooms` fallback).
-  2. Weighted pick attempts (up to `AttemptsPerDoor`).
-  3. If direct placement fails and hallway chains are enabled, try inserting up to `MaxHallwayChainSegments` from `ConnectorFallbackRooms`, rolling the chain back if it cannot complete.
-  4. If needed, try `ConnectorFallbackRooms` directly as a normal fallback placement.
-  5. If allowed, try `DeadEndRoomClass`.
-  6. Close connector after exhaustion.
-
-- Cooldown semantics:
-  - `MinRoomsBetweenUses = 0` allows immediate repeat.
-  - `MinRoomsBetweenUses = 1` requires at least one different room in between.
-
-- Placement:
-  - Candidate room connector choices are shuffled with `RandomStream`.
-  - Placement uses connector alignment + 100 uu snapping.
-  - Overlap checks only `RoomBoundsBox`.
-
-## L-Hallway Usage
-
-- Preferred small-turn module:
-  - `BP_Room_PublicHall_Corner`: local `Conn_S` + `Conn_E`, rotated by the generator into any quadrant
-  - Uses `StockAssemblySettings.FootprintType = CornerSouthEast` so the generated interior reads as an actual elbow rather than a plain square shell.
-
-- L-turn variants:
-  - `BP_Room_PublicHall_LTurn_E`: `Conn_S` + `Conn_E`
-  - `BP_Room_PublicHall_LTurn_W`: `Conn_S` + `Conn_W`
-  - These legacy large-turn assets are no longer managed by the room setup script and are not part of default generation.
-
-- Pool integration:
-  - Current generator defaults use `BP_Room_PublicHall_Straight` plus `BP_Room_PublicHall_Corner` for hallway chaining.
-  - `BP_Room_PublicHall_Stair_Up` is in the general pool with low weight for first-pass vertical expansion.
-  - Because the generator rotates room modules, the stair room can serve as either an up-transition or down-transition depending on which connector it matches.
-  - Legacy large L-turn classes remain in content for comparison/testing, but are no longer part of the default generator pool.
-  - `ConnectorFallbackRooms` now includes straight hall plus the tiny corner module for chain assembly.
-  - `bEnableHallwayChains` is on by default, with `MaxHallwayChainSegments = 3`.
-  - `bRunButchAfterGeneration` is on by default.
-  - `bSpawnButchIfMissing` is also on by default, so `Ginny` will auto-spawn `Butch` when the map forgot him, which is sloppy but now survivable.
-  - Canonical east-turn asset naming is `_E`.
-  - Current default blockout uses `StockAssemblySettings` to derive a walkable interior from `RoomBoundsBox`; overlap still uses the box, not true wall footprint.
-  - Vertical placement is bounded by `bAllowVerticalTransitions` and `MaxVerticalDisplacement` so stairs can reach one upper level without building a ridiculous goat tower.
-  - Marker-driven decoration is separate from assembly. `Ginny` builds; `Butch` decorates.
-
-- Design note:
-  - Assembler logic connects by connectors and bounds.
-  - In stock graybox mode, doorway holes are cut procedurally in generated wall pieces using connector-facing walls.
-  - Current room setup script assigns obvious test materials by default:
-    - floor: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Floor`
-    - walls: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Wall`
-    - ceiling: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Ceiling`
-    - extra accent material available: `/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Accent`
-
-## Adding a New Room Module (Checklist)
-
-1. Create room BP inheriting from `ARoomModuleBase`.
-2. Set `RoomID`, `RoomType`, `Weight`, `MinConnections`, `MaxConnections`.
-3. Set `RoomBoundsBox` size and center.
-4. Size `RoomBoundsBox` to the intended stock room volume.
-5. Enable `StockAssemblySettings.bEnabled` if you want the room to generate floor/ceiling/walls from bounds instead of showing a single cube mesh.
-6. If the room is a tiny corner module, set `StockAssemblySettings.FootprintType` to `CornerSouthEast` and let generator rotation handle the other quadrants.
-7. If the room is a stair transition, set `StockAssemblySettings.FootprintType` to `StairSouthToNorthUp` and place the upper connector at the landing's elevated `Z`.
-8. Set `FloorMaterialOverride`, `WallMaterialOverride`, and `CeilingMaterialOverride` if you want something other than the default cube material tint.
-9. Keep `ParametricSettings.bEnabled = false` unless you are explicitly experimenting outside the current assembler scope.
-10. Add `UPrototypeRoomConnectorComponent` connectors (direction + location + rotation).
-11. For elevated doorways, keep connector `Z` at doorway center height so stock wall carving opens the door at the correct level.
-12. Add `UButchDecorationMarkerComponent` markers if the room should expose pipe lanes, leak candidates, audio points, or prop anchors to `Butch`.
-13. Ensure connector compatibility flags match intended network.
-14. Add room class to `RoomClassPool` (with weight/cooldown) or `AvailableRooms`.
-15. Test generation with fixed seed and debug draw enabled.
-
-## Debug / Validation
-
-- Enable:
-  - `bDebugDrawBounds`
-  - `bDebugDrawDoors`
-  - `bPrintDebugMessages`
-
-- Validate:
-  - Reachability log should report PASS.
-  - No overlap reject spam for intended placements.
-  - Same seed should produce same layout sequence.
-
-Deterministic smoke test script:
-- Python commandlet script:
-  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
-- PowerShell wrapper:
-  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.ps1`
-- Runs on `/Game/WerewolfBH/GeneratorTest` and verifies:
-  - Same seed -> same layout signature.
-  - Spawned room count does not exceed `MaxRooms`.
-  - All spawned rooms are reachable through `ConnectedRooms`.
-  - Secondary seed sanity check (warns if identical layout).
-
-Usage:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\smoke_test_assembler.ps1
-```
-
-Or as part of refresh:
+Project refresh:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\Scripts\refresh_assembler.ps1 -RunSmokeTest
 ```
 
-Canonical `_E` naming is now the expected state:
-- Legacy `_East` has been removed from content.
-- Large `LTurn` rooms remain as legacy assets only and are not part of the default generation flow.
+Key scripts:
 
-Usage:
+- `E:\Documents\Projects\werewolf-in-bathhouse\assembler_check.ps1`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\refresh_assembler.ps1`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Scripts\refresh_assembler.ps1 -RunStandardizeLTurn
-```
+## Smoke Test Coverage
 
-## Known Follow-Ups
+`E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py` now checks:
 
-- Fix stale SourceControl path settings to remove commandlet error noise.
-- Extend stock graybox builder beyond rectangle rooms when the hallway chain work is ready.
-- Optional future feature: explicit multi-step bridge planner (place straight hall then retry target room immediately).
-- Optional future feature: revive parametric rooms only when they clearly support stock-room assembly rather than replacing it.
+- determinism on repeated seed
+- no prototype rooms in healthy default
+- no stair room in healthy default
+- no `Butch` actor in healthy default
+- first room is `EntryReception`
+- first room after entry is `PublicHallStraight`
+- `LockerHall` is not directly adjacent to `EntryReception`
+- hallway fallback list contains only straight/corner hall pieces
+- all rooms satisfy connection budgets
+- main path length is at least `3`
+- negative validation probe correctly fails when adjacency is corrupted
+
+Current healthy test seeds:
+
+- `1337`
+- `1338`
+- `1351`
+
+## Adding or Updating a Room
+
+1. Make the BP inherit from `ARoomModuleBase`.
+2. Set `RoomType`.
+3. Set `AllowedNeighborRoomTypes` explicitly.
+4. Set `PlacementRules`.
+5. Size `RoomBoundsBox`.
+6. Enable stock graybox generation.
+7. Add only the connectors the room honestly needs.
+8. Keep the room within the bathhouse program instead of inventing a new architectural religion on the spot.
+9. For placeholder bathing/service reads, primitive feature meshes are fine:
+   - flattened cylinders for plunge/pool basins
+   - cubes for benches, shelving, stalls, counters, and simple fixtures
+
+## Debugging
+
+Useful generator options:
+
+- `bDebugDrawBounds`
+- `bDebugDrawDoors`
+- `bPrintDebugMessages`
+
+Useful runtime/editor state:
+
+- `GeneratedMainPathRooms`
+- `SpawnedRooms`
+- `LastValidationIssues`
+
+Primary log category:
+
+- `LogGinny`
+
+Standard rejection labels:
+
+- `Adjacency`
+- `Cooldown`
+- `Role`
+- `Depth`
+- `Overlap`
+- `Vertical`
+- `ChainPolicy`
+- `ConnectionBudget`
+
+## Paused Systems
+
+These are intentionally not part of the healthy default right now:
+
+- `Butch` decoration pass
+- stairs / vertical generation
+- multi-floor assembly
+- outside theater staging
+- fancy parametric geometry experiments
+
+They are paused, not deleted.
+
+## Recommended Next Assembler Work
+
+1. Tune room dimensions/connectors so the required bathhouse program reads cleanly in first person.
+2. Add more required bathhouse rooms only after assigning them a real program role.
+3. Tighten room adjacency rules before reopening decoration.
+4. Reintroduce `Butch` only after structural layouts stop behaving like legally connected nonsense.

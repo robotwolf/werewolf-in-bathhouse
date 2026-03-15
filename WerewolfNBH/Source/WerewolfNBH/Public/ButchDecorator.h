@@ -7,9 +7,13 @@
 
 class ARoomGenerator;
 class ARoomModuleBase;
+class UAudioComponent;
 class UInstancedStaticMeshComponent;
+class UParticleSystem;
+class UParticleSystemComponent;
 class USceneComponent;
 class UStaticMesh;
+class USoundBase;
 
 UCLASS(Blueprintable)
 class WEREWOLFNBH_API AButchDecorator : public AActor
@@ -54,6 +58,30 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch")
     FVector MarkerScaleMultiplier = FVector(1.0f, 1.0f, 1.0f);
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|Pipes", meta=(ClampMin="0.0", ClampMax="100.0"))
+    float CeilingPipeDrop = 14.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|Pipes", meta=(ClampMin="0.0", ClampMax="100.0"))
+    float WallPipeInset = 10.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX")
+    bool bSpawnSteamFx = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX")
+    bool bSpawnAudioFx = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX", meta=(EditCondition="bSpawnSteamFx"))
+    TObjectPtr<UParticleSystem> DefaultSteamParticle = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX", meta=(EditCondition="bSpawnSteamFx", ClampMin="0.05", ClampMax="5.0"))
+    float SteamScale = 0.2f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX", meta=(EditCondition="bSpawnSteamFx", ClampMin="-100.0", ClampMax="100.0"))
+    float SteamVerticalOffset = -8.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Butch|FX", meta=(EditCondition="bSpawnAudioFx"))
+    TObjectPtr<USoundBase> DefaultAmbientSound = nullptr;
+
     UFUNCTION(BlueprintCallable, CallInEditor, Category="Butch")
     void DecorateCurrentLevel();
 
@@ -69,6 +97,12 @@ protected:
 
     UPROPERTY()
     TObjectPtr<UStaticMesh> DefaultCylinderMesh;
+
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<UParticleSystemComponent>> SpawnedSteamComponents;
+
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<UAudioComponent>> SpawnedAudioComponents;
 
     void ConfigurePlaceholderMesh(UInstancedStaticMeshComponent* MeshComponent) const;
     void ApplyPlaceholderColors();

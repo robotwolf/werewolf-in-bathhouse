@@ -6,6 +6,7 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Components/TextRenderComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/Actor.h"
@@ -82,6 +83,16 @@ ARoomModuleBase::ARoomModuleBase()
     PlayerStartAnchor->SetupAttachment(SceneRoot);
     PlayerStartAnchor->SetChildActorClass(nullptr);
 
+    RoomNameLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("RoomNameLabel"));
+    RoomNameLabel->SetupAttachment(SceneRoot);
+    RoomNameLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
+    RoomNameLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    RoomNameLabel->SetTextRenderColor(FColor(235, 230, 205));
+    RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
+    RoomNameLabel->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+    RoomNameLabel->SetHiddenInGame(false);
+    RoomNameLabel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     if (CubeFinder.Succeeded())
     {
@@ -136,6 +147,7 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
     UpdateGeneratedGrayboxMaterial();
 
     UpdatePlayerStartPlacement();
+    UpdateRoomNameLabel();
 }
 
 void ARoomModuleBase::RefreshConnectorCache()
@@ -180,6 +192,38 @@ void ARoomModuleBase::RegisterConnection(UPrototypeRoomConnectorComponent* ThisC
     ConnectedRooms.Add(Record);
 }
 
+int32 ARoomModuleBase::GetConnectionCount() const
+{
+    int32 Count = 0;
+    for (const FRoomConnectionRecord& Record : ConnectedRooms)
+    {
+        if (Record.OtherRoom)
+        {
+            ++Count;
+        }
+    }
+
+    return Count;
+}
+
+bool ARoomModuleBase::IsConnectorConnected(const UPrototypeRoomConnectorComponent* Connector) const
+{
+    if (!Connector)
+    {
+        return false;
+    }
+
+    for (const FRoomConnectionRecord& Record : ConnectedRooms)
+    {
+        if (Record.ThisConnector == Connector && Record.OtherRoom)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)
 {
     const FVector HalfExtents = FullSize * 0.5f;
@@ -188,6 +232,30 @@ void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)
     UpdateGrayboxMeshScale();
     RoomCenter = RoomBoundsBox->GetRelativeLocation();
     RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
+}
+
+void ARoomModuleBase::UpdateRoomNameLabel()
+{
+    if (!RoomNameLabel || !RoomBoundsBox)
+    {
+        return;
+    }
+
+    const bool bShouldShow = bShowRoomNameLabel;
+    RoomNameLabel->SetVisibility(bShouldShow);
+    RoomNameLabel->SetHiddenInGame(!bShouldShow);
+    if (!bShouldShow)
+    {
+        return;
+    }
+
+    const FName DisplayName = !RoomID.IsNone()
+        ? RoomID
+        : (!RoomType.IsNone() ? RoomType : FName(*GetClass()->GetName()));
+
+    RoomNameLabel->SetText(FText::FromName(DisplayName));
+    RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
+    RoomNameLabel->SetRelativeLocation(RoomBoundsBox->GetRelativeLocation() + RoomNameLabelOffset);
 }
 
 FBox ARoomModuleBase::GetWorldBounds(float ShrinkBy) const

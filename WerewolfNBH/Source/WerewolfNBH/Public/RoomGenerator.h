@@ -7,6 +7,17 @@
 class ARoomModuleBase;
 class AButchDecorator;
 class UPrototypeRoomConnectorComponent;
+enum class ERoomPlacementRole : uint8;
+
+DECLARE_LOG_CATEGORY_EXTERN(LogGinny, Log, All);
+
+UENUM()
+enum class EGeneratorPathContext : uint8
+{
+    MainPath,
+    Branch,
+    HallwayChain
+};
 
 USTRUCT()
 struct FOpenDoorState
@@ -72,6 +83,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Vertical", meta=(ClampMin="0.0", EditCondition="bAllowVerticalTransitions"))
     float MaxVerticalDisplacement = 420.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation", meta=(ClampMin="1", ClampMax="20"))
+    int32 MaxLayoutAttempts = 5;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     bool bDebugDrawBounds = true;
 
@@ -105,6 +119,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation")
     TArray<TSubclassOf<ARoomModuleBase>> ConnectorFallbackRooms;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Program")
+    TArray<TSubclassOf<ARoomModuleBase>> RequiredMainPathRooms;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Program")
+    TArray<TSubclassOf<ARoomModuleBase>> RequiredBranchRooms;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain")
     bool bEnableHallwayChains = true;
 
@@ -122,6 +142,12 @@ public:
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<TObjectPtr<ARoomModuleBase>> SpawnedRooms;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    TArray<TObjectPtr<ARoomModuleBase>> GeneratedMainPathRooms;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    TArray<FString> LastValidationIssues;
 
     UPROPERTY(VisibleInstanceOnly, Category="Generation")
     TArray<FOpenDoorState> OpenDoors;
@@ -141,21 +167,57 @@ public:
     UFUNCTION(BlueprintCallable, CallInEditor, Category="Generation")
     void ClearGeneratedLayout();
 
+    UFUNCTION(BlueprintCallable, Category="Generation")
+    bool RunLayoutValidation(bool bLogIssues = true);
+
 protected:
     FRandomStream RandomStream;
 
     ARoomModuleBase* SpawnRoom(TSubclassOf<ARoomModuleBase> RoomClass, const FTransform& SpawnTransform);
     void RegisterOpenDoors(ARoomModuleBase* Room);
     bool TryExpandFromDoor(FOpenDoorState& DoorState);
-    bool TryPlaceRoomForDoor(UPrototypeRoomConnectorComponent* TargetConnector, TSubclassOf<ARoomModuleBase> CandidateClass);
+    bool TryPlaceRoomForDoor(
+        UPrototypeRoomConnectorComponent* TargetConnector,
+        TSubclassOf<ARoomModuleBase> CandidateClass,
+        ERoomPlacementRole AssignedRole,
+        ARoomModuleBase* ParentRoom,
+        int32 DepthFromStart);
     bool AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRoomConnectorComponent* NewRoomConnector, UPrototypeRoomConnectorComponent* TargetConnector) const;
     bool ValidateVerticalPlacement(const ARoomModuleBase* CandidateRoom) const;
     bool ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, const ARoomModuleBase* IgnoredRoom) const;
-    bool TryPlaceHallwayChain(UPrototypeRoomConnectorComponent* TargetConnector, int32 RemainingSegments);
+    bool TryPlaceHallwayChain(
+        UPrototypeRoomConnectorComponent* TargetConnector,
+        int32 RemainingSegments,
+        EGeneratorPathContext Context,
+        ERoomPlacementRole AssignedRole,
+        int32 DepthFromStart,
+        ARoomModuleBase*& OutPlacedRoom);
     void CloseDoor(UPrototypeRoomConnectorComponent* Connector) const;
-    TArray<TSubclassOf<ARoomModuleBase>> BuildCandidateList(const UPrototypeRoomConnectorComponent* TargetConnector, const TArray<TSubclassOf<ARoomModuleBase>>* OverrideList = nullptr, bool bIgnoreCooldown = false) const;
+    TArray<TSubclassOf<ARoomModuleBase>> BuildCandidateList(
+        const UPrototypeRoomConnectorComponent* TargetConnector,
+        const TArray<TSubclassOf<ARoomModuleBase>>* OverrideList = nullptr,
+        bool bIgnoreCooldown = false,
+        EGeneratorPathContext Context = EGeneratorPathContext::MainPath,
+        int32 ProposedDepthFromStart = INDEX_NONE) const;
     int32 FindNextOpenDoorIndex() const;
     bool ValidateReachability() const;
+    bool ValidateLayout(TArray<FString>& OutIssues) const;
+    bool BuildSpine();
+    void FillBranches();
+    bool TryPlaceFromRoomOpenConnectors(
+        ARoomModuleBase* AnchorRoom,
+        const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+        EGeneratorPathContext Context,
+        ERoomPlacementRole AssignedRole,
+        int32 BaseDepthFromStart,
+        ARoomModuleBase*& OutPlacedRoom);
+    bool TryPlaceFromConnectorList(
+        const TArray<UPrototypeRoomConnectorComponent*>& CandidateConnectors,
+        const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+        EGeneratorPathContext Context,
+        ERoomPlacementRole AssignedRole,
+        int32 BaseDepthFromStart,
+        ARoomModuleBase*& OutPlacedRoom);
     void DrawDebugState() const;
     void LogDebugMessage(const FString& Message) const;
     AButchDecorator* FindButchDecorator() const;
@@ -164,4 +226,14 @@ protected:
     int32 GetRoomsSinceLastUse(TSubclassOf<ARoomModuleBase> RoomClass) const;
     float GetCandidateWeight(TSubclassOf<ARoomModuleBase> CandidateClass) const;
     int32 ChooseWeightedCandidateIndex(const TArray<TSubclassOf<ARoomModuleBase>>& Candidates);
+    bool IsCandidateAllowedForContext(
+        const ARoomModuleBase* TargetRoom,
+        const ARoomModuleBase* CandidateCDO,
+        TSubclassOf<ARoomModuleBase> CandidateClass,
+        EGeneratorPathContext Context,
+        int32 ProposedDepthFromStart,
+        const FRoomClassEntry* Entry,
+        bool bIgnoreCooldown,
+        FString& OutRejectReason) const;
+    int32 CountSpawnedInstancesOfClass(TSubclassOf<ARoomModuleBase> RoomClass) const;
 };
