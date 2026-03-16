@@ -296,6 +296,66 @@ const TArray<FName>& ARoomModuleBase::GetResolvedAllowedNeighborRoomTypes() cons
     return AllowedNeighborRoomTypes;
 }
 
+UMaterialInterface* ARoomModuleBase::GetResolvedLegacyRoomMaterial() const
+{
+    if (LegacyRoomMaterialOverride)
+    {
+        return LegacyRoomMaterialOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->LegacyRoomMaterial;
+    }
+
+    return nullptr;
+}
+
+UMaterialInterface* ARoomModuleBase::GetResolvedFloorMaterial() const
+{
+    if (FloorMaterialOverride)
+    {
+        return FloorMaterialOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->FloorMaterial;
+    }
+
+    return nullptr;
+}
+
+UMaterialInterface* ARoomModuleBase::GetResolvedWallMaterial() const
+{
+    if (WallMaterialOverride)
+    {
+        return WallMaterialOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->WallMaterial;
+    }
+
+    return nullptr;
+}
+
+UMaterialInterface* ARoomModuleBase::GetResolvedCeilingMaterial() const
+{
+    if (CeilingMaterialOverride)
+    {
+        return CeilingMaterialOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->CeilingMaterial;
+    }
+
+    return nullptr;
+}
+
 FName ARoomModuleBase::GetResolvedRoomID() const
 {
     if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
@@ -1045,10 +1105,10 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
         MeshComponent->SetMaterial(0, BaseMaterial);
     };
 
-    ApplyMaterial(RoomMesh, LegacyRoomMaterialOverride, true);
-    ApplyMaterial(GeneratedFloorMesh, FloorMaterialOverride, false);
-    ApplyMaterial(GeneratedWallMesh, WallMaterialOverride, false);
-    ApplyMaterial(GeneratedCeilingMesh, CeilingMaterialOverride, false);
+    ApplyMaterial(RoomMesh, GetResolvedLegacyRoomMaterial(), true);
+    ApplyMaterial(GeneratedFloorMesh, GetResolvedFloorMaterial(), false);
+    ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false);
+    ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false);
 }
 
 void ARoomModuleBase::UpdatePlayerStartPlacement()

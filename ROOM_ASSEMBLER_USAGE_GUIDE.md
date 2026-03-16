@@ -36,6 +36,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     - transition metadata
     - default opening profile
     - stock graybox settings
+    - stock graybox appearance defaults
 
 - `UGinnyLayoutProfile`
   - Data asset that defines generator policy for a whole local layout regime.
@@ -344,6 +345,31 @@ Expected healthy defaults:
 - `RequiredBranchRooms = [Sauna, BoilerService]`
 - optional branch landmark: `PublicHallStairUp`
 
+Current profile-driven bathhouse material families:
+
+- `EntryReception`
+  - `M_Assembler_Test_Entry_Floor`
+  - `M_Assembler_Test_Entry_Wall`
+- `LockerHall`
+  - `M_Assembler_Test_Locker_Floor`
+  - `M_Assembler_Test_Locker_Wall`
+- `PublicHallStraight`, `PublicHallCorner`, `PoolHall`, `ColdPlunge`
+  - `M_Assembler_Test_Hall_Floor`
+  - `M_Assembler_Test_Hall_Wall`
+- `WashShower`, `SteamRoom`, `Toilet`
+  - `M_Assembler_Test_Porcelain`
+  - `M_Assembler_Test_Hall_Wall`
+- `BoilerService`, `Storage`
+  - `M_Assembler_Test_ServiceMetal`
+  - `M_Assembler_Test_Hall_Wall`
+- `Sauna`
+  - `M_Assembler_Test_WoodBench`
+  - `M_Assembler_Test_Hall_Wall`
+- `PublicHallStair`
+  - `M_Assembler_Test_Stair_Floor`
+  - `M_Assembler_Test_Stair_Wall`
+  - `M_Assembler_Test_Stair_Ceiling`
+
 ## One-Time Setup / Refresh
 
 Repo-root check:
@@ -419,6 +445,12 @@ Opening behavior resolves in this order:
 1. connector `OpeningProfileOverride`
 2. room profile `DefaultOpeningProfile`
 3. legacy `StockAssemblySettings`
+
+Room graybox materials resolve in this order:
+
+1. per-room BP material overrides on `ARoomModuleBase`
+2. room profile appearance materials
+3. engine default material / debug tint fallback
 
 Generator policy resolves in this order:
 

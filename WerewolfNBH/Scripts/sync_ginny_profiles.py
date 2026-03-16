@@ -29,6 +29,23 @@ DOUBLE_WIDE_OPENING_ASSET = "DA_GinnyOpening_DoubleWide"
 BATHHOUSE_LAYOUT_ASSET = "DA_GinnyLayout_Bathhouse_Default"
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
 
+MATERIAL_PATHS = {
+    "entry_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Entry_Floor",
+    "entry_wall": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Entry_Wall",
+    "locker_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Locker_Floor",
+    "locker_wall": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Locker_Wall",
+    "hall_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Hall_Floor",
+    "hall_wall": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Hall_Wall",
+    "stair_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Stair_Floor",
+    "stair_wall": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Stair_Wall",
+    "stair_ceiling": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Stair_Ceiling",
+    "ceiling": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Ceiling",
+    "water": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Water",
+    "service_metal": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_ServiceMetal",
+    "porcelain": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Porcelain",
+    "wood_bench": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_WoodBench",
+}
+
 
 def log(message: str) -> None:
     unreal.log(f"[sync_ginny_profiles] {message}")
@@ -74,6 +91,31 @@ def create_data_asset(asset_name: str, package_path: str, asset_class):
 
 def save_asset(asset) -> None:
     unreal.EditorAssetLibrary.save_loaded_asset(asset)
+
+
+def get_material(key: str):
+    return load_asset(MATERIAL_PATHS[key])
+
+
+def get_room_material_set(profile_name: str):
+    ceiling = get_material("ceiling")
+
+    if profile_name == "EntryReception":
+        return (None, get_material("entry_floor"), get_material("entry_wall"), ceiling)
+    if profile_name == "LockerHall":
+        return (None, get_material("locker_floor"), get_material("locker_wall"), ceiling)
+    if profile_name == "PublicHallStair":
+        return (None, get_material("stair_floor"), get_material("stair_wall"), get_material("stair_ceiling"))
+    if profile_name in ("PoolHall", "ColdPlunge"):
+        return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling)
+    if profile_name in ("WashShower", "Toilet", "SteamRoom"):
+        return (None, get_material("porcelain"), get_material("hall_wall"), ceiling)
+    if profile_name in ("BoilerService", "Storage"):
+        return (None, get_material("service_metal"), get_material("hall_wall"), ceiling)
+    if profile_name == "Sauna":
+        return (None, get_material("wood_bench"), get_material("hall_wall"), ceiling)
+
+    return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling)
 
 
 def get_cdo(blueprint):
@@ -159,6 +201,11 @@ def sync_room_profiles(default_opening_profile, stair_opening_profile):
         stock_settings = cdo.get_editor_property("StockAssemblySettings")
         stock_settings.set_editor_property("DoorWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)
         profile.set_editor_property("StockAssemblySettings", stock_settings)
+        legacy_material, floor_material, wall_material, ceiling_material = get_room_material_set(profile_name)
+        profile.set_editor_property("LegacyRoomMaterial", legacy_material)
+        profile.set_editor_property("FloorMaterial", floor_material)
+        profile.set_editor_property("WallMaterial", wall_material)
+        profile.set_editor_property("CeilingMaterial", ceiling_material)
         profile.set_editor_property("DefaultOpeningProfile", default_opening_profile)
         save_asset(profile)
 

@@ -465,6 +465,10 @@ protected:
     const UGinnyRoomProfile* GetResolvedRoomProfile() const;
     const UGinnyOpeningProfile* GetResolvedOpeningProfile(const UPrototypeRoomConnectorComponent* Connector) const;
     const TArray<FName>& GetResolvedAllowedNeighborRoomTypes() const;
+    UMaterialInterface* GetResolvedLegacyRoomMaterial() const;
+    UMaterialInterface* GetResolvedFloorMaterial() const;
+    UMaterialInterface* GetResolvedWallMaterial() const;
+    UMaterialInterface* GetResolvedCeilingMaterial() const;
 
     void BuildParametricGraybox();
     void BuildStockBoundsGraybox();

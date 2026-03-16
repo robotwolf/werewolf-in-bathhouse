@@ -6,6 +6,7 @@
 #include "GinnyProfiles.generated.h"
 
 class ARoomModuleBase;
+class UMaterialInterface;
 
 USTRUCT(BlueprintType)
 struct FRoomClassEntry
@@ -91,6 +92,18 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Graybox")
     FRoomStockAssemblySettings StockAssemblySettings;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> LegacyRoomMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> FloorMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> WallMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> CeilingMaterial = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Openings")
     TObjectPtr<UGinnyOpeningProfile> DefaultOpeningProfile = nullptr;
