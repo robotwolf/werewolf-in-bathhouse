@@ -26,6 +26,10 @@ SERVICE = "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_ServiceMetal"
 WOOD = "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_WoodBench"
 PLANE_MESH = "/Engine/BasicShapes/Plane"
 
+BATHHOUSE_STRAIGHT_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight.BP_Room_PublicHall_Straight_C"
+BATHHOUSE_CORNER_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner.BP_Room_PublicHall_Corner_C"
+BATHHOUSE_STAIR_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up.BP_Room_PublicHall_Stair_Up_C"
+
 
 def log(message: str) -> None:
     unreal.log(f"[setup_rv_proof] {message}")
@@ -517,14 +521,31 @@ def ensure_map(map_path: str):
 
 def build_mason_showcase_map(lane_blueprint, rv_blueprint):
     ensure_map(MASON_MAP_PATH)
+    straight_class = load_class(BATHHOUSE_STRAIGHT_CLASS_PATH)
+    corner_class = load_class(BATHHOUSE_CORNER_CLASS_PATH)
+    stair_class = load_class(BATHHOUSE_STAIR_CLASS_PATH)
     lane_class = lane_blueprint.generated_class()
     rv_class = rv_blueprint.generated_class()
 
-    lane_actor = unreal.EditorLevelLibrary.spawn_actor_from_class(lane_class, unreal.Vector(0.0, 0.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0))
-    lane_actor.set_actor_label("MasonLane")
+    showcase_specs = [
+        ("Mason_BoxShell_Straight", straight_class, unreal.Vector(-1800.0, -1100.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0)),
+        ("Mason_SliceFootprint_Corner", corner_class, unreal.Vector(-350.0, -1100.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0)),
+        ("Mason_PublicStairShell", stair_class, unreal.Vector(1300.0, -1100.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0)),
+        ("Mason_OpenLot_Lane", lane_class, unreal.Vector(-900.0, 1100.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0)),
+        ("Mason_ObjectShell_RV", rv_class, unreal.Vector(1200.0, 1150.0, 0.0), unreal.Rotator(0.0, -90.0, 0.0)),
+    ]
 
-    rv_actor = unreal.EditorLevelLibrary.spawn_actor_from_class(rv_class, unreal.Vector(0.0, 1100.0, 0.0), unreal.Rotator(0.0, -90.0, 0.0))
-    rv_actor.set_actor_label("MasonRV")
+    for label, actor_class, location, rotation in showcase_specs:
+        actor = unreal.EditorLevelLibrary.spawn_actor_from_class(actor_class, location, rotation)
+        actor.set_actor_label(label)
+        try:
+            actor.set_editor_property("bShowRoomNameLabel", True)
+            actor.set_editor_property("bShowExteriorRoomNameLabel", True)
+            actor.set_editor_property("bShowRoomMarkerBillboard", True)
+            actor.set_editor_property("bShowRoomMarkerLight", True)
+            actor.set_editor_property("bShowConnectorDebugArrows", False)
+        except Exception:
+            pass
 
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)
 
