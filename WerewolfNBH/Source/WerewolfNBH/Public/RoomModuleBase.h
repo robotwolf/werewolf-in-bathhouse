@@ -17,6 +17,7 @@ class UStaticMesh;
 class UStaticMeshComponent;
 class UGinnyOpeningProfile;
 class UGinnyRoomProfile;
+class UMasonConstructionProfile;
 class UMasonBuilderComponent;
 class URoomSignageComponent;
 
@@ -249,6 +250,9 @@ struct FRoomStockAssemblySettings
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Mason")
     FName ConstructionProfileId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Mason")
+    TObjectPtr<UMasonConstructionProfile> ConstructionProfileOverride = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox", meta=(ClampMin="1.0"))
     float FloorThickness = 20.0f;
@@ -566,6 +570,7 @@ protected:
 
     UPrototypeRoomConnectorComponent* CreateConnector(const FName Name, const FVector& RelativeLocation, const FRotator& RelativeRotation, ERoomConnectorDirection Direction);
     const UGinnyRoomProfile* GetResolvedRoomProfile() const;
+    const UMasonConstructionProfile* GetResolvedConstructionProfile() const;
     const UGinnyOpeningProfile* GetResolvedOpeningProfile(const UPrototypeRoomConnectorComponent* Connector) const;
     const TArray<FName>& GetResolvedAllowedNeighborRoomTypes() const;
     UMaterialInterface* GetResolvedLegacyRoomMaterial() const;

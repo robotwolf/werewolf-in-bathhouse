@@ -52,19 +52,21 @@ def main():
         profile = room.get_editor_property("RoomProfile")
         if not profile:
             fail(f"RV room {room.get_name()} is missing RoomProfile")
-        stock = profile.get_editor_property("StockAssemblySettings")
-        if not stock.get_editor_property("bOverrideConstructionTechnique"):
-            fail("RV room profile is not overriding Mason construction technique")
-        if stock.get_editor_property("ConstructionTechnique") != unreal.MasonConstructionTechnique.OBJECT_SHELL:
-            fail("RV room profile is not using Mason ObjectShell")
+        construction_profile = profile.get_editor_property("ConstructionProfile")
+        if not construction_profile:
+            fail("RV room profile is missing Mason construction profile")
+        if construction_profile.get_editor_property("ConstructionTechnique") != unreal.MasonConstructionTechnique.OBJECT_SHELL:
+            fail("RV room profile Mason profile is not using Mason ObjectShell")
 
     for room in lane_rooms:
         profile = room.get_editor_property("RoomProfile")
         if not profile:
             fail(f"Lane room {room.get_name()} is missing RoomProfile")
-        stock = profile.get_editor_property("StockAssemblySettings")
-        if stock.get_editor_property("ConstructionTechnique") != unreal.MasonConstructionTechnique.OPEN_LOT:
-            fail("Lane room profile is not using Mason OpenLot")
+        construction_profile = profile.get_editor_property("ConstructionProfile")
+        if not construction_profile:
+            fail("Lane room profile is missing Mason construction profile")
+        if construction_profile.get_editor_property("ConstructionTechnique") != unreal.MasonConstructionTechnique.OPEN_LOT:
+            fail("Lane room profile Mason profile is not using Mason OpenLot")
 
     if not generator.get_editor_property("LayoutProfile"):
         fail("RV proof generator is missing LayoutProfile")

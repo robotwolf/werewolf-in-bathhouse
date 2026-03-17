@@ -5,6 +5,7 @@ ROOMS_PATH = f"{PROOF_ROOT}/Blueprints/Rooms"
 DATA_ROOT = f"{PROOF_ROOT}/Data/Ginny"
 ROOM_PROFILES_PATH = f"{DATA_ROOT}/Rooms"
 LAYOUTS_PATH = f"{DATA_ROOT}/Layouts"
+MASON_PROFILES_PATH = f"{PROOF_ROOT}/Data/Mason/Profiles"
 MAPS_PATH = f"{PROOF_ROOT}/Maps"
 
 STANDARD_OPENING_PATH = "/Game/WerewolfBH/Data/Ginny/Openings/DA_GinnyOpening_Standard"
@@ -202,6 +203,19 @@ def configure_stock_settings(cdo, *, full_size: unreal.Vector, technique, profil
     set_room_bounds(cdo, full_size)
 
 
+def create_mason_profile(asset_name: str, technique, profile_id: str, floor_thickness: float, wall_thickness: float, ceiling_thickness: float, door_width: float, door_height: float):
+    profile = create_data_asset(asset_name, MASON_PROFILES_PATH, unreal.MasonConstructionProfile)
+    profile.set_editor_property("ConstructionTechnique", technique)
+    profile.set_editor_property("ConstructionProfileId", profile_id)
+    profile.set_editor_property("FloorThickness", floor_thickness)
+    profile.set_editor_property("WallThickness", wall_thickness)
+    profile.set_editor_property("CeilingThickness", ceiling_thickness)
+    profile.set_editor_property("DefaultDoorWidth", door_width)
+    profile.set_editor_property("DefaultDoorHeight", door_height)
+    save_loaded(profile)
+    return profile
+
+
 def set_placement_rules(cdo, role, allow_main, allow_branch, can_terminate, min_depth=0, max_depth=-1, max_instances=-1):
     rules = cdo.get_editor_property("PlacementRules")
     rules.set_editor_property("PlacementRole", role)
@@ -305,7 +319,7 @@ def configure_rv_blueprint():
     return blueprint
 
 
-def create_room_profile(asset_name: str, room_id: str, room_type: str, weight: float, min_conn: int, max_conn: int, allowed_neighbors, placement_role, allow_main: bool, allow_branch: bool, can_terminate: bool, max_instances: int, stock_settings, floor_material, wall_material, ceiling_material, roof_material):
+def create_room_profile(asset_name: str, room_id: str, room_type: str, weight: float, min_conn: int, max_conn: int, allowed_neighbors, placement_role, allow_main: bool, allow_branch: bool, can_terminate: bool, max_instances: int, stock_settings, construction_profile, floor_material, wall_material, ceiling_material, roof_material):
     profile = create_data_asset(asset_name, ROOM_PROFILES_PATH, unreal.GinnyRoomProfile)
     profile.set_editor_property("RoomID", room_id)
     profile.set_editor_property("RoomType", room_type)
@@ -326,6 +340,7 @@ def create_room_profile(asset_name: str, room_id: str, room_type: str, weight: f
     profile.set_editor_property("TransitionType", unreal.RoomTransitionType.NONE)
     profile.set_editor_property("TransitionTargetConfigId", "")
     profile.set_editor_property("StockAssemblySettings", stock_settings)
+    profile.set_editor_property("ConstructionProfile", construction_profile)
     profile.set_editor_property("LegacyRoomMaterial", None)
     profile.set_editor_property("FloorMaterial", floor_material)
     profile.set_editor_property("WallMaterial", wall_material)
@@ -339,6 +354,26 @@ def create_room_profile(asset_name: str, room_id: str, room_type: str, weight: f
 def configure_profiles(lane_blueprint, rv_blueprint):
     lane_cdo = get_cdo(lane_blueprint)
     rv_cdo = get_cdo(rv_blueprint)
+    lane_mason = create_mason_profile(
+        "DA_Mason_RV_Lane",
+        unreal.MasonConstructionTechnique.OPEN_LOT,
+        "RVLotLane",
+        12.0,
+        20.0,
+        0.0,
+        220.0,
+        220.0,
+    )
+    rv_mason = create_mason_profile(
+        "DA_Mason_RV_SingleWide",
+        unreal.MasonConstructionTechnique.OBJECT_SHELL,
+        "RVSingleWide",
+        16.0,
+        22.0,
+        12.0,
+        110.0,
+        220.0,
+    )
 
     lane_profile = create_room_profile(
         "DA_GinnyRoom_RVParkLane",
@@ -354,6 +389,7 @@ def configure_profiles(lane_blueprint, rv_blueprint):
         True,
         -1,
         lane_cdo.get_editor_property("StockAssemblySettings"),
+        lane_mason,
         load_asset(HALL_FLOOR),
         load_asset(SERVICE),
         None,
@@ -374,6 +410,7 @@ def configure_profiles(lane_blueprint, rv_blueprint):
         True,
         3,
         rv_cdo.get_editor_property("StockAssemblySettings"),
+        rv_mason,
         load_asset(WOOD),
         load_asset(HALL_WALL),
         load_asset(CEILING),
@@ -510,7 +547,7 @@ def build_ginny_proof_map(layout_profile):
 
 
 def main():
-    for folder in (PROOF_ROOT, ROOMS_PATH, DATA_ROOT, ROOM_PROFILES_PATH, LAYOUTS_PATH, MAPS_PATH):
+    for folder in (PROOF_ROOT, ROOMS_PATH, DATA_ROOT, ROOM_PROFILES_PATH, LAYOUTS_PATH, MASON_PROFILES_PATH, MAPS_PATH):
         ensure_folder(folder)
 
     lane_blueprint = configure_lane_blueprint()

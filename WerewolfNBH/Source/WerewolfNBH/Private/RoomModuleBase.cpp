@@ -80,6 +80,38 @@ namespace
         }
     }
 
+    void ApplyMasonConstructionProfile(
+        const UMasonConstructionProfile* ConstructionProfile,
+        const FRoomStockAssemblySettings& FallbackSettings,
+        FMasonBuildSpec& BuildSpec)
+    {
+        if (!ConstructionProfile)
+        {
+            return;
+        }
+
+        BuildSpec.ConstructionTechnique = ConstructionProfile->ConstructionTechnique;
+        BuildSpec.ConstructionProfileId = ConstructionProfile->ConstructionProfileId.IsNone()
+            ? BuildSpec.ConstructionProfileId
+            : ConstructionProfile->ConstructionProfileId;
+        BuildSpec.FloorThickness = ConstructionProfile->FloorThickness;
+        BuildSpec.WallThickness = ConstructionProfile->WallThickness;
+        BuildSpec.CeilingThickness = ConstructionProfile->CeilingThickness;
+        BuildSpec.DefaultDoorWidth = ConstructionProfile->DefaultDoorWidth;
+        BuildSpec.DefaultDoorHeight = ConstructionProfile->DefaultDoorHeight;
+        BuildSpec.StairWalkWidth = ConstructionProfile->StairWalkWidth;
+        BuildSpec.StairLowerLandingDepth = ConstructionProfile->StairLowerLandingDepth;
+        BuildSpec.StairUpperLandingDepth = ConstructionProfile->StairUpperLandingDepth;
+        BuildSpec.StairStepCount = ConstructionProfile->StairStepCount;
+        BuildSpec.StairRiseHeight = ConstructionProfile->StairRiseHeight;
+        BuildSpec.StairSideInset = ConstructionProfile->StairSideInset;
+        BuildSpec.bCreateStairLandingSideOpenings = ConstructionProfile->bCreateStairLandingSideOpenings;
+        BuildSpec.StairLandingSideOpeningWidth = ConstructionProfile->StairLandingSideOpeningWidth;
+        BuildSpec.StairLandingSideOpeningHeight = ConstructionProfile->StairLandingSideOpeningHeight;
+
+        BuildSpec.DefaultOpeningSpec.OpeningHeight = ConstructionProfile->DefaultDoorHeight;
+    }
+
     FMasonOpeningSpec MakeMasonOpeningSpec(const UGinnyOpeningProfile* Profile, const FRoomStockAssemblySettings& FallbackSettings)
     {
         FMasonOpeningSpec OpeningSpec;
@@ -297,6 +329,21 @@ bool ARoomModuleBase::AllowsNeighborType(FName CandidateRoomType) const
 const UGinnyRoomProfile* ARoomModuleBase::GetResolvedRoomProfile() const
 {
     return RoomProfile;
+}
+
+const UMasonConstructionProfile* ARoomModuleBase::GetResolvedConstructionProfile() const
+{
+    if (StockAssemblySettings.ConstructionProfileOverride)
+    {
+        return StockAssemblySettings.ConstructionProfileOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->ConstructionProfile;
+    }
+
+    return nullptr;
 }
 
 const UGinnyOpeningProfile* ARoomModuleBase::GetResolvedOpeningProfile(const UPrototypeRoomConnectorComponent* Connector) const
@@ -902,6 +949,7 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     const float CeilingThickness = FMath::Clamp(EffectiveStockSettings.CeilingThickness, 0.0f, MaxCeilingThickness);
     const float WallHeight = FMath::Max(50.0f, FullSize.Z - FloorThickness - CeilingThickness);
     const UGinnyOpeningProfile* DefaultOpeningProfile = GetResolvedOpeningProfile(nullptr);
+    const UMasonConstructionProfile* ConstructionProfile = GetResolvedConstructionProfile();
 
     FMasonBuildSpec BuildSpec;
     BuildSpec.ConstructionTechnique = EffectiveStockSettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp
@@ -934,10 +982,23 @@ void ARoomModuleBase::BuildStockBoundsGraybox()
     BuildSpec.StairLandingSideOpeningWidth = EffectiveStockSettings.StairLandingSideOpeningWidth;
     BuildSpec.StairLandingSideOpeningHeight = EffectiveStockSettings.StairLandingSideOpeningHeight;
 
-    if (!EffectiveStockSettings.bOverrideConstructionTechnique
-        && EffectiveStockSettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
+    ApplyMasonConstructionProfile(ConstructionProfile, EffectiveStockSettings, BuildSpec);
+    BuildSpec.FloorThickness = FMath::Clamp(BuildSpec.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
+    BuildSpec.CeilingThickness = FMath::Clamp(
+        BuildSpec.CeilingThickness,
+        0.0f,
+        FMath::Max(0.0f, FullSize.Z - BuildSpec.FloorThickness - 50.0f));
+    BuildSpec.WallThickness = FMath::Clamp(BuildSpec.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+    BuildSpec.WallHeight = FMath::Max(50.0f, FullSize.Z - BuildSpec.FloorThickness - BuildSpec.CeilingThickness);
+    BuildSpec.DefaultDoorHeight = FMath::Clamp(BuildSpec.DefaultDoorHeight, 50.0f, BuildSpec.WallHeight);
+    BuildSpec.DefaultOpeningSpec.OpeningHeight = FMath::Clamp(
+        BuildSpec.DefaultOpeningSpec.OpeningHeight,
+        50.0f,
+        BuildSpec.DefaultDoorHeight);
+
+    if (EffectiveStockSettings.FootprintType == ERoomStockFootprintType::CornerSouthEast
+        && BuildSpec.ConstructionTechnique == EMasonConstructionTechnique::SliceFootprint)
     {
-        BuildSpec.ConstructionTechnique = EMasonConstructionTechnique::SliceFootprint;
         BuildSpec.CellSize = FMath::Max(25.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
         BuildSpec.OccupiedCells = { FIntPoint(-1, -1), FIntPoint(0, -1), FIntPoint(0, 0) };
     }

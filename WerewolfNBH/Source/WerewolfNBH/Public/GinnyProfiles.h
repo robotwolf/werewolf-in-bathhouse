@@ -8,6 +8,7 @@
 
 class ARoomModuleBase;
 class UMaterialInterface;
+class UMasonConstructionProfile;
 
 USTRUCT(BlueprintType)
 struct FRoomClassEntry
@@ -100,6 +101,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Graybox")
     FRoomStockAssemblySettings StockAssemblySettings;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Construction")
+    TObjectPtr<UMasonConstructionProfile> ConstructionProfile = nullptr;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> LegacyRoomMaterial = nullptr;
 
@@ -117,6 +121,64 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Openings")
     TObjectPtr<UGinnyOpeningProfile> DefaultOpeningProfile = nullptr;
+};
+
+UCLASS(BlueprintType)
+class WEREWOLFNBH_API UMasonConstructionProfile : public UDataAsset
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction")
+    EMasonConstructionTechnique ConstructionTechnique = EMasonConstructionTechnique::BoxShell;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction")
+    FName ConstructionProfileId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction", meta=(ClampMin="1.0"))
+    float FloorThickness = 20.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction", meta=(ClampMin="1.0"))
+    float WallThickness = 30.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction", meta=(ClampMin="0.0"))
+    float CeilingThickness = 20.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Openings", meta=(ClampMin="50.0"))
+    float DefaultDoorWidth = 200.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Openings", meta=(ClampMin="50.0"))
+    float DefaultDoorHeight = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs")
+    ERoomStockStairLayoutType StairLayoutType = ERoomStockStairLayoutType::Straight;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="100.0"))
+    float StairWalkWidth = 700.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="50.0"))
+    float StairLowerLandingDepth = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="50.0"))
+    float StairUpperLandingDepth = 260.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="3", ClampMax="64"))
+    int32 StairStepCount = 12;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="100.0"))
+    float StairRiseHeight = 400.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="0.0"))
+    float StairSideInset = 80.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs")
+    bool bCreateStairLandingSideOpenings = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="50.0"))
+    float StairLandingSideOpeningWidth = 320.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="50.0"))
+    float StairLandingSideOpeningHeight = 260.0f;
 };
 
 UCLASS(BlueprintType)

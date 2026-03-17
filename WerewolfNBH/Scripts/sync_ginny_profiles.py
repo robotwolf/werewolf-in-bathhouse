@@ -5,6 +5,7 @@ DATA_ROOT = "/Game/WerewolfBH/Data/Ginny"
 OPENINGS_PATH = f"{DATA_ROOT}/Openings"
 ROOM_PROFILES_PATH = f"{DATA_ROOT}/Rooms"
 LAYOUTS_PATH = f"{DATA_ROOT}/Layouts"
+MASON_PROFILES_PATH = "/Game/WerewolfBH/Data/Mason/Profiles"
 
 GENERATOR_BP_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator"
 
@@ -180,7 +181,64 @@ def configure_opening_profiles():
     return standard, double_wide
 
 
-def sync_room_profiles(default_opening_profile, stair_opening_profile):
+def configure_mason_profiles():
+    ensure_folder(MASON_PROFILES_PATH)
+
+    box = create_data_asset("DA_Mason_Bathhouse_BoxShell", MASON_PROFILES_PATH, unreal.MasonConstructionProfile)
+    box.set_editor_property("ConstructionTechnique", unreal.MasonConstructionTechnique.BOX_SHELL)
+    box.set_editor_property("ConstructionProfileId", "BathhouseBoxShell")
+    box.set_editor_property("FloorThickness", 20.0)
+    box.set_editor_property("WallThickness", 30.0)
+    box.set_editor_property("CeilingThickness", 20.0)
+    box.set_editor_property("DefaultDoorWidth", 200.0)
+    box.set_editor_property("DefaultDoorHeight", 260.0)
+    save_asset(box)
+
+    corner = create_data_asset("DA_Mason_Bathhouse_CornerShell", MASON_PROFILES_PATH, unreal.MasonConstructionProfile)
+    corner.set_editor_property("ConstructionTechnique", unreal.MasonConstructionTechnique.SLICE_FOOTPRINT)
+    corner.set_editor_property("ConstructionProfileId", "BathhouseCorner")
+    corner.set_editor_property("FloorThickness", 20.0)
+    corner.set_editor_property("WallThickness", 30.0)
+    corner.set_editor_property("CeilingThickness", 20.0)
+    corner.set_editor_property("DefaultDoorWidth", 200.0)
+    corner.set_editor_property("DefaultDoorHeight", 260.0)
+    save_asset(corner)
+
+    stair = create_data_asset("DA_Mason_Bathhouse_PublicStair", MASON_PROFILES_PATH, unreal.MasonConstructionProfile)
+    stair.set_editor_property("ConstructionTechnique", unreal.MasonConstructionTechnique.PUBLIC_STAIR_SHELL)
+    stair.set_editor_property("ConstructionProfileId", "BathhousePublicStair")
+    stair.set_editor_property("FloorThickness", 20.0)
+    stair.set_editor_property("WallThickness", 30.0)
+    stair.set_editor_property("CeilingThickness", 20.0)
+    stair.set_editor_property("DefaultDoorWidth", 240.0)
+    stair.set_editor_property("DefaultDoorHeight", 300.0)
+    stair.set_editor_property("StairWalkWidth", 880.0)
+    stair.set_editor_property("StairLowerLandingDepth", 360.0)
+    stair.set_editor_property("StairUpperLandingDepth", 360.0)
+    stair.set_editor_property("StairStepCount", 14)
+    stair.set_editor_property("StairRiseHeight", 420.0)
+    stair.set_editor_property("StairSideInset", 0.0)
+    stair.set_editor_property("bCreateStairLandingSideOpenings", True)
+    stair.set_editor_property("StairLandingSideOpeningWidth", 320.0)
+    stair.set_editor_property("StairLandingSideOpeningHeight", 260.0)
+    save_asset(stair)
+
+    return {
+        "box": box,
+        "corner": corner,
+        "stair": stair,
+    }
+
+
+def get_mason_profile_for_room(profile_name: str, mason_profiles):
+    if profile_name == "PublicHallCorner":
+        return mason_profiles["corner"]
+    if profile_name == "PublicHallStair":
+        return mason_profiles["stair"]
+    return mason_profiles["box"]
+
+
+def sync_room_profiles(default_opening_profile, stair_opening_profile, mason_profiles):
     room_blueprints = {}
 
     for profile_name, blueprint_path in ROOM_BLUEPRINT_PATHS.items():
@@ -203,6 +261,7 @@ def sync_room_profiles(default_opening_profile, stair_opening_profile):
         stock_settings = cdo.get_editor_property("StockAssemblySettings")
         stock_settings.set_editor_property("DoorWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)
         profile.set_editor_property("StockAssemblySettings", stock_settings)
+        profile.set_editor_property("ConstructionProfile", get_mason_profile_for_room(profile_name, mason_profiles))
         legacy_material, floor_material, wall_material, ceiling_material, roof_material = get_room_material_set(profile_name)
         profile.set_editor_property("LegacyRoomMaterial", legacy_material)
         profile.set_editor_property("FloorMaterial", floor_material)
@@ -268,11 +327,13 @@ def main():
     ensure_folder(OPENINGS_PATH)
     ensure_folder(ROOM_PROFILES_PATH)
     ensure_folder(LAYOUTS_PATH)
+    ensure_folder(MASON_PROFILES_PATH)
 
     standard_opening, double_wide_opening = configure_opening_profiles()
-    sync_room_profiles(standard_opening, double_wide_opening)
+    mason_profiles = configure_mason_profiles()
+    sync_room_profiles(standard_opening, double_wide_opening, mason_profiles)
     sync_layout_profile()
-    log("Synchronized Ginny room, layout, and opening profiles.")
+    log("Synchronized Ginny room, layout, opening, and Mason construction profiles.")
 
 
 if __name__ == "__main__":

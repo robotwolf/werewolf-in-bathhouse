@@ -50,6 +50,18 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     - vertical enablement
     - optional landmark content such as the stair
 
+- `UMasonConstructionProfile`
+  - Data asset that defines reusable construction defaults for `Mason`.
+  - Intended to be the long-term source of truth for:
+    - construction technique
+    - construction profile id
+    - shell thickness defaults
+    - default opening height/width
+    - stair geometry defaults
+  - Current use:
+    - bathhouse room profiles can point at shared Mason profiles
+    - RV proof rooms use dedicated Mason profiles instead of baking all construction truth into room stock settings
+
 - `UMasonBuilderComponent`
   - The first named extraction of the reusable primitive-construction layer.
   - Current Phase 1 responsibility:
@@ -65,7 +77,8 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     - `ObjectShell`
   - Current implementation status:
     - `BoxShell`, `SliceFootprint`, and `PublicStairShell` are fully active
-    - `PartitionedBox`, `OpenLot`, and `ObjectShell` currently fall back to the proven shell builder until their technique-specific rules are authored
+    - `OpenLot` and `ObjectShell` now have first proof-of-concept behavior
+    - `PartitionedBox` still falls back to the proven shell builder
   - This is the seam where the current bathhouse graybox builder starts becoming reusable beyond the bathhouse.
 
 - `ARoomModuleBase`
@@ -77,6 +90,10 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     1. connector `OpeningProfileOverride`
     2. room profile `DefaultOpeningProfile`
     3. legacy stock settings fallback
+  - Supports Mason construction-profile precedence:
+    1. stock settings `ConstructionProfileOverride`
+    2. room profile `ConstructionProfile`
+    3. legacy stock settings / inferred footprint fallback
   - Provides optional room-name labels and connector debug-arrow visibility control for faster layout inspection.
   - Supports transition-room metadata with `TransitionType` and `TransitionTargetConfigId`.
   - Resolves room semantics from `RoomProfile` first, then falls back to BP-authored legacy fields.
@@ -133,6 +150,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - `Ginny` is already profile-driven.
   - `Mason` is now the named primitive-construction seam.
   - Mason now has explicit technique selection instead of inferred one-off modes.
+  - Mason construction defaults can now live in reusable `UMasonConstructionProfile` assets.
   - Future work will keep expanding `Mason` so the same system can build more than bathhouse boxes without turning `Ginny` into a geometry goblin.
 
 ## Connector Contracts
