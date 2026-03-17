@@ -9,6 +9,20 @@ BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_B
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
 
 
+def get_marker_count_for_family(room, family):
+    if family == unreal.RoomGameplayMarkerFamily.NPC:
+        return len(room.get_npc_markers())
+    if family == unreal.RoomGameplayMarkerFamily.TASK:
+        return len(room.get_task_markers())
+    if family == unreal.RoomGameplayMarkerFamily.CLUE:
+        return len(room.get_clue_markers())
+    if family == unreal.RoomGameplayMarkerFamily.MISSION_SOCKET:
+        return len(room.get_mission_markers())
+    if family == unreal.RoomGameplayMarkerFamily.FX:
+        return len(room.get_fx_markers())
+    return 0
+
+
 def log(message: str) -> None:
     unreal.log(f"[smoke_test_assembler] {message}")
 
@@ -110,6 +124,24 @@ def build_layout_signature(generator, seed: int):
         connection_count = len(neighbors)
         if connection_count < min_connections or connection_count > max_connections:
             fail(f"Room {room.get_name()} violates connection budget: {connection_count} not in [{min_connections}, {max_connections}]")
+
+        room_profile = room.get_editor_property("RoomProfile")
+        marker_requirements = list(room_profile.get_editor_property("GameplayMarkerRequirements")) if room_profile else []
+        for requirement in marker_requirements:
+            family = requirement.get_editor_property("MarkerFamily")
+            min_count = requirement.get_editor_property("MinCount")
+            max_count = requirement.get_editor_property("MaxCount")
+            actual_count = get_marker_count_for_family(room, family)
+            if actual_count < min_count:
+                fail(
+                    f"Room {room.get_name()} is missing required gameplay markers for {family.name}: "
+                    f"{actual_count} < {min_count}"
+                )
+            if max_count >= 0 and actual_count > max_count:
+                fail(
+                    f"Room {room.get_name()} exceeds gameplay marker budget for {family.name}: "
+                    f"{actual_count} > {max_count}"
+                )
 
     visited = set()
     stack = [spawned_rooms[0]]

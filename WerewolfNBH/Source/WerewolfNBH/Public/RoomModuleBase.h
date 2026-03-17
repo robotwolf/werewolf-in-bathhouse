@@ -165,6 +165,50 @@ struct FRoomGameplayMarker
 };
 
 UENUM(BlueprintType)
+enum class ERoomGameplayMarkerFamily : uint8
+{
+    NPC,
+    Task,
+    Clue,
+    MissionSocket,
+    FX,
+    Custom
+};
+
+USTRUCT(BlueprintType)
+struct FRoomGameplayMarkerRequirement
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Marker")
+    ERoomGameplayMarkerFamily MarkerFamily = ERoomGameplayMarkerFamily::NPC;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Marker", meta=(ClampMin="0"))
+    int32 MinCount = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Marker")
+    int32 MaxCount = -1;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Marker")
+    FString Notes;
+};
+
+USTRUCT()
+struct FRegisteredGameplayMarkerComponent
+{
+    GENERATED_BODY()
+
+    UPROPERTY()
+    FString MarkerPrefix;
+
+    UPROPERTY()
+    ERoomGameplayMarkerFamily MarkerFamily = ERoomGameplayMarkerFamily::Custom;
+
+    UPROPERTY()
+    TObjectPtr<USceneComponent> SourceComponent = nullptr;
+};
+
+UENUM(BlueprintType)
 enum class ERoomPlacementRole : uint8
 {
     Start,
@@ -486,6 +530,8 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Room|Generation")
     bool bCarveOnlyConnectedDoorways = false;
 
+    TArray<FRegisteredGameplayMarkerComponent> RegisteredGameplayMarkerComponents;
+
     UFUNCTION(BlueprintCallable, Category="Room")
     void RefreshConnectorCache();
 
@@ -545,6 +591,12 @@ public:
     TArray<FRoomGameplayMarker> GetGameplayMarkersByPrefix(const FString& Prefix) const;
 
     UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily MarkerFamily) const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetAllGameplayMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
     TArray<FRoomGameplayMarker> GetNPCMarkers() const;
 
     UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
@@ -555,6 +607,21 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
     TArray<FRoomGameplayMarker> GetMissionMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetFXMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    void RefreshGameplayMarkerCache();
+
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    int32 GetGameplayMarkerCountByFamily(ERoomGameplayMarkerFamily MarkerFamily) const;
+
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarkerRequirement> GetResolvedGameplayMarkerRequirements() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    bool ValidateGameplayMarkerRequirements(TArray<FString>& OutIssues) const;
 
     UFUNCTION(BlueprintPure, Category="Room|Debug")
     FString BuildGameplayDebugSummary() const;
@@ -579,6 +646,7 @@ protected:
     UMaterialInterface* GetResolvedCeilingMaterial() const;
     UMaterialInterface* GetResolvedRoofMaterial() const;
     FRoomGameplayMarker BuildGameplayMarker(const FString& Prefix, USceneComponent* SceneComponent) const;
+    FRoomGameplayMarker BuildGameplayMarker(const FRegisteredGameplayMarkerComponent& RegisteredMarker) const;
 
     void BuildParametricGraybox();
     void BuildStockBoundsGraybox();

@@ -144,6 +144,72 @@ namespace
 
         return TagNames.IsEmpty() ? TEXT("None") : FString::Join(TagNames, TEXT(", "));
     }
+
+    FString GetMarkerPrefixForFamily(ERoomGameplayMarkerFamily MarkerFamily)
+    {
+        switch (MarkerFamily)
+        {
+        case ERoomGameplayMarkerFamily::NPC:
+            return TEXT("NPC_");
+        case ERoomGameplayMarkerFamily::Task:
+            return TEXT("Task_");
+        case ERoomGameplayMarkerFamily::Clue:
+            return TEXT("Clue_");
+        case ERoomGameplayMarkerFamily::MissionSocket:
+            return TEXT("MissionSocket_");
+        case ERoomGameplayMarkerFamily::FX:
+            return TEXT("FX_");
+        case ERoomGameplayMarkerFamily::Custom:
+        default:
+            return FString();
+        }
+    }
+
+    FString GetMarkerFamilyLabel(ERoomGameplayMarkerFamily MarkerFamily)
+    {
+        switch (MarkerFamily)
+        {
+        case ERoomGameplayMarkerFamily::NPC:
+            return TEXT("NPC");
+        case ERoomGameplayMarkerFamily::Task:
+            return TEXT("Task");
+        case ERoomGameplayMarkerFamily::Clue:
+            return TEXT("Clue");
+        case ERoomGameplayMarkerFamily::MissionSocket:
+            return TEXT("Mission");
+        case ERoomGameplayMarkerFamily::FX:
+            return TEXT("FX");
+        case ERoomGameplayMarkerFamily::Custom:
+        default:
+            return TEXT("Custom");
+        }
+    }
+
+    ERoomGameplayMarkerFamily ResolveMarkerFamilyFromComponentName(const FString& ComponentName)
+    {
+        if (ComponentName.StartsWith(TEXT("NPC_"), ESearchCase::IgnoreCase))
+        {
+            return ERoomGameplayMarkerFamily::NPC;
+        }
+        if (ComponentName.StartsWith(TEXT("Task_"), ESearchCase::IgnoreCase))
+        {
+            return ERoomGameplayMarkerFamily::Task;
+        }
+        if (ComponentName.StartsWith(TEXT("Clue_"), ESearchCase::IgnoreCase))
+        {
+            return ERoomGameplayMarkerFamily::Clue;
+        }
+        if (ComponentName.StartsWith(TEXT("MissionSocket_"), ESearchCase::IgnoreCase))
+        {
+            return ERoomGameplayMarkerFamily::MissionSocket;
+        }
+        if (ComponentName.StartsWith(TEXT("FX_"), ESearchCase::IgnoreCase))
+        {
+            return ERoomGameplayMarkerFamily::FX;
+        }
+
+        return ERoomGameplayMarkerFamily::Custom;
+    }
 }
 
 ARoomModuleBase::ARoomModuleBase()
@@ -245,6 +311,7 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
     }
 
     RefreshConnectorCache();
+    RefreshGameplayMarkerCache();
     UpdateConnectorDebugVisualization();
 
     if (ParametricSettings.bEnabled)
@@ -290,6 +357,40 @@ void ARoomModuleBase::RefreshConnectorCache()
             DoorSockets.Add(Connector);
         }
     }
+}
+
+void ARoomModuleBase::RefreshGameplayMarkerCache()
+{
+    RegisteredGameplayMarkerComponents.Reset();
+
+    TInlineComponentArray<USceneComponent*> SceneComponents(this);
+    for (USceneComponent* SceneComponent : SceneComponents)
+    {
+        if (!SceneComponent || SceneComponent == SceneRoot)
+        {
+            continue;
+        }
+
+        const FString ComponentName = SceneComponent->GetName();
+        const ERoomGameplayMarkerFamily MarkerFamily = ResolveMarkerFamilyFromComponentName(ComponentName);
+        if (MarkerFamily == ERoomGameplayMarkerFamily::Custom)
+        {
+            continue;
+        }
+
+        FRegisteredGameplayMarkerComponent RegisteredMarker;
+        RegisteredMarker.MarkerFamily = MarkerFamily;
+        RegisteredMarker.MarkerPrefix = GetMarkerPrefixForFamily(MarkerFamily);
+        RegisteredMarker.SourceComponent = SceneComponent;
+        RegisteredGameplayMarkerComponents.Add(RegisteredMarker);
+    }
+
+    RegisteredGameplayMarkerComponents.Sort([](const FRegisteredGameplayMarkerComponent& A, const FRegisteredGameplayMarkerComponent& B)
+    {
+        const FString AName = A.SourceComponent ? A.SourceComponent->GetName() : FString();
+        const FString BName = B.SourceComponent ? B.SourceComponent->GetName() : FString();
+        return AName < BName;
+    });
 }
 
 void ARoomModuleBase::UpdateConnectorDebugVisualization()
@@ -508,6 +609,16 @@ FGameplayTagContainer ARoomModuleBase::GetResolvedActivityTags() const
     return ResolvedTags;
 }
 
+TArray<FRoomGameplayMarkerRequirement> ARoomModuleBase::GetResolvedGameplayMarkerRequirements() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->GameplayMarkerRequirements;
+    }
+
+    return {};
+}
+
 bool ARoomModuleBase::HasResolvedRoomTag(FGameplayTag Tag) const
 {
     return Tag.IsValid() && GetResolvedRoomTags().HasTag(Tag);
@@ -626,6 +737,11 @@ FRoomGameplayMarker ARoomModuleBase::BuildGameplayMarker(const FString& Prefix, 
     return Marker;
 }
 
+FRoomGameplayMarker ARoomModuleBase::BuildGameplayMarker(const FRegisteredGameplayMarkerComponent& RegisteredMarker) const
+{
+    return BuildGameplayMarker(RegisteredMarker.MarkerPrefix, RegisteredMarker.SourceComponent);
+}
+
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FString& Prefix) const
 {
     TArray<FRoomGameplayMarker> Markers;
@@ -634,21 +750,46 @@ TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FS
         return Markers;
     }
 
-    TInlineComponentArray<USceneComponent*> SceneComponents(const_cast<ARoomModuleBase*>(this));
-    for (USceneComponent* SceneComponent : SceneComponents)
+    if (RegisteredGameplayMarkerComponents.IsEmpty())
     {
-        if (!SceneComponent || SceneComponent == SceneRoot)
+        const_cast<ARoomModuleBase*>(this)->RefreshGameplayMarkerCache();
+    }
+
+    bool bFoundRegisteredMatch = false;
+    for (const FRegisteredGameplayMarkerComponent& RegisteredMarker : RegisteredGameplayMarkerComponents)
+    {
+        if (!RegisteredMarker.SourceComponent)
         {
             continue;
         }
 
-        const FString ComponentName = SceneComponent->GetName();
-        if (!ComponentName.StartsWith(Prefix, ESearchCase::IgnoreCase))
+        if (!RegisteredMarker.MarkerPrefix.Equals(Prefix, ESearchCase::IgnoreCase))
         {
             continue;
         }
 
-        Markers.Add(BuildGameplayMarker(Prefix, SceneComponent));
+        bFoundRegisteredMatch = true;
+        Markers.Add(BuildGameplayMarker(RegisteredMarker));
+    }
+
+    if (!bFoundRegisteredMatch)
+    {
+        TInlineComponentArray<USceneComponent*> SceneComponents(const_cast<ARoomModuleBase*>(this));
+        for (USceneComponent* SceneComponent : SceneComponents)
+        {
+            if (!SceneComponent || SceneComponent == SceneRoot)
+            {
+                continue;
+            }
+
+            const FString ComponentName = SceneComponent->GetName();
+            if (!ComponentName.StartsWith(Prefix, ESearchCase::IgnoreCase))
+            {
+                continue;
+            }
+
+            Markers.Add(BuildGameplayMarker(Prefix, SceneComponent));
+        }
     }
 
     Markers.Sort([](const FRoomGameplayMarker& A, const FRoomGameplayMarker& B)
@@ -659,36 +800,116 @@ TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FS
     return Markers;
 }
 
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily MarkerFamily) const
+{
+    const FString Prefix = GetMarkerPrefixForFamily(MarkerFamily);
+    return Prefix.IsEmpty() ? TArray<FRoomGameplayMarker>() : GetGameplayMarkersByPrefix(Prefix);
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetAllGameplayMarkers() const
+{
+    TArray<FRoomGameplayMarker> Markers;
+    if (RegisteredGameplayMarkerComponents.IsEmpty())
+    {
+        const_cast<ARoomModuleBase*>(this)->RefreshGameplayMarkerCache();
+    }
+
+    Markers.Reserve(RegisteredGameplayMarkerComponents.Num());
+    for (const FRegisteredGameplayMarkerComponent& RegisteredMarker : RegisteredGameplayMarkerComponents)
+    {
+        if (!RegisteredMarker.SourceComponent)
+        {
+            continue;
+        }
+
+        Markers.Add(BuildGameplayMarker(RegisteredMarker));
+    }
+
+    Markers.Sort([](const FRoomGameplayMarker& A, const FRoomGameplayMarker& B)
+    {
+        return A.MarkerName.ToString() < B.MarkerName.ToString();
+    });
+    return Markers;
+}
+
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetNPCMarkers() const
 {
-    return GetGameplayMarkersByPrefix(TEXT("NPC_"));
+    return GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily::NPC);
 }
 
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetTaskMarkers() const
 {
-    return GetGameplayMarkersByPrefix(TEXT("Task_"));
+    return GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily::Task);
 }
 
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetClueMarkers() const
 {
-    return GetGameplayMarkersByPrefix(TEXT("Clue_"));
+    return GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily::Clue);
 }
 
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetMissionMarkers() const
 {
-    return GetGameplayMarkersByPrefix(TEXT("MissionSocket_"));
+    return GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily::MissionSocket);
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetFXMarkers() const
+{
+    return GetGameplayMarkersByFamily(ERoomGameplayMarkerFamily::FX);
+}
+
+int32 ARoomModuleBase::GetGameplayMarkerCountByFamily(ERoomGameplayMarkerFamily MarkerFamily) const
+{
+    return GetGameplayMarkersByFamily(MarkerFamily).Num();
+}
+
+bool ARoomModuleBase::ValidateGameplayMarkerRequirements(TArray<FString>& OutIssues) const
+{
+    bool bAllValid = true;
+    for (const FRoomGameplayMarkerRequirement& Requirement : GetResolvedGameplayMarkerRequirements())
+    {
+        const int32 Count = GetGameplayMarkerCountByFamily(Requirement.MarkerFamily);
+        if (Count < Requirement.MinCount)
+        {
+            OutIssues.Add(FString::Printf(
+                TEXT("%s markers below minimum: %d < %d"),
+                *GetMarkerFamilyLabel(Requirement.MarkerFamily),
+                Count,
+                Requirement.MinCount));
+            bAllValid = false;
+        }
+
+        if (Requirement.MaxCount >= 0 && Count > Requirement.MaxCount)
+        {
+            OutIssues.Add(FString::Printf(
+                TEXT("%s markers above maximum: %d > %d"),
+                *GetMarkerFamilyLabel(Requirement.MarkerFamily),
+                Count,
+                Requirement.MaxCount));
+            bAllValid = false;
+        }
+    }
+
+    return bAllValid;
 }
 
 FString ARoomModuleBase::BuildGameplayDebugSummary() const
 {
+    TArray<FString> RequirementIssues;
+    const bool bRequirementsValid = ValidateGameplayMarkerRequirements(RequirementIssues);
+    const FString RequirementSummary = RequirementIssues.IsEmpty()
+        ? TEXT("MarkerReq=PASS")
+        : FString::Printf(TEXT("MarkerReq=FAIL(%s)"), *FString::Join(RequirementIssues, TEXT("; ")));
+
     return FString::Printf(
-        TEXT("RoomTags=[%s] ActivityTags=[%s] NPC=%d Task=%d Clue=%d Mission=%d"),
+        TEXT("RoomTags=[%s] ActivityTags=[%s] NPC=%d Task=%d Clue=%d Mission=%d FX=%d %s"),
         *JoinGameplayTagNames(GetResolvedRoomTags()),
         *JoinGameplayTagNames(GetResolvedActivityTags()),
         GetNPCMarkers().Num(),
         GetTaskMarkers().Num(),
         GetClueMarkers().Num(),
-        GetMissionMarkers().Num());
+        GetMissionMarkers().Num(),
+        GetFXMarkers().Num(),
+        *RequirementSummary);
 }
 
 void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)

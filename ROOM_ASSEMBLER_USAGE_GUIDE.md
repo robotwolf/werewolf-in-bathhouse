@@ -2,6 +2,10 @@
 
 This is the sane baseline for the assembler: a deterministic, 2D, stock-room bathhouse builder where `RoomBoundsBox` is the one true collision monarch and `Ginny` is no longer allowed to freestyle architecture like a raccoon with a nail gun.
 
+If you are brand new to this stack and want the practical onboarding path first, start with:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason.md`
+
 ## Scope
 
 - Project root: `E:\Documents\Projects\werewolf-in-bathhouse`
@@ -37,6 +41,7 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     - default opening profile
     - stock graybox settings
     - stock graybox appearance defaults
+    - gameplay marker requirements
 
 - `UGinnyLayoutProfile`
   - Data asset that defines generator policy for a whole local layout regime.
@@ -97,6 +102,13 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Provides optional room-name labels and connector debug-arrow visibility control for faster layout inspection.
   - Supports transition-room metadata with `TransitionType` and `TransitionTargetConfigId`.
   - Resolves room semantics from `RoomProfile` first, then falls back to BP-authored legacy fields.
+  - Discovers and registers gameplay-facing marker components by prefix:
+    - `NPC_*`
+    - `Task_*`
+    - `Clue_*`
+    - `MissionSocket_*`
+    - `FX_*`
+  - Exposes marker queries and marker-requirement validation so gameplay systems can consume room affordances without reverse-engineering the shell.
   - Tracks runtime generation info:
     - `GeneratedDepthFromStart`
     - `GeneratedAssignedRole`
@@ -525,6 +537,7 @@ Key scripts:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
 
@@ -537,6 +550,7 @@ Key scripts:
 - no `Butch` actor in healthy default
 - generator has a `LayoutProfile`
 - spawned rooms have `RoomProfile`
+- spawned rooms satisfy any authored gameplay marker requirements
 - first room is `EntryReception`
 - first room after entry is `PublicHallStraight`
 - `LockerHall` is not directly adjacent to `EntryReception`
@@ -556,14 +570,21 @@ Current healthy test seeds:
 
 1. Make the BP inherit from `ARoomModuleBase`.
 2. Duplicate or assign a `UGinnyRoomProfile`.
-3. Set the profile's `RoomType`, neighbor rules, placement rules, and connection budget.
+3. Set the profile's `RoomType`, neighbor rules, placement rules, connection budget, and gameplay marker requirements.
 4. Size `RoomBoundsBox`.
 5. Enable stock graybox generation.
 6. Assign a default `UGinnyOpeningProfile` if the room needs something other than legacy fallback behavior.
-7. Add only the connectors the room honestly needs.
-8. Override a connector's `OpeningProfileOverride` only when that connector should differ from the room default.
-9. Keep the room inside the active layout program instead of inventing a new architectural religion on the spot.
-10. For placeholder bathing/service reads, primitive feature meshes are fine:
+7. Add gameplay-facing `USceneComponent` markers where the room honestly supports them:
+   - `NPC_*`
+   - `Task_*`
+   - `Clue_*`
+   - `MissionSocket_*`
+   - `FX_*`
+8. Tag marker components through `ComponentTags` when gameplay filtering will care.
+9. Add only the connectors the room honestly needs.
+10. Override a connector's `OpeningProfileOverride` only when that connector should differ from the room default.
+11. Keep the room inside the active layout program instead of inventing a new architectural religion on the spot.
+12. For placeholder bathing/service reads, primitive feature meshes are fine:
    - flattened cylinders for plunge/pool basins
    - cubes for benches, shelving, stalls, counters, and simple fixtures
 
@@ -616,6 +637,18 @@ Useful runtime/editor state:
 Primary log category:
 
 - `LogGinny`
+
+## Gameplay Handshake
+
+If the room-construction pass needs the shared contract for AI/gameplay-facing markers and ownership boundaries, use:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\Room-Construction-Gameplay-Handshake.md`
+
+That doc is the bridge between:
+
+- room-construction output
+- NPC/gameplay consumption
+- marker naming and placement rules
 
 Standard rejection labels:
 

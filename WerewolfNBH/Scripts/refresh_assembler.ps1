@@ -49,6 +49,7 @@ $roomSetupScript = Join-Path $scriptDir "setup_bathhouse_rooms.py"
 $standardizeLTurnScript = Join-Path $scriptDir "standardize_lturn_assets.py"
 $generatorConfigScript = Join-Path $scriptDir "configure_assembler_blueprints.py"
 $profileSyncScript = Join-Path $scriptDir "sync_ginny_profiles.py"
+$gameplayMarkerSyncScript = Join-Path $scriptDir "sync_room_gameplay_markers.py"
 $syncGeneratorScript = Join-Path $scriptDir "sync_generator_instances.py"
 $smokeTestScript = Join-Path $scriptDir "smoke_test_assembler.py"
 
@@ -59,6 +60,7 @@ Throw-IfMissing $materialSetupScript "assembler material setup script"
 Throw-IfMissing $roomSetupScript "room setup script"
 Throw-IfMissing $generatorConfigScript "generator config script"
 Throw-IfMissing $profileSyncScript "Ginny profile sync script"
+Throw-IfMissing $gameplayMarkerSyncScript "room gameplay marker sync script"
 Throw-IfMissing $syncGeneratorScript "generator instance sync script"
 if ($RunStandardizeLTurn) {
     Throw-IfMissing $standardizeLTurnScript "L-turn standardization script"
@@ -139,6 +141,15 @@ if (-not $SkipGeneratorConfig) {
         "-nop4",
         "-nosourcecontrol"
     ) -StepName "Ginny Profile Sync"
+
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
+        "-script=$gameplayMarkerSyncScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Room Gameplay Marker Sync"
 
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,

@@ -92,6 +92,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
     FGameplayTagContainer ActivityTags;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarkerRequirement> GameplayMarkerRequirements;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Transition")
     ERoomTransitionType TransitionType = ERoomTransitionType::None;
 
@@ -188,6 +191,9 @@ class WEREWOLFNBH_API UGinnyLayoutProfile : public UDataAsset
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout")
+    FName LayoutConfigId = "LocalConfig";
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout")
     TSubclassOf<ARoomModuleBase> StartRoomClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout")
@@ -237,4 +243,71 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout|Decoration", meta=(EditCondition="bRunButchAfterGeneration"))
     bool bSpawnButchIfMissing = false;
+};
+
+USTRUCT(BlueprintType)
+struct FFloConfigNode
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FName ConfigId = "Config";
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    TObjectPtr<UGinnyLayoutProfile> LayoutProfile = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    bool bRequired = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    bool bImplemented = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FString Notes;
+};
+
+USTRUCT(BlueprintType)
+struct FFloTransitionRule
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FName FromConfigId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FName ToConfigId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    ERoomTransitionType TransitionType = ERoomTransitionType::ConfigHandoff;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FName TransitionTargetConfigId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    bool bRequired = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    bool bAllowReturn = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    bool bVisibleAsNormalArchitecture = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FString Notes;
+};
+
+UCLASS(BlueprintType)
+class WEREWOLFNBH_API UFloFlowProfile : public UDataAsset
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    FName RootConfigId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    TArray<FFloConfigNode> ConfigNodes;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Flo")
+    TArray<FFloTransitionRule> TransitionRules;
 };
