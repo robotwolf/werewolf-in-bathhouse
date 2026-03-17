@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "RoomModuleBase.h"
 #include "GinnyProfiles.generated.h"
 
@@ -84,6 +85,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     TArray<FName> AllowedNeighborRoomTypes;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
+    FGameplayTagContainer RoomTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
+    FGameplayTagContainer ActivityTags;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Transition")
     ERoomTransitionType TransitionType = ERoomTransitionType::None;
 
@@ -104,6 +111,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> CeilingMaterial = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> RoofMaterial = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Openings")
     TObjectPtr<UGinnyOpeningProfile> DefaultOpeningProfile = nullptr;

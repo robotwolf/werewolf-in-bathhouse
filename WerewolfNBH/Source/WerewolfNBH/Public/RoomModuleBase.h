@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "GameplayTagContainer.h"
+#include "MasonBuilderComponent.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.generated.h"
 
@@ -10,11 +12,13 @@ class UBoxComponent;
 class UChildActorComponent;
 class UInstancedStaticMeshComponent;
 class UMaterialInterface;
+class USceneComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
-class UTextRenderComponent;
 class UGinnyOpeningProfile;
 class UGinnyRoomProfile;
+class UMasonBuilderComponent;
+class URoomSignageComponent;
 
 UENUM(BlueprintType)
 enum class ERoomParametricFootprintType : uint8
@@ -135,6 +139,30 @@ struct FRoomConnectionRecord
     TObjectPtr<class ARoomModuleBase> OtherRoom = nullptr;
 };
 
+USTRUCT(BlueprintType)
+struct FRoomGameplayMarker
+{
+    GENERATED_BODY()
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    FName MarkerName = NAME_None;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    FString MarkerPrefix;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    FTransform WorldTransform = FTransform::Identity;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    TArray<FName> RawComponentTags;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    FGameplayTagContainer GameplayTags;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Marker")
+    TObjectPtr<USceneComponent> SourceComponent = nullptr;
+};
+
 UENUM(BlueprintType)
 enum class ERoomPlacementRole : uint8
 {
@@ -212,6 +240,15 @@ struct FRoomStockAssemblySettings
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox")
     ERoomStockFootprintType FootprintType = ERoomStockFootprintType::Rectangle;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Mason")
+    bool bOverrideConstructionTechnique = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Mason", meta=(EditCondition="bOverrideConstructionTechnique", EditConditionHides))
+    EMasonConstructionTechnique ConstructionTechnique = EMasonConstructionTechnique::BoxShell;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox|Mason")
+    FName ConstructionProfileId = NAME_None;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Graybox", meta=(ClampMin="1.0"))
     float FloorThickness = 20.0f;
@@ -293,6 +330,9 @@ public:
     TObjectPtr<UInstancedStaticMeshComponent> GeneratedCeilingMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
+    TObjectPtr<UInstancedStaticMeshComponent> GeneratedRoofMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<UBoxComponent> RoomBoundsBox;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
@@ -302,7 +342,10 @@ public:
     TObjectPtr<UChildActorComponent> PlayerStartAnchor;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Debug")
-    TObjectPtr<UTextRenderComponent> RoomNameLabel;
+    TObjectPtr<URoomSignageComponent> RoomSignage;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Construction")
+    TObjectPtr<UMasonBuilderComponent> MasonBuilder;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room")
     FName RoomID = "Room";
@@ -337,11 +380,32 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     bool bBillboardRoomNameLabel = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bShowExteriorRoomNameLabel = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bShowRoomMarkerBillboard = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bShowRoomMarkerLight = true;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug", meta=(ClampMin="8.0"))
     float RoomNameLabelWorldSize = 48.0f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     FVector RoomNameLabelOffset = FVector::ZeroVector;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    FVector ExteriorRoomNameLabelOffset = FVector(0.0f, 0.0f, 24.0f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug|Light")
+    float RoomMarkerLightIntensity = 250.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug|Light")
+    float RoomMarkerLightRadius = 280.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug|Light")
+    FLinearColor RoomMarkerLightColor = FLinearColor(0.35f, 0.85f, 1.0f, 1.0f);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     bool bShowConnectorDebugArrows = true;
@@ -358,6 +422,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Profiles")
     TObjectPtr<UGinnyRoomProfile> RoomProfile = nullptr;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
+    FGameplayTagContainer RoomTags;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
+    FGameplayTagContainer ActivityTags;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> LegacyRoomMaterialOverride = nullptr;
 
@@ -369,6 +439,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> CeilingMaterialOverride = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    TObjectPtr<UMaterialInterface> RoofMaterialOverride = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
     bool bSpawnPlayerStart = false;
@@ -424,6 +497,18 @@ public:
     UFUNCTION(BlueprintPure, Category="Room")
     FName GetResolvedRoomType() const;
 
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    FGameplayTagContainer GetResolvedRoomTags() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    FGameplayTagContainer GetResolvedActivityTags() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    bool HasResolvedRoomTag(FGameplayTag Tag) const;
+
+    UFUNCTION(BlueprintPure, Category="Room|Gameplay")
+    bool SupportsActivityTag(FGameplayTag Tag) const;
+
     UFUNCTION(BlueprintPure, Category="Room")
     int32 GetResolvedMinConnections() const;
 
@@ -452,6 +537,24 @@ public:
     UFUNCTION(BlueprintPure, Category="Room")
     bool IsConnectorConnected(const UPrototypeRoomConnectorComponent* Connector) const;
 
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetGameplayMarkersByPrefix(const FString& Prefix) const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetNPCMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetTaskMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetClueMarkers() const;
+
+    UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
+    TArray<FRoomGameplayMarker> GetMissionMarkers() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|Debug")
+    FString BuildGameplayDebugSummary() const;
+
     FBox GetWorldBounds(float ShrinkBy = 0.0f) const;
 
 protected:
@@ -469,6 +572,8 @@ protected:
     UMaterialInterface* GetResolvedFloorMaterial() const;
     UMaterialInterface* GetResolvedWallMaterial() const;
     UMaterialInterface* GetResolvedCeilingMaterial() const;
+    UMaterialInterface* GetResolvedRoofMaterial() const;
+    FRoomGameplayMarker BuildGameplayMarker(const FString& Prefix, USceneComponent* SceneComponent) const;
 
     void BuildParametricGraybox();
     void BuildStockBoundsGraybox();

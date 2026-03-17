@@ -571,9 +571,24 @@ bool ARoomGenerator::TryPlaceRoomForDoor(
     TArray<UPrototypeRoomConnectorComponent*> CompatibleConnectors;
     for (UPrototypeRoomConnectorComponent* Connector : CandidateRoom->DoorSockets)
     {
-        if (Connector && Connector->IsCompatibleWith(TargetConnector) && TargetConnector->IsCompatibleWith(Connector))
+        FString ForwardReason;
+        FString ReverseReason;
+        const bool bForwardCompatible = Connector && Connector->IsCompatibleWith(TargetConnector, &ForwardReason);
+        const bool bReverseCompatible = Connector && TargetConnector->IsCompatibleWith(Connector, &ReverseReason);
+        if (bForwardCompatible && bReverseCompatible)
         {
             CompatibleConnectors.Add(Connector);
+        }
+        else if (Connector)
+        {
+            LogDebugMessage(FString::Printf(
+                TEXT("[Contract] Rejected connector pair %s.%s <-> %s.%s (%s/%s)"),
+                *CandidateRoom->GetName(),
+                *Connector->GetName(),
+                *TargetRoom->GetName(),
+                *TargetConnector->GetName(),
+                ForwardReason.IsEmpty() ? TEXT("None") : *ForwardReason,
+                ReverseReason.IsEmpty() ? TEXT("None") : *ReverseReason));
         }
     }
 

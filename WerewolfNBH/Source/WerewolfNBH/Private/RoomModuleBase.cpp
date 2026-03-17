@@ -1,6 +1,8 @@
 #include "RoomModuleBase.h"
 
 #include "GinnyProfiles.h"
+#include "MasonBuilderComponent.h"
+#include "RoomSignageComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
@@ -8,12 +10,12 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Components/TextRenderComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
 #include "Engine/CollisionProfile.h"
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerStart.h"
+#include "GameplayTagsManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -77,6 +79,39 @@ namespace
             return BaseWidth;
         }
     }
+
+    FMasonOpeningSpec MakeMasonOpeningSpec(const UGinnyOpeningProfile* Profile, const FRoomStockAssemblySettings& FallbackSettings)
+    {
+        FMasonOpeningSpec OpeningSpec;
+        if (!Profile)
+        {
+            OpeningSpec.OpeningHeight = FMath::Max(50.0f, FallbackSettings.DoorHeight);
+            return OpeningSpec;
+        }
+
+        OpeningSpec.bHasExplicitProfile = true;
+        OpeningSpec.bDoubleWide = Profile->OpeningWidthMode == ERoomStockDoorWidthMode::DoubleWide;
+        OpeningSpec.bCustomWidth = Profile->OpeningWidthMode == ERoomStockDoorWidthMode::Custom;
+        OpeningSpec.CustomWidth = Profile->CustomOpeningWidth;
+        OpeningSpec.OpeningHeight = FMath::Max(50.0f, Profile->OpeningHeight);
+        OpeningSpec.bGenerateFramePieces = Profile->bGenerateFramePieces;
+        OpeningSpec.FrameThickness = Profile->FrameThickness;
+        OpeningSpec.FrameDepth = Profile->FrameDepth;
+        OpeningSpec.bGenerateThresholdPiece = Profile->bGenerateThresholdPiece;
+        OpeningSpec.ThresholdHeight = Profile->ThresholdHeight;
+        return OpeningSpec;
+    }
+
+    FString JoinGameplayTagNames(const FGameplayTagContainer& Tags)
+    {
+        TArray<FString> TagNames;
+        for (const FGameplayTag& Tag : Tags)
+        {
+            TagNames.Add(Tag.ToString());
+        }
+
+        return TagNames.IsEmpty() ? TEXT("None") : FString::Join(TagNames, TEXT(", "));
+    }
 }
 
 ARoomModuleBase::ARoomModuleBase()
@@ -104,6 +139,11 @@ ARoomModuleBase::ARoomModuleBase()
     GeneratedCeilingMesh->SetupAttachment(SceneRoot);
     ConfigureGeneratedMesh(GeneratedCeilingMesh, false);
 
+    GeneratedRoofMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GeneratedRoofMesh"));
+    GeneratedRoofMesh->SetupAttachment(SceneRoot);
+    ConfigureGeneratedMesh(GeneratedRoofMesh, false);
+    GeneratedRoofMesh->SetCanEverAffectNavigation(false);
+
     RoomBoundsBox = CreateDefaultSubobject<UBoxComponent>(TEXT("RoomBoundsBox"));
     RoomBoundsBox->SetupAttachment(SceneRoot);
     RoomBoundsBox->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
@@ -117,15 +157,10 @@ ARoomModuleBase::ARoomModuleBase()
     PlayerStartAnchor->SetupAttachment(SceneRoot);
     PlayerStartAnchor->SetChildActorClass(nullptr);
 
-    RoomNameLabel = CreateDefaultSubobject<UTextRenderComponent>(TEXT("RoomNameLabel"));
-    RoomNameLabel->SetupAttachment(SceneRoot);
-    RoomNameLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    RoomNameLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    RoomNameLabel->SetTextRenderColor(FColor(235, 230, 205));
-    RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
-    RoomNameLabel->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
-    RoomNameLabel->SetHiddenInGame(false);
-    RoomNameLabel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    RoomSignage = CreateDefaultSubobject<URoomSignageComponent>(TEXT("RoomSignage"));
+    RoomSignage->SetupAttachment(SceneRoot);
+
+    MasonBuilder = CreateDefaultSubobject<UMasonBuilderComponent>(TEXT("MasonBuilder"));
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     if (CubeFinder.Succeeded())
@@ -135,6 +170,7 @@ ARoomModuleBase::ARoomModuleBase()
         GeneratedFloorMesh->SetStaticMesh(DefaultCubeMesh);
         GeneratedWallMesh->SetStaticMesh(DefaultCubeMesh);
         GeneratedCeilingMesh->SetStaticMesh(DefaultCubeMesh);
+        GeneratedRoofMesh->SetStaticMesh(DefaultCubeMesh);
     }
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -145,6 +181,7 @@ ARoomModuleBase::ARoomModuleBase()
         GeneratedFloorMesh->SetMaterial(0, DefaultMaterial);
         GeneratedWallMesh->SetMaterial(0, DefaultMaterial);
         GeneratedCeilingMesh->SetMaterial(0, DefaultMaterial);
+        GeneratedRoofMesh->SetMaterial(0, DefaultMaterial);
     }
 }
 
@@ -157,12 +194,23 @@ void ARoomModuleBase::Tick(float DeltaSeconds)
 
 bool ARoomModuleBase::ShouldTickIfViewportsOnly() const
 {
-    return bShowRoomNameLabel && bBillboardRoomNameLabel;
+    return (bShowRoomNameLabel || bShowExteriorRoomNameLabel) && bBillboardRoomNameLabel;
 }
 
 void ARoomModuleBase::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
+
+    if (MasonBuilder)
+    {
+        MasonBuilder->ConfigureTargets(
+            GeneratedFloorMesh,
+            GeneratedWallMesh,
+            GeneratedCeilingMesh,
+            GeneratedRoofMesh,
+            RoomBoundsBox,
+            DefaultCubeMesh);
+    }
 
     RefreshConnectorCache();
     UpdateConnectorDebugVisualization();
@@ -356,6 +404,21 @@ UMaterialInterface* ARoomModuleBase::GetResolvedCeilingMaterial() const
     return nullptr;
 }
 
+UMaterialInterface* ARoomModuleBase::GetResolvedRoofMaterial() const
+{
+    if (RoofMaterialOverride)
+    {
+        return RoofMaterialOverride;
+    }
+
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->RoofMaterial;
+    }
+
+    return nullptr;
+}
+
 FName ARoomModuleBase::GetResolvedRoomID() const
 {
     if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
@@ -374,6 +437,38 @@ FName ARoomModuleBase::GetResolvedRoomType() const
     }
 
     return RoomType;
+}
+
+FGameplayTagContainer ARoomModuleBase::GetResolvedRoomTags() const
+{
+    FGameplayTagContainer ResolvedTags = RoomTags;
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        ResolvedTags.AppendTags(Profile->RoomTags);
+    }
+
+    return ResolvedTags;
+}
+
+FGameplayTagContainer ARoomModuleBase::GetResolvedActivityTags() const
+{
+    FGameplayTagContainer ResolvedTags = ActivityTags;
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        ResolvedTags.AppendTags(Profile->ActivityTags);
+    }
+
+    return ResolvedTags;
+}
+
+bool ARoomModuleBase::HasResolvedRoomTag(FGameplayTag Tag) const
+{
+    return Tag.IsValid() && GetResolvedRoomTags().HasTag(Tag);
+}
+
+bool ARoomModuleBase::SupportsActivityTag(FGameplayTag Tag) const
+{
+    return Tag.IsValid() && GetResolvedActivityTags().HasTag(Tag);
 }
 
 int32 ARoomModuleBase::GetResolvedMinConnections() const
@@ -457,6 +552,98 @@ bool ARoomModuleBase::IsConnectorConnected(const UPrototypeRoomConnectorComponen
     return false;
 }
 
+FRoomGameplayMarker ARoomModuleBase::BuildGameplayMarker(const FString& Prefix, USceneComponent* SceneComponent) const
+{
+    FRoomGameplayMarker Marker;
+    if (!SceneComponent)
+    {
+        return Marker;
+    }
+
+    Marker.MarkerName = FName(*SceneComponent->GetName());
+    Marker.MarkerPrefix = Prefix;
+    Marker.WorldTransform = SceneComponent->GetComponentTransform();
+    Marker.SourceComponent = SceneComponent;
+    Marker.RawComponentTags = SceneComponent->ComponentTags;
+
+    UGameplayTagsManager& GameplayTagsManager = UGameplayTagsManager::Get();
+    for (const FName& RawTag : Marker.RawComponentTags)
+    {
+        const FGameplayTag GameplayTag = GameplayTagsManager.RequestGameplayTag(RawTag, false);
+        if (GameplayTag.IsValid())
+        {
+            Marker.GameplayTags.AddTag(GameplayTag);
+        }
+    }
+
+    return Marker;
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FString& Prefix) const
+{
+    TArray<FRoomGameplayMarker> Markers;
+    if (Prefix.IsEmpty())
+    {
+        return Markers;
+    }
+
+    TInlineComponentArray<USceneComponent*> SceneComponents(const_cast<ARoomModuleBase*>(this));
+    for (USceneComponent* SceneComponent : SceneComponents)
+    {
+        if (!SceneComponent || SceneComponent == SceneRoot)
+        {
+            continue;
+        }
+
+        const FString ComponentName = SceneComponent->GetName();
+        if (!ComponentName.StartsWith(Prefix, ESearchCase::IgnoreCase))
+        {
+            continue;
+        }
+
+        Markers.Add(BuildGameplayMarker(Prefix, SceneComponent));
+    }
+
+    Markers.Sort([](const FRoomGameplayMarker& A, const FRoomGameplayMarker& B)
+    {
+        return A.MarkerName.ToString() < B.MarkerName.ToString();
+    });
+
+    return Markers;
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetNPCMarkers() const
+{
+    return GetGameplayMarkersByPrefix(TEXT("NPC_"));
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetTaskMarkers() const
+{
+    return GetGameplayMarkersByPrefix(TEXT("Task_"));
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetClueMarkers() const
+{
+    return GetGameplayMarkersByPrefix(TEXT("Clue_"));
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::GetMissionMarkers() const
+{
+    return GetGameplayMarkersByPrefix(TEXT("MissionSocket_"));
+}
+
+FString ARoomModuleBase::BuildGameplayDebugSummary() const
+{
+    return FString::Printf(
+        TEXT("RoomTags=[%s] ActivityTags=[%s] NPC=%d Task=%d Clue=%d Mission=%d"),
+        *JoinGameplayTagNames(GetResolvedRoomTags()),
+        *JoinGameplayTagNames(GetResolvedActivityTags()),
+        GetNPCMarkers().Num(),
+        GetTaskMarkers().Num(),
+        GetClueMarkers().Num(),
+        GetMissionMarkers().Num());
+}
+
 void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)
 {
     const FVector HalfExtents = FullSize * 0.5f;
@@ -469,15 +656,7 @@ void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)
 
 void ARoomModuleBase::UpdateRoomNameLabel()
 {
-    if (!RoomNameLabel || !RoomBoundsBox)
-    {
-        return;
-    }
-
-    const bool bShouldShow = bShowRoomNameLabel;
-    RoomNameLabel->SetVisibility(bShouldShow);
-    RoomNameLabel->SetHiddenInGame(!bShouldShow);
-    if (!bShouldShow)
+    if (!RoomSignage || !RoomBoundsBox)
     {
         return;
     }
@@ -488,35 +667,27 @@ void ARoomModuleBase::UpdateRoomNameLabel()
         ? ResolvedRoomID
         : (!ResolvedRoomType.IsNone() ? ResolvedRoomType : FName(*GetClass()->GetName()));
 
-    RoomNameLabel->SetText(FText::FromName(DisplayName));
-    RoomNameLabel->SetWorldSize(RoomNameLabelWorldSize);
-    RoomNameLabel->SetRelativeLocation(RoomBoundsBox->GetRelativeLocation() + RoomNameLabelOffset);
-    RoomNameLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    RoomNameLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
+    RoomSignage->bShowInteriorLabel = bShowRoomNameLabel;
+    RoomSignage->bBillboardLabelsToView = bBillboardRoomNameLabel;
+    RoomSignage->bShowExteriorRoofLabel = bShowExteriorRoomNameLabel;
+    RoomSignage->bShowMarkerBillboard = bShowRoomMarkerBillboard;
+    RoomSignage->bShowMarkerLight = bShowRoomMarkerLight;
+    RoomSignage->LabelWorldSize = RoomNameLabelWorldSize;
+    RoomSignage->InteriorLabelOffset = RoomNameLabelOffset;
+    RoomSignage->ExteriorRoofLabelOffset = ExteriorRoomNameLabelOffset;
+    RoomSignage->MarkerLightIntensity = RoomMarkerLightIntensity;
+    RoomSignage->MarkerLightRadius = RoomMarkerLightRadius;
+    RoomSignage->MarkerLightColor = RoomMarkerLightColor;
+    RoomSignage->UpdateFromRoom(FText::FromName(DisplayName), RoomBoundsBox->GetRelativeLocation(), RoomBoundsBox->GetScaledBoxExtent());
 }
 
 void ARoomModuleBase::UpdateRoomNameBillboard()
 {
-    if (!RoomNameLabel || !bShowRoomNameLabel || !bBillboardRoomNameLabel)
+    if (!RoomSignage)
     {
         return;
     }
-
-    UWorld* World = GetWorld();
-    if (!World || World->ViewLocationsRenderedLastFrame.IsEmpty())
-    {
-        return;
-    }
-
-    FVector ToView = World->ViewLocationsRenderedLastFrame[0] - RoomNameLabel->GetComponentLocation();
-    ToView.Z = 0.0f;
-    if (ToView.IsNearlyZero())
-    {
-        return;
-    }
-
-    const FRotator FacingRotation = FRotationMatrix::MakeFromX(ToView).Rotator();
-    RoomNameLabel->SetWorldRotation(FRotator(0.0f, FacingRotation.Yaw + 180.0f, 0.0f));
+    RoomSignage->UpdateBillboarding();
 }
 
 FBox ARoomModuleBase::GetWorldBounds(float ShrinkBy) const
@@ -581,18 +752,58 @@ void ARoomModuleBase::BuildParametricGraybox()
 
     if (ParametricSettings.bUseSliceBuilder)
     {
-        BuildSliceGrayboxFromCells(
-            OccupiedCells,
-            CellSize,
-            FloorBaseZ,
-            FloorThickness,
-            WallThickness,
-            WallHeight,
-            CeilingThickness,
-            ParametricSettings.DoorWidth);
+        if (MasonBuilder)
+        {
+            FMasonBuildSpec BuildSpec;
+            BuildSpec.ConstructionTechnique = EMasonConstructionTechnique::SliceFootprint;
+            BuildSpec.OccupiedCells = OccupiedCells.Array();
+            BuildSpec.CellSize = CellSize;
+            BuildSpec.FloorBaseZ = FloorBaseZ;
+            BuildSpec.FloorThickness = FloorThickness;
+            BuildSpec.WallThickness = WallThickness;
+            BuildSpec.WallHeight = WallHeight;
+            BuildSpec.CeilingThickness = CeilingThickness;
+            BuildSpec.DefaultDoorWidth = ParametricSettings.DoorWidth;
+            BuildSpec.DefaultDoorHeight = WallHeight;
+            BuildSpec.bDrawSliceDebug = ParametricSettings.bDebugDrawSlicePass;
+            BuildSpec.SliceDebugDuration = ParametricSettings.SliceDebugDuration;
 
-        const float TotalHeight = FloorThickness + WallHeight + CeilingThickness;
-        UpdateBoundsFromCells(OccupiedCells, FloorBaseZ, TotalHeight);
+            TArray<FMasonConnectorSpec> ConnectorSpecs;
+            ConnectorSpecs.Reserve(DoorSockets.Num());
+            for (const UPrototypeRoomConnectorComponent* Connector : DoorSockets)
+            {
+                if (!Connector)
+                {
+                    continue;
+                }
+
+                FMasonConnectorSpec ConnectorSpec;
+                ConnectorSpec.ConnectorId = Connector->SocketID.IsNone() ? FName(*Connector->GetName()) : Connector->SocketID;
+                ConnectorSpec.RelativeLocation = Connector->GetRelativeLocation();
+                ConnectorSpec.RelativeRotation = Connector->GetRelativeRotation();
+                ConnectorSpec.ConnectionType = Connector->ConnectionType;
+                ConnectorSpec.PassageKind = Connector->PassageKind;
+                ConnectorSpec.BoundaryKind = Connector->BoundaryKind;
+                ConnectorSpec.ClearanceClass = Connector->ClearanceClass;
+                ConnectorSpec.ContractTag = Connector->ContractTag;
+                ConnectorSpecs.Add(ConnectorSpec);
+            }
+
+            MasonBuilder->BuildFromSpec(BuildSpec, ConnectorSpecs);
+            MasonBuilder->UpdateBoundsFromSpec(BuildSpec);
+        }
+        else
+        {
+            BuildSliceGrayboxFromCells(
+                OccupiedCells,
+                CellSize,
+                FloorBaseZ,
+                FloorThickness,
+                WallThickness,
+                WallHeight,
+                CeilingThickness,
+                ParametricSettings.DoorWidth);
+        }
         return;
     }
 
@@ -677,394 +888,95 @@ void ARoomModuleBase::BuildParametricGraybox()
 
 void ARoomModuleBase::BuildStockBoundsGraybox()
 {
-    if (!GeneratedFloorMesh || !GeneratedWallMesh || !GeneratedCeilingMesh || !RoomBoundsBox)
+    if (!MasonBuilder || !RoomBoundsBox)
     {
         return;
     }
-
-    if (DefaultCubeMesh)
-    {
-        GeneratedFloorMesh->SetStaticMesh(DefaultCubeMesh);
-        GeneratedWallMesh->SetStaticMesh(DefaultCubeMesh);
-        GeneratedCeilingMesh->SetStaticMesh(DefaultCubeMesh);
-    }
-
-    ClearGeneratedGrayboxInstances();
 
     const FRoomStockAssemblySettings& EffectiveStockSettings = GetResolvedStockAssemblySettings();
     const FVector BoxExtent = RoomBoundsBox->GetUnscaledBoxExtent();
     const FVector BoxCenter = RoomBoundsBox->GetRelativeLocation();
-    const FVector BoxMin = BoxCenter - BoxExtent;
-    const FVector BoxMax = BoxCenter + BoxExtent;
     const FVector FullSize = BoxExtent * 2.0f;
-
     const float FloorThickness = FMath::Clamp(EffectiveStockSettings.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
     const float MaxCeilingThickness = FMath::Max(0.0f, FullSize.Z - FloorThickness - 50.0f);
     const float CeilingThickness = FMath::Clamp(EffectiveStockSettings.CeilingThickness, 0.0f, MaxCeilingThickness);
-    const float FloorBottomZ = BoxMin.Z;
-    const float FloorTopZ = BoxMin.Z + FloorThickness;
-    const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
-    const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
-    const float WallThickness = FMath::Clamp(EffectiveStockSettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+    const float WallHeight = FMath::Max(50.0f, FullSize.Z - FloorThickness - CeilingThickness);
     const UGinnyOpeningProfile* DefaultOpeningProfile = GetResolvedOpeningProfile(nullptr);
-    const float DefaultDoorWidth = DefaultOpeningProfile
-        ? ResolveDoorOpeningWidth(*DefaultOpeningProfile, EffectiveStockSettings)
-        : ResolveDoorOpeningWidth(EffectiveStockSettings);
-    const float DefaultDoorHeight = FMath::Clamp(
-        DefaultOpeningProfile ? DefaultOpeningProfile->OpeningHeight : EffectiveStockSettings.DoorHeight,
-        50.0f,
-        WallHeight);
-    const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
 
-    auto AddSolidPrism = [this](float MinX, float MaxX, float MinY, float MaxY, float MinZ, float MaxZ)
+    FMasonBuildSpec BuildSpec;
+    BuildSpec.ConstructionTechnique = EffectiveStockSettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp
+        ? EMasonConstructionTechnique::PublicStairShell
+        : EMasonConstructionTechnique::BoxShell;
+    if (EffectiveStockSettings.bOverrideConstructionTechnique)
     {
-        const float SizeX = MaxX - MinX;
-        const float SizeY = MaxY - MinY;
-        const float SizeZ = MaxZ - MinZ;
-        if (SizeX <= 1.0f || SizeY <= 1.0f || SizeZ <= 1.0f)
-        {
-            return;
-        }
+        BuildSpec.ConstructionTechnique = EffectiveStockSettings.ConstructionTechnique;
+    }
+    BuildSpec.ConstructionProfileId = EffectiveStockSettings.ConstructionProfileId.IsNone()
+        ? GetResolvedRoomID()
+        : EffectiveStockSettings.ConstructionProfileId;
+    BuildSpec.BoxCenter = BoxCenter;
+    BuildSpec.BoxExtent = BoxExtent;
+    BuildSpec.FloorBaseZ = BoxCenter.Z - BoxExtent.Z;
+    BuildSpec.FloorThickness = FloorThickness;
+    BuildSpec.WallThickness = FMath::Clamp(EffectiveStockSettings.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+    BuildSpec.WallHeight = WallHeight;
+    BuildSpec.CeilingThickness = CeilingThickness;
+    BuildSpec.DefaultDoorWidth = ResolveDoorOpeningWidth(EffectiveStockSettings);
+    BuildSpec.DefaultDoorHeight = EffectiveStockSettings.DoorHeight;
+    BuildSpec.DefaultOpeningSpec = MakeMasonOpeningSpec(DefaultOpeningProfile, EffectiveStockSettings);
+    BuildSpec.StairWalkWidth = EffectiveStockSettings.StairWalkWidth;
+    BuildSpec.StairLowerLandingDepth = EffectiveStockSettings.StairLowerLandingDepth;
+    BuildSpec.StairUpperLandingDepth = EffectiveStockSettings.StairUpperLandingDepth;
+    BuildSpec.StairStepCount = EffectiveStockSettings.StairStepCount;
+    BuildSpec.StairRiseHeight = EffectiveStockSettings.StairRiseHeight;
+    BuildSpec.StairSideInset = EffectiveStockSettings.StairSideInset;
+    BuildSpec.bCreateStairLandingSideOpenings = EffectiveStockSettings.bCreateStairLandingSideOpenings;
+    BuildSpec.StairLandingSideOpeningWidth = EffectiveStockSettings.StairLandingSideOpeningWidth;
+    BuildSpec.StairLandingSideOpeningHeight = EffectiveStockSettings.StairLandingSideOpeningHeight;
 
-        GeneratedFloorMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            FVector((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, (MinZ + MaxZ) * 0.5f),
-            FVector(SizeX / 100.0f, SizeY / 100.0f, SizeZ / 100.0f)));
-    };
-
-    if (EffectiveStockSettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
+    if (!EffectiveStockSettings.bOverrideConstructionTechnique
+        && EffectiveStockSettings.FootprintType == ERoomStockFootprintType::CornerSouthEast)
     {
-        const float CellSize = FMath::Max(25.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
-        TSet<FIntPoint> OccupiedCells;
-        OccupiedCells.Add(FIntPoint(-1, -1));
-        OccupiedCells.Add(FIntPoint(0, -1));
-        OccupiedCells.Add(FIntPoint(0, 0));
-
-        BuildSliceGrayboxFromCells(
-            OccupiedCells,
-            CellSize,
-            BoxMin.Z,
-            FloorThickness,
-            WallThickness,
-            WallHeight,
-            CeilingThickness,
-            DefaultDoorWidth);
-        return;
+        BuildSpec.ConstructionTechnique = EMasonConstructionTechnique::SliceFootprint;
+        BuildSpec.CellSize = FMath::Max(25.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+        BuildSpec.OccupiedCells = { FIntPoint(-1, -1), FIntPoint(0, -1), FIntPoint(0, 0) };
     }
 
-    const bool bIsStairFootprint = EffectiveStockSettings.FootprintType == ERoomStockFootprintType::StairSouthToNorthUp;
-    float StairUpperLandingTopZ = FloorTopZ;
-    float StairLowerLandingMaxY = BoxMin.Y;
-    float StairUpperLandingMinY = BoxMax.Y;
-
-    if (bIsStairFootprint)
-    {
-        const float MaxWalkWidth = FMath::Max(100.0f, FullSize.X - (WallThickness * 2.0f));
-        const float StairSideInset = FMath::Clamp(EffectiveStockSettings.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
-        const float RequestedWalkWidth = FMath::Clamp(EffectiveStockSettings.StairWalkWidth, 100.0f, MaxWalkWidth);
-        const float StairWalkWidth = FMath::Clamp(
-            RequestedWalkWidth,
-            100.0f,
-            FMath::Max(100.0f, FullSize.X - StairSideInset * 2.0f));
-        const float StairMinX = BoxCenter.X - StairWalkWidth * 0.5f;
-        const float StairMaxX = BoxCenter.X + StairWalkWidth * 0.5f;
-
-        const float LowerLandingDepth = FMath::Clamp(EffectiveStockSettings.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
-        const float UpperLandingDepth = FMath::Clamp(EffectiveStockSettings.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
-        const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
-        const int32 StepCount = FMath::Clamp(EffectiveStockSettings.StairStepCount, 3, 64);
-        const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
-        StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, EffectiveStockSettings.StairRiseHeight));
-        const float StepHeight = (StairUpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
-
-        const float SouthY = BoxMin.Y;
-        const float NorthY = BoxMax.Y;
-        StairLowerLandingMaxY = SouthY + LowerLandingDepth;
-        StairUpperLandingMinY = NorthY - UpperLandingDepth;
-
-        AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, StairLowerLandingMaxY, FloorBottomZ, FloorTopZ);
-
-        for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
-        {
-            const float StepMinY = StairLowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
-            const float StepMaxY = StepMinY + StepDepth;
-            const float StepTopZ = FloorTopZ + (static_cast<float>(StepIndex) + 1.0f) * StepHeight;
-            AddSolidPrism(StairMinX, StairMaxX, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
-        }
-
-        AddSolidPrism(BoxMin.X, BoxMax.X, StairUpperLandingMinY, NorthY, FloorBottomZ, StairUpperLandingTopZ);
-    }
-    else
-    {
-        AddSolidPrism(BoxMin.X, BoxMax.X, BoxMin.Y, BoxMax.Y, FloorBottomZ, FloorTopZ);
-    }
-
-    if (CeilingThickness > 0.0f)
-    {
-        GeneratedCeilingMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            FVector(BoxCenter.X, BoxCenter.Y, BoxMax.Z - CeilingThickness * 0.5f),
-            FVector(FullSize.X / 100.0f, FullSize.Y / 100.0f, CeilingThickness / 100.0f)));
-    }
-
-    struct FDoorCut
-    {
-        float Start = 0.0f;
-        float End = 0.0f;
-        float BottomZ = 0.0f;
-        float TopZ = 0.0f;
-        const UGinnyOpeningProfile* OpeningProfile = nullptr;
-    };
-
-    struct FWallSpec
-    {
-        bool bConstantX = false;
-        float ConstantCoord = 0.0f;
-        float RunMin = 0.0f;
-        float RunMax = 0.0f;
-        FVector2D Normal = FVector2D::ZeroVector;
-    };
-
-    auto AddDoorCut = [](TArray<FDoorCut>& DoorCuts, float Start, float End, float BottomZ, float TopZ)
-    {
-        FDoorCut Cut;
-        Cut.Start = Start;
-        Cut.End = End;
-        Cut.BottomZ = BottomZ;
-        Cut.TopZ = TopZ;
-        if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
-        {
-            DoorCuts.Add(Cut);
-        }
-    };
-
-    TArray<const UPrototypeRoomConnectorComponent*> SortedConnectors;
-    SortedConnectors.Reserve(DoorSockets.Num());
+    TArray<FMasonConnectorSpec> ConnectorSpecs;
+    ConnectorSpecs.Reserve(DoorSockets.Num());
     for (const UPrototypeRoomConnectorComponent* Connector : DoorSockets)
     {
-        if (Connector)
+        if (!Connector)
         {
-            SortedConnectors.Add(Connector);
+            continue;
         }
+
+        FMasonConnectorSpec ConnectorSpec;
+        ConnectorSpec.ConnectorId = Connector->SocketID.IsNone() ? FName(*Connector->GetName()) : Connector->SocketID;
+        ConnectorSpec.RelativeLocation = Connector->GetRelativeLocation();
+        ConnectorSpec.RelativeRotation = Connector->GetRelativeRotation();
+        ConnectorSpec.bConnected = IsConnectorConnected(Connector);
+        ConnectorSpec.ConnectionType = Connector->ConnectionType;
+        ConnectorSpec.PassageKind = Connector->PassageKind;
+        ConnectorSpec.BoundaryKind = Connector->BoundaryKind;
+        ConnectorSpec.ClearanceClass = Connector->ClearanceClass;
+        ConnectorSpec.ContractTag = Connector->ContractTag;
+        ConnectorSpec.OpeningSpec = MakeMasonOpeningSpec(GetResolvedOpeningProfile(Connector), EffectiveStockSettings);
+        ConnectorSpecs.Add(ConnectorSpec);
     }
 
-    SortedConnectors.Sort([](const UPrototypeRoomConnectorComponent& A, const UPrototypeRoomConnectorComponent& B)
-    {
-        return A.GetName() < B.GetName();
-    });
-
-    auto AddWallPiece = [this, WallThickness](const FWallSpec& Wall, float PieceStart, float PieceEnd, float BottomZ, float PieceHeight)
-    {
-        const float PieceLength = PieceEnd - PieceStart;
-        if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
-        {
-            return;
-        }
-
-        if (Wall.bConstantX)
-        {
-            const FVector Location(
-                Wall.ConstantCoord + Wall.Normal.X * WallThickness * 0.5f,
-                (PieceStart + PieceEnd) * 0.5f,
-                BottomZ + PieceHeight * 0.5f);
-            GeneratedWallMesh->AddInstance(FTransform(
-                FRotator::ZeroRotator,
-                Location,
-                FVector(WallThickness / 100.0f, PieceLength / 100.0f, PieceHeight / 100.0f)));
-            return;
-        }
-
-        const FVector Location(
-            (PieceStart + PieceEnd) * 0.5f,
-            Wall.ConstantCoord + Wall.Normal.Y * WallThickness * 0.5f,
-            BottomZ + PieceHeight * 0.5f);
-        GeneratedWallMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            Location,
-            FVector(PieceLength / 100.0f, WallThickness / 100.0f, PieceHeight / 100.0f)));
-    };
-
-    auto BuildWall = [&](const FWallSpec& Wall)
-    {
-        TArray<FDoorCut> DoorCuts;
-
-        for (const UPrototypeRoomConnectorComponent* Connector : SortedConnectors)
-        {
-            const FVector ConnectorLocation = Connector->GetRelativeLocation();
-            FVector2D ConnectorForward = FVector2D(Connector->GetRelativeRotation().Vector());
-            if (ConnectorForward.IsNearlyZero())
-            {
-                continue;
-            }
-
-            ConnectorForward.Normalize();
-            if (FVector2D::DotProduct(ConnectorForward, Wall.Normal) < 0.6f)
-            {
-                continue;
-            }
-
-            const float ConnectorConstant = Wall.bConstantX ? ConnectorLocation.X : ConnectorLocation.Y;
-            if (FMath::Abs(ConnectorConstant - Wall.ConstantCoord) > AlignmentTolerance)
-            {
-                continue;
-            }
-
-            const float CenterOnRunAxis = Wall.bConstantX ? ConnectorLocation.Y : ConnectorLocation.X;
-            const float DoorCenterZ = ConnectorLocation.Z;
-            const UGinnyOpeningProfile* OpeningProfile = GetResolvedOpeningProfile(Connector);
-            const float DoorWidth = OpeningProfile ? ResolveDoorOpeningWidth(*OpeningProfile, EffectiveStockSettings) : DefaultDoorWidth;
-            const float DoorHeight = FMath::Clamp(
-                OpeningProfile ? OpeningProfile->OpeningHeight : DefaultDoorHeight,
-                50.0f,
-                WallHeight);
-            const float DoorHalfWidth = DoorWidth * 0.5f;
-            const float CutStart = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
-            const float CutEnd = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
-            const float CutBottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
-            const float CutTopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, CutBottomZ + 1.0f, CeilingBottomZ);
-            FDoorCut Cut;
-            Cut.Start = CutStart;
-            Cut.End = CutEnd;
-            Cut.BottomZ = CutBottomZ;
-            Cut.TopZ = CutTopZ;
-            Cut.OpeningProfile = OpeningProfile;
-            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
-            {
-                DoorCuts.Add(Cut);
-            }
-        }
-
-        if (bIsStairFootprint && Wall.bConstantX && EffectiveStockSettings.bCreateStairLandingSideOpenings)
-        {
-            const float StairSideOpeningWidth = FMath::Clamp(
-                EffectiveStockSettings.StairLandingSideOpeningWidth,
-                50.0f,
-                FMath::Max(50.0f, Wall.RunMax - Wall.RunMin));
-            const float StairSideOpeningHalfWidth = StairSideOpeningWidth * 0.5f;
-            const float StairSideOpeningHeight = FMath::Clamp(
-                EffectiveStockSettings.StairLandingSideOpeningHeight,
-                50.0f,
-                FMath::Max(50.0f, CeilingBottomZ - FloorTopZ));
-
-            const float LowerLandingCenterY = (BoxMin.Y + StairLowerLandingMaxY) * 0.5f;
-            const float UpperLandingCenterY = (StairUpperLandingMinY + BoxMax.Y) * 0.5f;
-
-            AddDoorCut(
-                DoorCuts,
-                FMath::Max(Wall.RunMin, LowerLandingCenterY - StairSideOpeningHalfWidth),
-                FMath::Min(Wall.RunMax, LowerLandingCenterY + StairSideOpeningHalfWidth),
-                FloorTopZ,
-                FMath::Clamp(FloorTopZ + StairSideOpeningHeight, FloorTopZ + 1.0f, CeilingBottomZ));
-
-            AddDoorCut(
-                DoorCuts,
-                FMath::Max(Wall.RunMin, UpperLandingCenterY - StairSideOpeningHalfWidth),
-                FMath::Min(Wall.RunMax, UpperLandingCenterY + StairSideOpeningHalfWidth),
-                StairUpperLandingTopZ,
-                FMath::Clamp(StairUpperLandingTopZ + StairSideOpeningHeight, StairUpperLandingTopZ + 1.0f, CeilingBottomZ));
-        }
-
-        DoorCuts.Sort([](const FDoorCut& A, const FDoorCut& B)
-        {
-            if (!FMath::IsNearlyEqual(A.Start, B.Start))
-            {
-                return A.Start < B.Start;
-            }
-            return A.End < B.End;
-        });
-
-        auto AddTrimPiece = [&](const FWallSpec& TrimWall, float TrimStart, float TrimEnd, float BottomZ, float PieceHeight, float Depth)
-        {
-            const float PieceLength = TrimEnd - TrimStart;
-            if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
-            {
-                return;
-            }
-
-            if (TrimWall.bConstantX)
-            {
-                const FVector Location(
-                    TrimWall.ConstantCoord + TrimWall.Normal.X * Depth * 0.5f,
-                    (TrimStart + TrimEnd) * 0.5f,
-                    BottomZ + PieceHeight * 0.5f);
-                GeneratedWallMesh->AddInstance(FTransform(
-                    FRotator::ZeroRotator,
-                    Location,
-                    FVector(Depth / 100.0f, PieceLength / 100.0f, PieceHeight / 100.0f)));
-                return;
-            }
-
-            const FVector Location(
-                (TrimStart + TrimEnd) * 0.5f,
-                TrimWall.ConstantCoord + TrimWall.Normal.Y * Depth * 0.5f,
-                BottomZ + PieceHeight * 0.5f);
-            GeneratedWallMesh->AddInstance(FTransform(
-                FRotator::ZeroRotator,
-                Location,
-                FVector(PieceLength / 100.0f, Depth / 100.0f, PieceHeight / 100.0f)));
-        };
-
-        auto AddOpeningTrim = [&](const FDoorCut& Cut)
-        {
-            const UGinnyOpeningProfile* OpeningProfile = Cut.OpeningProfile;
-            if (!OpeningProfile)
-            {
-                return;
-            }
-
-            const float FrameThickness = FMath::Clamp(OpeningProfile->FrameThickness, 1.0f, 60.0f);
-            const float FrameDepth = FMath::Clamp(OpeningProfile->FrameDepth, 1.0f, WallThickness * 2.0f);
-
-            if (OpeningProfile->bGenerateFramePieces)
-            {
-                AddTrimPiece(Wall, Cut.Start - FrameThickness, Cut.Start, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
-                AddTrimPiece(Wall, Cut.End, Cut.End + FrameThickness, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
-                AddTrimPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, FrameThickness, FrameDepth);
-            }
-
-            if (OpeningProfile->bGenerateThresholdPiece)
-            {
-                AddTrimPiece(
-                    Wall,
-                    Cut.Start,
-                    Cut.End,
-                    Cut.BottomZ,
-                    FMath::Clamp(OpeningProfile->ThresholdHeight, 1.0f, 40.0f),
-                    FrameDepth);
-            }
-        };
-
-        float Cursor = Wall.RunMin;
-        for (const FDoorCut& Cut : DoorCuts)
-        {
-            AddWallPiece(Wall, Cursor, Cut.Start, FloorTopZ, WallHeight);
-
-            const float LowerPieceHeight = Cut.BottomZ - FloorTopZ;
-            if (LowerPieceHeight > 1.0f)
-            {
-                AddWallPiece(Wall, Cut.Start, Cut.End, FloorTopZ, LowerPieceHeight);
-            }
-
-            const float HeaderHeight = CeilingBottomZ - Cut.TopZ;
-            if (HeaderHeight > 1.0f)
-            {
-                AddWallPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, HeaderHeight);
-            }
-            AddOpeningTrim(Cut);
-            Cursor = FMath::Max(Cursor, Cut.End);
-        }
-
-        AddWallPiece(Wall, Cursor, Wall.RunMax, FloorTopZ, WallHeight);
-    };
-
-    BuildWall(FWallSpec{ false, static_cast<float>(BoxMax.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, 1.0f) });
-    BuildWall(FWallSpec{ false, static_cast<float>(BoxMin.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, -1.0f) });
-    BuildWall(FWallSpec{ true, static_cast<float>(BoxMax.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(1.0f, 0.0f) });
-    BuildWall(FWallSpec{ true, static_cast<float>(BoxMin.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(-1.0f, 0.0f) });
+    MasonBuilder->BuildFromSpec(BuildSpec, ConnectorSpecs);
+    MasonBuilder->UpdateBoundsFromSpec(BuildSpec);
 }
 
 void ARoomModuleBase::ClearGeneratedGrayboxInstances()
 {
+    if (MasonBuilder)
+    {
+        MasonBuilder->ClearGeneratedGeometry();
+        return;
+    }
+
     if (GeneratedFloorMesh)
     {
         GeneratedFloorMesh->ClearInstances();
@@ -1076,6 +988,10 @@ void ARoomModuleBase::ClearGeneratedGrayboxInstances()
     if (GeneratedCeilingMesh)
     {
         GeneratedCeilingMesh->ClearInstances();
+    }
+    if (GeneratedRoofMesh)
+    {
+        GeneratedRoofMesh->ClearInstances();
     }
 }
 
@@ -1109,6 +1025,7 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
     ApplyMaterial(GeneratedFloorMesh, GetResolvedFloorMaterial(), false);
     ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false);
     ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false);
+    ApplyMaterial(GeneratedRoofMesh, GetResolvedRoofMaterial(), false);
 }
 
 void ARoomModuleBase::UpdatePlayerStartPlacement()
@@ -1318,6 +1235,24 @@ void ARoomModuleBase::BuildSliceGrayboxFromCells(
         GeneratedCeilingMesh->AddInstance(FTransform(FRotator::ZeroRotator, Location, Scale));
     };
 
+    auto AddRoofStrip = [this, CellSize, FloorBaseZ, FloorThickness, WallHeight, CeilingThickness](int32 RowY, int32 StartX, int32 EndXExclusive)
+    {
+        if (!GeneratedRoofMesh)
+        {
+            return;
+        }
+
+        constexpr float RoofThickness = 6.0f;
+        const float WorldStartX = static_cast<float>(StartX) * CellSize;
+        const float WorldEndX = static_cast<float>(EndXExclusive) * CellSize;
+        const float CenterX = (WorldStartX + WorldEndX) * 0.5f;
+        const float CenterY = (static_cast<float>(RowY) + 0.5f) * CellSize;
+        const float WidthX = WorldEndX - WorldStartX;
+        const FVector Scale(WidthX / 100.0f, CellSize / 100.0f, RoofThickness / 100.0f);
+        const FVector Location(CenterX, CenterY, FloorBaseZ + FloorThickness + WallHeight + CeilingThickness + RoofThickness * 0.5f);
+        GeneratedRoofMesh->AddInstance(FTransform(FRotator::ZeroRotator, Location, Scale));
+    };
+
     TMap<int32, TArray<int32>> FilledRows;
     for (const FIntPoint& Cell : OccupiedCells)
     {
@@ -1353,6 +1288,7 @@ void ARoomModuleBase::BuildSliceGrayboxFromCells(
             {
                 AddCeilingStrip(RowY, RunStart, Previous + 1);
             }
+            AddRoofStrip(RowY, RunStart, Previous + 1);
 
             RunStart = Current;
             Previous = Current;
@@ -1363,6 +1299,7 @@ void ARoomModuleBase::BuildSliceGrayboxFromCells(
         {
             AddCeilingStrip(RowY, RunStart, Previous + 1);
         }
+        AddRoofStrip(RowY, RunStart, Previous + 1);
     }
 
     // CNC-ish boundary slicing: group exposed wall edges by slice plane, then emit merged runs.

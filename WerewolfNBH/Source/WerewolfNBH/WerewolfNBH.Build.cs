@@ -13,7 +13,8 @@ public class WerewolfNBH : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "InputCore",
-                "EnhancedInput"
+                "EnhancedInput",
+                "GameplayTags"
             });
 
         PrivateDependencyModuleNames.AddRange(

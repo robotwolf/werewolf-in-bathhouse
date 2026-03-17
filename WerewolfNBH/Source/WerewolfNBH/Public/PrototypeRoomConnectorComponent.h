@@ -27,6 +27,38 @@ enum class ERoomConnectionType : uint8
     Any
 };
 
+UENUM(BlueprintType)
+enum class ERoomConnectorPassageKind : uint8
+{
+    InteriorDoor,
+    ExteriorDoor,
+    OpenThreshold,
+    Footpath,
+    RoadLink,
+    StairHandoff,
+    ServiceHatch,
+    Any
+};
+
+UENUM(BlueprintType)
+enum class ERoomConnectorBoundaryKind : uint8
+{
+    Interior,
+    Exterior,
+    Transition,
+    Any
+};
+
+UENUM(BlueprintType)
+enum class ERoomConnectorClearanceClass : uint8
+{
+    HumanStandard,
+    HumanWide,
+    Service,
+    Vehicle,
+    Any
+};
+
 UCLASS(ClassGroup=(WerewolfBH), meta=(BlueprintSpawnableComponent))
 class WEREWOLFNBH_API UPrototypeRoomConnectorComponent : public USceneComponent
 {
@@ -51,6 +83,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
     ERoomConnectionType ConnectionType = ERoomConnectionType::Public;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    ERoomConnectorPassageKind PassageKind = ERoomConnectorPassageKind::InteriorDoor;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    ERoomConnectorBoundaryKind BoundaryKind = ERoomConnectorBoundaryKind::Interior;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    ERoomConnectorClearanceClass ClearanceClass = ERoomConnectorClearanceClass::HumanStandard;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    FName ContractTag = NAME_None;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
     bool bOccupied = false;
 
@@ -74,6 +118,8 @@ public:
 
     UFUNCTION(BlueprintPure, Category="Connector")
     bool IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other) const;
+
+    bool IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other, FString* OutReason) const;
 
     UFUNCTION(BlueprintPure, Category="Connector")
     ARoomModuleBase* GetOwningRoom() const;

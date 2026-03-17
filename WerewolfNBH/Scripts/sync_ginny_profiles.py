@@ -30,6 +30,7 @@ BATHHOUSE_LAYOUT_ASSET = "DA_GinnyLayout_Bathhouse_Default"
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
 
 MATERIAL_PATHS = {
+    "tron_glow": "/Game/WerewolfBH/Materials/Tron_Glow",
     "entry_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Entry_Floor",
     "entry_wall": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Entry_Wall",
     "locker_floor": "/Game/WerewolfBH/Materials/Assembler/M_Assembler_Test_Locker_Floor",
@@ -99,23 +100,24 @@ def get_material(key: str):
 
 def get_room_material_set(profile_name: str):
     ceiling = get_material("ceiling")
+    roof = get_material("tron_glow")
 
     if profile_name == "EntryReception":
-        return (None, get_material("entry_floor"), get_material("entry_wall"), ceiling)
+        return (None, get_material("entry_floor"), get_material("entry_wall"), ceiling, roof)
     if profile_name == "LockerHall":
-        return (None, get_material("locker_floor"), get_material("locker_wall"), ceiling)
+        return (None, get_material("locker_floor"), get_material("locker_wall"), ceiling, roof)
     if profile_name == "PublicHallStair":
-        return (None, get_material("stair_floor"), get_material("stair_wall"), get_material("stair_ceiling"))
+        return (None, get_material("stair_floor"), get_material("stair_wall"), get_material("stair_ceiling"), roof)
     if profile_name in ("PoolHall", "ColdPlunge"):
-        return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling)
+        return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling, roof)
     if profile_name in ("WashShower", "Toilet", "SteamRoom"):
-        return (None, get_material("porcelain"), get_material("hall_wall"), ceiling)
+        return (None, get_material("porcelain"), get_material("hall_wall"), ceiling, roof)
     if profile_name in ("BoilerService", "Storage"):
-        return (None, get_material("service_metal"), get_material("hall_wall"), ceiling)
+        return (None, get_material("service_metal"), get_material("hall_wall"), ceiling, roof)
     if profile_name == "Sauna":
-        return (None, get_material("wood_bench"), get_material("hall_wall"), ceiling)
+        return (None, get_material("wood_bench"), get_material("hall_wall"), ceiling, roof)
 
-    return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling)
+    return (None, get_material("hall_floor"), get_material("hall_wall"), ceiling, roof)
 
 
 def get_cdo(blueprint):
@@ -201,11 +203,12 @@ def sync_room_profiles(default_opening_profile, stair_opening_profile):
         stock_settings = cdo.get_editor_property("StockAssemblySettings")
         stock_settings.set_editor_property("DoorWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)
         profile.set_editor_property("StockAssemblySettings", stock_settings)
-        legacy_material, floor_material, wall_material, ceiling_material = get_room_material_set(profile_name)
+        legacy_material, floor_material, wall_material, ceiling_material, roof_material = get_room_material_set(profile_name)
         profile.set_editor_property("LegacyRoomMaterial", legacy_material)
         profile.set_editor_property("FloorMaterial", floor_material)
         profile.set_editor_property("WallMaterial", wall_material)
         profile.set_editor_property("CeilingMaterial", ceiling_material)
+        profile.set_editor_property("RoofMaterial", roof_material)
         profile.set_editor_property("DefaultOpeningProfile", default_opening_profile)
         save_asset(profile)
 

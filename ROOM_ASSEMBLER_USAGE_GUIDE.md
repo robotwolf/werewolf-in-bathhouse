@@ -50,10 +50,28 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
     - vertical enablement
     - optional landmark content such as the stair
 
+- `UMasonBuilderComponent`
+  - The first named extraction of the reusable primitive-construction layer.
+  - Current Phase 1 responsibility:
+    - consume a `FMasonBuildSpec`
+    - consume flattened connector opening data via `FMasonConnectorSpec`
+    - build the walkable primitive shell from those specs
+  - Current explicit construction techniques:
+    - `BoxShell`
+    - `SliceFootprint`
+    - `PublicStairShell`
+    - `PartitionedBox`
+    - `OpenLot`
+    - `ObjectShell`
+  - Current implementation status:
+    - `BoxShell`, `SliceFootprint`, and `PublicStairShell` are fully active
+    - `PartitionedBox`, `OpenLot`, and `ObjectShell` currently fall back to the proven shell builder until their technique-specific rules are authored
+  - This is the seam where the current bathhouse graybox builder starts becoming reusable beyond the bathhouse.
+
 - `ARoomModuleBase`
   - Base class for stock room modules.
   - Uses `RoomBoundsBox` as the authoritative footprint/overlap volume.
-  - Generates walkable graybox interiors from bounds using floor, ceiling, and wall cube pieces.
+  - Generates walkable graybox interiors by preparing room/build specs and handing them to `UMasonBuilderComponent`.
   - Supports connector-driven door openings.
   - Supports profile-driven connector openings with precedence:
     1. connector `OpeningProfileOverride`
@@ -71,6 +89,11 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Door/link point component.
   - Directional, occupiable, and deterministic.
   - Still the basis for alignment.
+  - Now carries connector-contract semantics for future non-bathhouse work:
+    - `PassageKind`
+    - `BoundaryKind`
+    - `ClearanceClass`
+    - `ContractTag`
   - Can override its opening behavior with `OpeningProfileOverride`.
   - Debug arrows stay visible in-editor and hide by default during play.
 
@@ -89,6 +112,76 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
   - Still in the codebase.
   - Not part of the healthy default assembler baseline.
   - Decoration and FX are intentionally frozen until the structural bathhouse program is stable.
+
+## Ginny vs Mason
+
+- `Ginny` owns topology:
+  - what rooms appear
+  - what connects to what
+  - required vs optional program logic
+  - validation
+  - transition metadata
+- `Mason` owns embodiment:
+  - floors
+  - walls
+  - ceilings
+  - roof caps
+  - stock openings
+  - stair shell construction
+  - technique selection for how a node is embodied
+- Current reality:
+  - `Ginny` is already profile-driven.
+  - `Mason` is now the named primitive-construction seam.
+  - Mason now has explicit technique selection instead of inferred one-off modes.
+  - Future work will keep expanding `Mason` so the same system can build more than bathhouse boxes without turning `Ginny` into a geometry goblin.
+
+## Connector Contracts
+
+Connectors are no longer just "door arrows." They are beginning to act like traversal contracts.
+
+Current contract fields on `UPrototypeRoomConnectorComponent`:
+
+- `ConnectionType`
+  - legacy social/security access layer: `Public`, `Staff`, `Hidden`, `Any`
+- `PassageKind`
+  - what sort of traversal this is:
+    - `InteriorDoor`
+    - `ExteriorDoor`
+    - `OpenThreshold`
+    - `Footpath`
+    - `RoadLink`
+    - `StairHandoff`
+    - `ServiceHatch`
+    - `Any`
+- `BoundaryKind`
+  - what edge of the world this connector lives on:
+    - `Interior`
+    - `Exterior`
+    - `Transition`
+    - `Any`
+- `ClearanceClass`
+  - rough traversal/scale class:
+    - `HumanStandard`
+    - `HumanWide`
+    - `Service`
+    - `Vehicle`
+    - `Any`
+- `ContractTag`
+  - freeform opt-in matching tag for future specialized pairings
+
+Current default bathhouse values still behave like before:
+
+- `PassageKind = InteriorDoor`
+- `BoundaryKind = Interior`
+- `ClearanceClass = HumanStandard`
+
+So the bathhouse is unchanged, but the seam is now there for:
+
+- RV exterior doors meeting footpaths
+- outdoor lot links
+- stair handoff links
+- wider circulation classes
+- future transition nodes
 
 ## Room Roles
 
@@ -313,13 +406,26 @@ If all attempts fail:
 
 ## Debug Readability
 
+- `ARoomModuleBase` now owns a `URoomSignageComponent` that manages:
+  - interior billboard text
+  - exterior roof-side text
+  - a subtle marker billboard
+  - a subtle marker point light
 - `ARoomModuleBase` exposes:
   - `bShowRoomNameLabel`
+  - `bShowExteriorRoomNameLabel`
   - `bBillboardRoomNameLabel`
   - `RoomNameLabelWorldSize`
   - `RoomNameLabelOffset`
+  - `ExteriorRoomNameLabelOffset`
+  - `bShowRoomMarkerBillboard`
+  - `bShowRoomMarkerLight`
+  - `RoomMarkerLightIntensity`
+  - `RoomMarkerLightRadius`
+  - `RoomMarkerLightColor`
   - `bShowConnectorDebugArrows`
 - Connector arrows are for editing/debugging and should remain invisible during play unless intentionally re-enabled.
+- The room-name billboard now faces the active view correctly instead of mirroring itself like a haunted bathroom sign.
 
 ## Default Generator Config
 
@@ -369,6 +475,16 @@ Current profile-driven bathhouse material families:
   - `M_Assembler_Test_Stair_Floor`
   - `M_Assembler_Test_Stair_Wall`
   - `M_Assembler_Test_Stair_Ceiling`
+
+Profile-driven room appearance now also supports a dedicated exterior roof material slot:
+
+- `RoofMaterial`
+
+Current bathhouse baseline uses:
+
+- `Tron_Glow`
+
+on the generated roof cap so the top-side / exterior room read is much more visible during layout testing.
 
 ## One-Time Setup / Refresh
 
@@ -452,6 +568,14 @@ Room graybox materials resolve in this order:
 2. room profile appearance materials
 3. engine default material / debug tint fallback
 
+The current profile appearance fields include:
+
+1. `LegacyRoomMaterial`
+2. `FloorMaterial`
+3. `WallMaterial`
+4. `CeilingMaterial`
+5. `RoofMaterial`
+
 Generator policy resolves in this order:
 
 1. `LayoutProfile`
@@ -478,6 +602,7 @@ Primary log category:
 Standard rejection labels:
 
 - `Adjacency`
+- `Contract`
 - `Cooldown`
 - `Role`
 - `Depth`
