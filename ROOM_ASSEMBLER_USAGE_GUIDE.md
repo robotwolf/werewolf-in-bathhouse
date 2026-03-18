@@ -145,8 +145,19 @@ If you are brand new to this stack and want the practical onboarding path first,
     - filter by required/blocked gameplay tags
     - deterministically pick a marker from the filtered result
     - deterministically pick a room and marker across many rooms
+    - score room candidates by preferred room/activity/marker tags
     - draw a debug marker in-world
   - This is the first intended consumer seam between room construction output and NPC/gameplay logic.
+
+- `ARoomGameplayMarkerProbe`
+  - Small debug actor for editor/PIE testing of cross-room marker selection.
+  - Can pull from:
+    - a `RoomGenerator` actor's `SpawnedRooms`
+    - or a manually assigned room list
+  - Can:
+    - evaluate filtered or scored room selection
+    - expose the selected room, marker, and score
+    - move itself to the chosen marker and visualize it with a billboard/arrow
 
 - `AButchDecorator`
   - Still in the codebase.

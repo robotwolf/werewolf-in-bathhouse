@@ -83,6 +83,28 @@ Right now he exists, but he is not part of the healthy default assembly baseline
 
 Right now she exists as data and intent, not as full runtime orchestration.
 
+### Runtime Marker Consumer
+
+The first small runtime consumer for room markers now exists:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerLibrary.h`
+
+Use it when gameplay or NPC logic needs to:
+
+- ask a room for `NPC`, `Clue`, `Task`, `MissionSocket`, or `FX` markers
+- filter a list of generated rooms by room tags and activity tags
+- filter those markers by gameplay tags
+- deterministically pick one for the current run or situation
+- deterministically pick a room first and then a marker inside it
+- prefer stronger candidate rooms via weighted room/activity/marker tags
+- draw a debug marker in-world while testing
+
+For visual testing in-editor or PIE, use:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerProbe.h`
+
+The probe actor can read generated rooms from a `RoomGenerator`, run the same filters/scoring as gameplay code, and jump to the chosen marker so designers are not left divining selection logic from hope and geometry.
+
 ## Healthy Baseline
 
 The current stable baseline is:

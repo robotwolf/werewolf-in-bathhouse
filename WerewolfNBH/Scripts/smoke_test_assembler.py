@@ -23,6 +23,108 @@ def get_marker_count_for_family(room, family):
     return 0
 
 
+def validate_marker_picker(room, family, seed):
+    empty_tags = unreal.GameplayTagContainer()
+    actual_count = get_marker_count_for_family(room, family)
+    if actual_count <= 0:
+        return
+
+    marker = unreal.RoomGameplayMarkerLibrary.pick_gameplay_marker_from_room(
+        room,
+        family,
+        seed,
+        empty_tags,
+        empty_tags,
+        True,
+    )
+    marker_name = marker.get_editor_property("MarkerName")
+    if not marker_name:
+        fail(f"Marker picker returned empty marker for {room.get_name()} family {family.name}")
+
+
+def validate_cross_room_marker_picker(rooms, family, seed):
+    empty_tags = unreal.GameplayTagContainer()
+    candidate_rooms = unreal.RoomGameplayMarkerLibrary.get_candidate_rooms_for_gameplay_markers(
+        rooms,
+        family,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        True,
+        True,
+    )
+    if not candidate_rooms:
+        return
+
+    selection = unreal.RoomGameplayMarkerLibrary.pick_gameplay_marker_across_rooms(
+        rooms,
+        family,
+        seed,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        True,
+        True,
+        True,
+    )
+    if isinstance(selection, (tuple, list)):
+        selected_room, selected_marker = selection
+    else:
+        fail(f"Cross-room marker picker returned unexpected value type for family {family.name}: {type(selection)}")
+
+    if not selected_room:
+        fail(f"Cross-room marker picker returned no room for family {family.name}")
+
+    if selected_room not in candidate_rooms:
+        fail(f"Cross-room marker picker chose room outside candidate set for family {family.name}")
+
+    marker_name = selected_marker.get_editor_property("MarkerName")
+    if not marker_name:
+        fail(f"Cross-room marker picker returned empty marker for family {family.name}")
+
+
+def validate_scored_cross_room_marker_picker(rooms, family, seed):
+    empty_tags = unreal.GameplayTagContainer()
+    selection = unreal.RoomGameplayMarkerLibrary.pick_best_gameplay_marker_across_rooms(
+        rooms,
+        family,
+        seed,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        empty_tags,
+        3.0,
+        2.0,
+        1.0,
+        True,
+        True,
+        True,
+    )
+
+    if not isinstance(selection, (tuple, list)) or len(selection) != 3:
+        fail(f"Scored cross-room marker picker returned unexpected value type for family {family.name}: {type(selection)}")
+
+    selected_room, selected_marker, selected_score = selection
+    if not selected_room:
+        fail(f"Scored cross-room marker picker returned no room for family {family.name}")
+
+    marker_name = selected_marker.get_editor_property("MarkerName")
+    if not marker_name:
+        fail(f"Scored cross-room marker picker returned empty marker for family {family.name}")
+
+    if selected_score < 0.0:
+        fail(f"Scored cross-room marker picker returned negative score for family {family.name}")
+
+
 def log(message: str) -> None:
     unreal.log(f"[smoke_test_assembler] {message}")
 
@@ -142,6 +244,17 @@ def build_layout_signature(generator, seed: int):
                     f"Room {room.get_name()} exceeds gameplay marker budget for {family.name}: "
                     f"{actual_count} > {max_count}"
                 )
+            validate_marker_picker(room, family, seed)
+
+    for family in (
+        unreal.RoomGameplayMarkerFamily.NPC,
+        unreal.RoomGameplayMarkerFamily.TASK,
+        unreal.RoomGameplayMarkerFamily.CLUE,
+        unreal.RoomGameplayMarkerFamily.MISSION_SOCKET,
+        unreal.RoomGameplayMarkerFamily.FX,
+    ):
+        validate_cross_room_marker_picker(spawned_rooms, family, seed)
+        validate_scored_cross_room_marker_picker(spawned_rooms, family, seed)
 
     visited = set()
     stack = [spawned_rooms[0]]
