@@ -125,6 +125,46 @@ def validate_scored_cross_room_marker_picker(rooms, family, seed):
         fail(f"Scored cross-room marker picker returned negative score for family {family.name}")
 
 
+def validate_npc_profile_marker_consumer(rooms, seed):
+    if not rooms:
+        return
+
+    npc_profile = unreal.new_object(unreal.BathhouseNPCProfile)
+    npc_profile.set_editor_property("NPCId", "SmokeNPC")
+
+    activity = unreal.BathhouseActivityPreference()
+    activity.set_editor_property("Weight", 1.0)
+    npc_profile.set_editor_property("BaselineActivities", [activity])
+
+    activities = unreal.BathhouseSimulationLibrary.get_applicable_activities_for_phase(
+        npc_profile,
+        unreal.BathhouseRunPhase.OPENING_HOURS,
+        False,
+    )
+    if not activities:
+        fail("BathhouseSimulationLibrary returned no applicable activities for transient smoke NPC")
+
+    selection = unreal.BathhouseSimulationLibrary.pick_marker_for_npc_profile(
+        npc_profile,
+        rooms,
+        unreal.BathhouseRunPhase.OPENING_HOURS,
+        False,
+        seed,
+    )
+
+    if not selection.get_editor_property("bFoundSelection"):
+        fail("BathhouseSimulationLibrary failed to find an NPC marker for transient smoke NPC")
+
+    selected_room = selection.get_editor_property("Room")
+    if not selected_room:
+        fail("BathhouseSimulationLibrary returned no room for transient smoke NPC")
+
+    marker = selection.get_editor_property("Marker")
+    marker_name = marker.get_editor_property("MarkerName")
+    if not marker_name:
+        fail("BathhouseSimulationLibrary returned an empty marker for transient smoke NPC")
+
+
 def log(message: str) -> None:
     unreal.log(f"[smoke_test_assembler] {message}")
 
@@ -255,6 +295,8 @@ def build_layout_signature(generator, seed: int):
     ):
         validate_cross_room_marker_picker(spawned_rooms, family, seed)
         validate_scored_cross_room_marker_picker(spawned_rooms, family, seed)
+
+    validate_npc_profile_marker_consumer(spawned_rooms, seed)
 
     visited = set()
     stack = [spawned_rooms[0]]

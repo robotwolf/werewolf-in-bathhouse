@@ -159,6 +159,20 @@ If you are brand new to this stack and want the practical onboarding path first,
     - expose the selected room, marker, and score
     - move itself to the chosen marker and visualize it with a billboard/arrow
 
+- `UBathhouseSimulationLibrary`
+  - First NPC-side consumer seam built on top of room marker output.
+  - Can:
+    - filter a profile's baseline activities by phase and werewolf context
+    - choose an `NPC_*` marker for a transient or authored NPC profile
+    - combine NPC room preferences with room activity tags and marker scoring
+
+- `ABathhouseNPCMarkerProbe`
+  - Debug actor that uses `UBathhouseSimulationLibrary` against a `RoomGenerator`'s spawned rooms.
+  - Useful for proving the full handshake:
+    - room publishes markers
+    - gameplay profile chooses activity
+    - NPC-side selection picks room + marker
+
 - `AButchDecorator`
   - Still in the codebase.
   - Not part of the healthy default assembler baseline.

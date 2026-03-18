@@ -105,6 +105,18 @@ For visual testing in-editor or PIE, use:
 
 The probe actor can read generated rooms from a `RoomGenerator`, run the same filters/scoring as gameplay code, and jump to the chosen marker so designers are not left divining selection logic from hope and geometry.
 
+For the first NPC-side consumer seam, use:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\BathhouseSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\BathhouseNPCMarkerProbe.h`
+
+That path lets a bathhouse NPC profile choose a plausible `NPC_*` marker from generated rooms using:
+
+- the NPC's preferred and avoided room tags
+- the room's activity tags
+- the activity preference's own room preferences
+- deterministic scoring instead of interpretive séance work
+
 ## Healthy Baseline
 
 The current stable baseline is:
