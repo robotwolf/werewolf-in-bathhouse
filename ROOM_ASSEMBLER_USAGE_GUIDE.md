@@ -137,6 +137,17 @@ If you are brand new to this stack and want the practical onboarding path first,
   - Resolves layout policy from `LayoutProfile` first, then falls back to legacy generator properties.
   - Logs to `LogGinny`.
 
+- `URoomGameplayMarkerLibrary`
+  - Small runtime helper for gameplay/NPC-side marker consumption.
+  - Can:
+    - query a room for markers by family
+    - filter a set of rooms by room tags, activity tags, and marker family
+    - filter by required/blocked gameplay tags
+    - deterministically pick a marker from the filtered result
+    - deterministically pick a room and marker across many rooms
+    - draw a debug marker in-world
+  - This is the first intended consumer seam between room construction output and NPC/gameplay logic.
+
 - `AButchDecorator`
   - Still in the codebase.
   - Not part of the healthy default assembler baseline.
