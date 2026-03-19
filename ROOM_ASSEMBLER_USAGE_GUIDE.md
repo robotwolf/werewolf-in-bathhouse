@@ -159,15 +159,17 @@ If you are brand new to this stack and want the practical onboarding path first,
     - expose the selected room, marker, and score
     - move itself to the chosen marker and visualize it with a billboard/arrow
 
-- `UBathhouseSimulationLibrary`
+- `UStagehandSimulationLibrary`
   - First NPC-side consumer seam built on top of room marker output.
   - Can:
     - filter a profile's baseline activities by phase and werewolf context
     - choose an `NPC_*` marker for a transient or authored NPC profile
     - combine NPC room preferences with room activity tags and marker scoring
+  - Current authored prototype profiles live under:
+    - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles`
 
-- `ABathhouseNPCMarkerProbe`
-  - Debug actor that uses `UBathhouseSimulationLibrary` against a `RoomGenerator`'s spawned rooms.
+- `AStagehandNPCMarkerProbe`
+  - Debug actor that uses `UStagehandSimulationLibrary` against a `RoomGenerator`'s spawned rooms.
   - Useful for proving the full handshake:
     - room publishes markers
     - gameplay profile chooses activity
@@ -574,6 +576,7 @@ Key scripts:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
 
@@ -586,6 +589,9 @@ Key scripts:
 - no `Butch` actor in healthy default
 - generator has a `LayoutProfile`
 - spawned rooms have `RoomProfile`
+- authored NPC profiles load from `Content/WerewolfBH/Data/NPC/Profiles`
+- `UStagehandSimulationLibrary` finds a room + `NPC_*` marker for each authored NPC profile
+- `AStagehandNPCMarkerProbe` refreshes successfully for each authored NPC profile
 - spawned rooms satisfy any authored gameplay marker requirements
 - first room is `EntryReception`
 - first room after entry is `PublicHallStraight`
@@ -623,6 +629,28 @@ Current healthy test seeds:
 12. For placeholder bathing/service reads, primitive feature meshes are fine:
    - flattened cylinders for plunge/pool basins
    - cubes for benches, shelving, stalls, counters, and simple fixtures
+
+## NPC Profile Authoring Handshake
+
+The current authored bathhouse NPC profile sync lives at:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
+
+Current prototype NPC assets:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles\DA_NPCProfile_Ronin.uasset`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles\DA_NPCProfile_FirstTimer.uasset`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles\DA_NPCProfile_FitnessObsessive.uasset`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles\DA_NPCProfile_FloorManager.uasset`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles\DA_NPCProfile_OccultScholar.uasset`
+
+These profiles assume rooms publish:
+
+- honest `RoomTags`
+- honest `ActivityTags`
+- believable `NPC_*` markers with meaningful `ComponentTags`
+
+If an NPC profile cannot find a plausible marker, check the room tags and marker coverage first. Do not immediately make the selector more mystical just because the bathhouse enjoys drama.
 
 ## Profile Precedence
 

@@ -8,6 +8,8 @@
 #include "EngineUtils.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.h"
+#include "StagehandDemoCoordinator.h"
+#include "StagehandDemoNPCCharacter.h"
 
 DEFINE_LOG_CATEGORY(LogGinny);
 
@@ -85,12 +87,18 @@ namespace
         int32 RoomSpawnIndex = 0;
         TArray<FRoomSnapshot> RoomStates;
     };
+
+    bool IsGeneratorTestMap(const UWorld* World)
+    {
+        return World && World->GetMapName().Contains(TEXT("GeneratorTest"));
+    }
 }
 
 ARoomGenerator::ARoomGenerator()
 {
     PrimaryActorTick.bCanEverTick = false;
     ButchDecoratorClass = AButchDecorator::StaticClass();
+    StagehandDemoCoordinatorClass = AStagehandDemoCoordinator::StaticClass();
 }
 
 void ARoomGenerator::BeginPlay()
@@ -100,6 +108,11 @@ void ARoomGenerator::BeginPlay()
     if (bGenerateOnBeginPlay)
     {
         GenerateLayout();
+    }
+
+    if (bAutoSpawnStagehandDemoCoordinator)
+    {
+        SpawnStagehandDemoCoordinator();
     }
 }
 
@@ -252,6 +265,73 @@ bool ARoomGenerator::RunLayoutValidation(bool bLogIssues)
     }
 
     return bValid;
+}
+
+bool ARoomGenerator::SpawnStagehandDemoCoordinator()
+{
+    if (!bAutoSpawnStagehandDemoCoordinator)
+    {
+        return false;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return false;
+    }
+
+    if (bLimitStagehandDemoToGeneratorTestMap && !IsGeneratorTestMap(World))
+    {
+        return false;
+    }
+
+    if (SpawnedStagehandDemoCoordinator)
+    {
+        return true;
+    }
+
+    for (TActorIterator<AStagehandDemoCoordinator> It(World); It; ++It)
+    {
+        if (*It && It->TargetGenerator == this)
+        {
+            SpawnedStagehandDemoCoordinator = *It;
+            return true;
+        }
+    }
+
+    if (!StagehandDemoCoordinatorClass)
+    {
+        return false;
+    }
+
+    AStagehandDemoCoordinator* DemoCoordinator = World->SpawnActorDeferred<AStagehandDemoCoordinator>(
+        StagehandDemoCoordinatorClass,
+        FTransform(GetActorRotation(), GetActorLocation()),
+        this,
+        nullptr,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+
+    if (!DemoCoordinator)
+    {
+        return false;
+    }
+
+    DemoCoordinator->TargetGenerator = this;
+    if (StagehandDemoProfile)
+    {
+        DemoCoordinator->NPCProfile = StagehandDemoProfile;
+    }
+    if (StagehandDemoNPCClass)
+    {
+        DemoCoordinator->DemoNPCClass = StagehandDemoNPCClass;
+    }
+    DemoCoordinator->Phase = StagehandDemoPhase;
+    DemoCoordinator->bTreatAsWerewolf = bTreatStagehandDemoAsWerewolf;
+    DemoCoordinator->DemoSeedOffset = StagehandDemoSeedOffset;
+
+    SpawnedStagehandDemoCoordinator = DemoCoordinator;
+    DemoCoordinator->FinishSpawning(FTransform(GetActorRotation(), GetActorLocation()));
+    return true;
 }
 
 ARoomModuleBase* ARoomGenerator::SpawnRoom(TSubclassOf<ARoomModuleBase> RoomClass, const FTransform& SpawnTransform)

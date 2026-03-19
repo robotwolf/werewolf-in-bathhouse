@@ -3,6 +3,7 @@
 #include "GinnyProfiles.h"
 #include "MasonBuilderComponent.h"
 #include "RoomSignageComponent.h"
+#include "StagehandDebugVisualizerComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
@@ -225,6 +226,12 @@ ARoomModuleBase::ARoomModuleBase()
     RoomMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     RoomMesh->SetGenerateOverlapEvents(false);
 
+    AuthoredContentRoot = CreateDefaultSubobject<USceneComponent>(TEXT("AuthoredContentRoot"));
+    AuthoredContentRoot->SetupAttachment(SceneRoot);
+
+    GameplayMarkerRoot = CreateDefaultSubobject<USceneComponent>(TEXT("GameplayMarkerRoot"));
+    GameplayMarkerRoot->SetupAttachment(SceneRoot);
+
     GeneratedFloorMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GeneratedFloorMesh"));
     GeneratedFloorMesh->SetupAttachment(SceneRoot);
     ConfigureGeneratedMesh(GeneratedFloorMesh, true);
@@ -250,6 +257,7 @@ ARoomModuleBase::ARoomModuleBase()
 
     DebugBillboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("DebugBillboard"));
     DebugBillboard->SetupAttachment(SceneRoot);
+    DebugBillboard->SetHiddenInGame(true);
 
     PlayerStartAnchor = CreateDefaultSubobject<UChildActorComponent>(TEXT("PlayerStartAnchor"));
     PlayerStartAnchor->SetupAttachment(SceneRoot);
@@ -257,6 +265,9 @@ ARoomModuleBase::ARoomModuleBase()
 
     RoomSignage = CreateDefaultSubobject<URoomSignageComponent>(TEXT("RoomSignage"));
     RoomSignage->SetupAttachment(SceneRoot);
+
+    StagehandDebugVisualizer = CreateDefaultSubobject<UStagehandDebugVisualizerComponent>(TEXT("StagehandDebugVisualizer"));
+    StagehandDebugVisualizer->SetupAttachment(SceneRoot);
 
     MasonBuilder = CreateDefaultSubobject<UMasonBuilderComponent>(TEXT("MasonBuilder"));
 
@@ -313,6 +324,10 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
     RefreshConnectorCache();
     RefreshGameplayMarkerCache();
     UpdateConnectorDebugVisualization();
+    if (StagehandDebugVisualizer)
+    {
+        StagehandDebugVisualizer->RefreshVisualization();
+    }
 
     if (ParametricSettings.bEnabled)
     {
@@ -402,6 +417,7 @@ void ARoomModuleBase::UpdateConnectorDebugVisualization()
             continue;
         }
 
+        Connector->UpdateDebugAppearance();
         Connector->ArrowComponent->SetVisibility(bShowConnectorDebugArrows);
         Connector->ArrowComponent->SetHiddenInGame(Connector->bHideArrowInGame || !bShowConnectorDebugArrows);
     }
@@ -742,6 +758,69 @@ FRoomGameplayMarker ARoomModuleBase::BuildGameplayMarker(const FRegisteredGamepl
     return BuildGameplayMarker(RegisteredMarker.MarkerPrefix, RegisteredMarker.SourceComponent);
 }
 
+FRoomGameplayMarker ARoomModuleBase::BuildFallbackGameplayMarker(
+    const FString& MarkerPrefix,
+    const FName MarkerName,
+    const FVector& WorldLocation,
+    const FRotator& WorldRotation) const
+{
+    FRoomGameplayMarker Marker;
+    Marker.MarkerName = MarkerName;
+    Marker.MarkerPrefix = MarkerPrefix;
+    Marker.WorldTransform = FTransform(WorldRotation, WorldLocation);
+    Marker.GameplayTags.AppendTags(GetResolvedActivityTags());
+    return Marker;
+}
+
+TArray<FRoomGameplayMarker> ARoomModuleBase::BuildFallbackGameplayMarkers(ERoomGameplayMarkerFamily MarkerFamily) const
+{
+    TArray<FRoomGameplayMarker> Markers;
+
+    if (MarkerFamily != ERoomGameplayMarkerFamily::NPC || !bGenerateFallbackNPCMarkers || !RoomBoundsBox)
+    {
+        return Markers;
+    }
+
+    const int32 MarkerCount = FMath::Clamp(FallbackNPCMarkerCount, 1, 6);
+    const FVector BoundsCenter = RoomBoundsBox->GetComponentLocation();
+    const FVector BoundsExtent = RoomBoundsBox->GetScaledBoxExtent();
+    const float SafeInset = FMath::Clamp(
+        FallbackNPCMarkerInset,
+        0.0f,
+        FMath::Max(0.0f, FMath::Min(BoundsExtent.X, BoundsExtent.Y) - 60.0f));
+    const float LateralOffset = FMath::Max(80.0f, BoundsExtent.Y * 0.35f - SafeInset * 0.35f);
+    const float ForwardOffset = FMath::Max(80.0f, BoundsExtent.X * 0.28f - SafeInset * 0.25f);
+    const float StandingHeight = 88.0f;
+    const float FloorZ = BoundsCenter.Z - BoundsExtent.Z + StandingHeight;
+
+    TArray<FVector> CandidateLocations;
+    CandidateLocations.Reserve(6);
+    CandidateLocations.Add(FVector(BoundsCenter.X, BoundsCenter.Y, FloorZ));
+    CandidateLocations.Add(FVector(BoundsCenter.X, BoundsCenter.Y - LateralOffset, FloorZ));
+    CandidateLocations.Add(FVector(BoundsCenter.X, BoundsCenter.Y + LateralOffset, FloorZ));
+    CandidateLocations.Add(FVector(BoundsCenter.X + ForwardOffset, BoundsCenter.Y, FloorZ));
+    CandidateLocations.Add(FVector(BoundsCenter.X - ForwardOffset, BoundsCenter.Y, FloorZ));
+    CandidateLocations.Add(FVector(BoundsCenter.X + ForwardOffset, BoundsCenter.Y + LateralOffset * 0.5f, FloorZ));
+
+    const FVector FacingCenter = BoundsCenter + FVector(0.0f, 0.0f, StandingHeight);
+    for (int32 MarkerIndex = 0; MarkerIndex < MarkerCount && MarkerIndex < CandidateLocations.Num(); ++MarkerIndex)
+    {
+        const FVector MarkerLocation = CandidateLocations[MarkerIndex];
+        const FVector ToCenter = (FacingCenter - MarkerLocation).GetSafeNormal2D();
+        const FRotator MarkerRotation = ToCenter.IsNearlyZero()
+            ? GetActorRotation()
+            : ToCenter.Rotation();
+
+        Markers.Add(BuildFallbackGameplayMarker(
+            TEXT("NPC_"),
+            FName(*FString::Printf(TEXT("NPC_Default_%02d"), MarkerIndex + 1)),
+            MarkerLocation,
+            MarkerRotation));
+    }
+
+    return Markers;
+}
+
 TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FString& Prefix) const
 {
     TArray<FRoomGameplayMarker> Markers;
@@ -792,6 +871,11 @@ TArray<FRoomGameplayMarker> ARoomModuleBase::GetGameplayMarkersByPrefix(const FS
         }
     }
 
+    if (Markers.IsEmpty() && Prefix.Equals(TEXT("NPC_"), ESearchCase::IgnoreCase))
+    {
+        Markers = BuildFallbackGameplayMarkers(ERoomGameplayMarkerFamily::NPC);
+    }
+
     Markers.Sort([](const FRoomGameplayMarker& A, const FRoomGameplayMarker& B)
     {
         return A.MarkerName.ToString() < B.MarkerName.ToString();
@@ -823,6 +907,17 @@ TArray<FRoomGameplayMarker> ARoomModuleBase::GetAllGameplayMarkers() const
         }
 
         Markers.Add(BuildGameplayMarker(RegisteredMarker));
+    }
+
+    const bool bHasAuthoredNPCMarker = RegisteredGameplayMarkerComponents.ContainsByPredicate(
+        [](const FRegisteredGameplayMarkerComponent& RegisteredMarker)
+        {
+            return RegisteredMarker.MarkerFamily == ERoomGameplayMarkerFamily::NPC && RegisteredMarker.SourceComponent != nullptr;
+        });
+
+    if (!bHasAuthoredNPCMarker)
+    {
+        Markers.Append(BuildFallbackGameplayMarkers(ERoomGameplayMarkerFamily::NPC));
     }
 
     Markers.Sort([](const FRoomGameplayMarker& A, const FRoomGameplayMarker& B)
@@ -1279,7 +1374,12 @@ void ARoomModuleBase::ClearGeneratedGrayboxInstances()
 
 void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
 {
-    auto ApplyMaterial = [this](UMeshComponent* MeshComponent, UMaterialInterface* PreferredMaterial, bool bAllowDebugTint)
+    auto ApplyMaterial = [this](
+        UMeshComponent* MeshComponent,
+        UMaterialInterface* PreferredMaterial,
+        bool bAllowDebugTint,
+        TObjectPtr<UMaterialInterface>& LastAppliedMaterial,
+        bool bAllowManualMaterialRetention)
     {
         if (!MeshComponent)
         {
@@ -1292,22 +1392,36 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
             return;
         }
 
+        UMaterialInterface* CurrentMaterial = MeshComponent->GetMaterial(0);
+        const bool bHasManualMaterial =
+            bAllowManualMaterialRetention &&
+            CurrentMaterial &&
+            CurrentMaterial != BaseMaterial &&
+            CurrentMaterial != LastAppliedMaterial.Get();
+
+        if (bHasManualMaterial)
+        {
+            return;
+        }
+
         if (bAllowDebugTint && BaseMaterial == DefaultMaterial.Get())
         {
             UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMaterial, this);
             MeshComponent->SetMaterial(0, MID);
             MID->SetVectorParameterValue(TEXT("Color"), DebugColor);
+            LastAppliedMaterial = MID;
             return;
         }
 
         MeshComponent->SetMaterial(0, BaseMaterial);
+        LastAppliedMaterial = BaseMaterial;
     };
 
-    ApplyMaterial(RoomMesh, GetResolvedLegacyRoomMaterial(), true);
-    ApplyMaterial(GeneratedFloorMesh, GetResolvedFloorMaterial(), false);
-    ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false);
-    ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false);
-    ApplyMaterial(GeneratedRoofMesh, GetResolvedRoofMaterial(), false);
+    ApplyMaterial(RoomMesh, GetResolvedLegacyRoomMaterial(), true, LastAppliedRoomMeshMaterial, false);
+    ApplyMaterial(GeneratedFloorMesh, GetResolvedFloorMaterial(), false, LastAppliedFloorMaterial, bRespectManualGeneratedMeshMaterials);
+    ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false, LastAppliedWallMaterial, bRespectManualGeneratedMeshMaterials);
+    ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false, LastAppliedCeilingMaterial, bRespectManualGeneratedMeshMaterials);
+    ApplyMaterial(GeneratedRoofMesh, GetResolvedRoofMaterial(), false, LastAppliedRoofMaterial, bRespectManualGeneratedMeshMaterials);
 }
 
 void ARoomModuleBase::UpdatePlayerStartPlacement()

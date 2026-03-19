@@ -1,16 +1,16 @@
 #pragma once
 
-#include "BathhouseSimulationData.h"
+#include "StagehandSimulationData.h"
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "RoomModuleBase.h"
-#include "BathhouseSimulationLibrary.generated.h"
+#include "StagehandSimulationLibrary.generated.h"
 
 class ARoomModuleBase;
-class UBathhouseNPCProfile;
+class UStagehandNPCProfile;
 
 USTRUCT(BlueprintType)
-struct FBathhouseNPCMarkerSelection
+struct FStagehandNPCMarkerSelection
 {
     GENERATED_BODY()
 
@@ -18,10 +18,10 @@ struct FBathhouseNPCMarkerSelection
     bool bFoundSelection = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
-    TObjectPtr<UBathhouseNPCProfile> NPCProfile = nullptr;
+    TObjectPtr<UStagehandNPCProfile> NPCProfile = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
-    EBathhouseRunPhase Phase = EBathhouseRunPhase::OpeningHours;
+    EStagehandRunPhase Phase = EStagehandRunPhase::OpeningHours;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
     bool bIsWerewolfContext = false;
@@ -43,22 +43,22 @@ struct FBathhouseNPCMarkerSelection
 };
 
 UCLASS()
-class WEREWOLFNBH_API UBathhouseSimulationLibrary : public UBlueprintFunctionLibrary
+class WEREWOLFNBH_API UStagehandSimulationLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 
 public:
-    UFUNCTION(BlueprintCallable, Category="Bathhouse|Simulation")
-    static TArray<FBathhouseActivityPreference> GetApplicableActivitiesForPhase(
-        const UBathhouseNPCProfile* NPCProfile,
-        EBathhouseRunPhase Phase,
+    UFUNCTION(BlueprintCallable, Category="Stagehand|Simulation")
+    static TArray<FStagehandActivityPreference> GetApplicableActivitiesForPhase(
+        const UStagehandNPCProfile* NPCProfile,
+        EStagehandRunPhase Phase,
         bool bIsWerewolf);
 
-    UFUNCTION(BlueprintCallable, Category="Bathhouse|Simulation")
-    static FBathhouseNPCMarkerSelection PickMarkerForNPCProfile(
-        const UBathhouseNPCProfile* NPCProfile,
+    UFUNCTION(BlueprintCallable, Category="Stagehand|Simulation")
+    static FStagehandNPCMarkerSelection PickMarkerForNPCProfile(
+        const UStagehandNPCProfile* NPCProfile,
         const TArray<ARoomModuleBase*>& Rooms,
-        EBathhouseRunPhase Phase,
+        EStagehandRunPhase Phase,
         bool bIsWerewolf,
         int32 SelectionSeed);
 };

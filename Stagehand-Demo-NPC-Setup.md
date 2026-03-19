@@ -1,0 +1,112 @@
+# Stagehand Demo NPC Setup
+
+This is the shortest sane path from "the demo NPC moves" to "the demo NPC moves without sliding and several can exist at once."
+
+## What Exists Now
+
+Runtime code:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandDemoNPCCharacter.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoNPCCharacter.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandDemoCoordinator.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoCoordinator.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\WerewolfStateBillboardComponent.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\WerewolfStateBillboardComponent.cpp`
+
+Important authored data:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\Rooms`
+
+Current mannequin content:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\Characters\Mannequins\Meshes\SKM_Quinn_Simple.uasset`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\Characters\Mannequins\Anims\Unarmed`
+
+## Proper Next Step: Animation
+
+The current C++ character proves movement and selection, but it should not be trusted to produce a good locomotion result by itself.
+
+Recommended asset additions and current repo paths:
+
+1. Use or update the existing Blueprint child of `AStagehandDemoNPCCharacter`.
+   Current path:
+   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\BP_StagehandNPC.uasset`
+
+2. Use or update the existing Anim Blueprint for the Quinn skeleton.
+   Current path:
+   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\ABP_Quinn_StagehandNPC.uasset`
+
+3. In the Anim Blueprint:
+   - compute `Speed` from `VectorLengthXY(GetVelocity())`
+   - start with one simple `Idle` / `Walk` blend or state machine
+   - only add turn or pause polish after the base locomotion works
+
+4. In `BP_StagehandNPC`:
+   - assign `SKM_Quinn_Simple` if needed
+   - set the mesh `Anim Class` to `ABP_Quinn_StagehandNPC`
+   - keep the inherited C++ movement settings unless they actively fight the animation
+
+5. On the placed room generator in `GeneratorTest`:
+   - set `StagehandDemoNPCClass` to `BP_StagehandNPC`
+
+6. If you are editing the coordinator directly instead of the generator:
+   - set `DemoNPCClass` to `BP_StagehandNPC`
+
+## Proper Next Step: Several NPCs
+
+`AStagehandDemoCoordinator` now supports multiple NPCs directly.
+
+Relevant properties:
+
+- `NumDemoNPCs`
+- `SpawnSpacing`
+- `NPCProfiles`
+- `NPCProfile`
+
+Use them like this:
+
+1. Set `NumDemoNPCs` to `3` or `4`.
+2. Set `SpawnSpacing` to something readable like `140` to `220`.
+3. Fill `NPCProfiles` with distinct profile assets when possible.
+4. Leave `NPCProfile` set as the fallback profile for any slot you do not explicitly fill.
+
+Behavior notes:
+
+- each NPC gets a distinct seed offset
+- each NPC gets a different projected spawn point
+- the first spawned NPC is still also exposed through the legacy `SpawnedDemoNPC` property
+- all spawned NPCs are tracked in `SpawnedDemoNPCs`
+
+## Recommended Debug Read
+
+If an NPC still misbehaves, read the overhead label in this order:
+
+1. profile name
+2. current loop state
+3. room / marker / activity line
+4. move destination and failure line
+
+That label is driven by `UWerewolfStateBillboardComponent`, so the same display pattern can be reused for future prototype NPCs.
+
+## Related Docs
+
+Architecture and implementation intent:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\NPC-Prototype-Implementation-Plan.md`
+
+Room authoring and generation:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\ROOM_ASSEMBLER_USAGE_GUIDE.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\Room-Construction-Gameplay-Handshake.md`
+
+Repo-wide working guidance:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\AGENTS.md`
+
+If you only open three docs for this vertical slice, open these:
+
+1. `E:\Documents\Projects\werewolf-in-bathhouse\Stagehand-Demo-NPC-Setup.md`
+2. `E:\Documents\Projects\werewolf-in-bathhouse\NPC-Prototype-Implementation-Plan.md`
+3. `E:\Documents\Projects\werewolf-in-bathhouse\Room-Construction-Gameplay-Handshake.md`

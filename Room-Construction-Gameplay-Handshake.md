@@ -57,6 +57,11 @@ The constructor side is responsible for publishing these signals:
    - marker transforms
    - marker facing direction where relevant
 
+6. `Room-local content structure`
+   - authored meshes, props, and child actors should live under `AuthoredContentRoot`
+   - gameplay-facing `USceneComponent` markers should live under `GameplayMarkerRoot`
+   - decorative content should not impersonate gameplay markers by accident
+
 ### Gameplay -> Constructor
 
 The gameplay side should send back only stable high-level needs, not one-off scene demands.
@@ -214,13 +219,29 @@ How to place:
 These should be the default rules for all interior markers.
 
 1. Use plain `USceneComponent` markers unless the system truly needs a specialized component.
-2. Keep marker pivots at the usable center of the interaction.
-3. Use the component's forward vector to indicate intended facing.
-4. Keep markers clear of collision and obvious clip problems.
-5. Put paired social markers in readable relation to each other.
-6. Prefer a few good markers over ten vague ones.
-7. Tag the marker through `ComponentTags` if behavior filtering will care.
-8. Use tags for semantics and names for readability; do not rely on names alone forever.
+2. Put room props, pools, benches, and other actual room content under `AuthoredContentRoot`.
+3. Put `NPC_*`, `Task_*`, `Clue_*`, `MissionSocket_*`, and `FX_*` markers under `GameplayMarkerRoot`.
+4. If a thing is just geometry, prefer room-owned mesh components over free-floating level actors.
+5. Use a `UChildActorComponent` only when the authored object genuinely needs its own behavior.
+6. Water/decorative helper meshes should usually be `NoCollision` and `CanEverAffectNavigation = false` unless navigation blocking is intentional.
+7. Keep marker pivots at the usable center of the interaction.
+8. Use the component's forward vector to indicate intended facing.
+9. Keep markers clear of collision and obvious clip problems.
+10. Put paired social markers in readable relation to each other.
+11. Prefer a few good markers over ten vague ones.
+12. Tag the marker through `ComponentTags` if behavior filtering will care.
+13. Use tags for semantics and names for readability; do not rely on names alone forever.
+
+## Room Authoring Contract
+
+When adding things to generated rooms, the safe default is:
+
+- room-specific geometry and props belong inside the room Blueprint, not loose in the test map
+- persistent authored content belongs under `AuthoredContentRoot`
+- gameplay/query markers belong under `GameplayMarkerRoot`
+- debug labels are visualization only; they should not be treated as placement anchors or gameplay markers
+
+If a room actor is spawned by Ginny, the room Blueprint is the source of truth. Adding a random world actor to `GeneratorTest` and hoping the generated room adopts it is how one accidentally invents bathhouse poltergeists.
 
 ## Minimum Marker Set By Room Type
 
@@ -304,6 +325,41 @@ The gameplay side should assume:
 - room tags are the first filter
 - marker tags are the second filter
 - final choice should still be data-driven and phase-aware
+
+## NPC Profile Consumer Subsection
+
+The first concrete NPC-side consumer pair is now:
+
+- `UStagehandSimulationLibrary`
+- `AStagehandNPCMarkerProbe`
+
+That means the handshake has moved beyond theory and into actual repo behavior.
+
+Gameplay can now feed an authored `UStagehandNPCProfile`:
+
+- baseline activity preferences
+- preferred and avoided room tags
+- phase overrides
+- werewolf-only activity bias
+
+into the simulation library and get back:
+
+- the chosen activity tag
+- the chosen room
+- the chosen `NPC_*` marker
+- a debug-readable score and note string
+
+Current authored prototype NPC profiles live under:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles`
+
+This tightens the contract:
+
+- constructor side must publish honest `RoomTags` and `ActivityTags`
+- constructor side must place believable `NPC_*` markers
+- gameplay side must choose from published opportunities instead of inventing private room truth
+
+If an NPC profile cannot find a plausible destination, suspect room tags or marker coverage first. The correct next move is almost never "teach the selector more astrology."
 
 ## First Practical Agreement
 

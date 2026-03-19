@@ -63,6 +63,7 @@ UPrototypeRoomConnectorComponent::UPrototypeRoomConnectorComponent()
     ArrowComponent->bIsScreenSizeScaled = true;
     ArrowComponent->SetHiddenInGame(bHideArrowInGame);
     ArrowComponent->SetVisibility(true);
+    UpdateDebugAppearance();
 }
 
 void UPrototypeRoomConnectorComponent::OnRegister()
@@ -71,6 +72,7 @@ void UPrototypeRoomConnectorComponent::OnRegister()
 
     if (ArrowComponent)
     {
+        UpdateDebugAppearance();
         ArrowComponent->SetHiddenInGame(bHideArrowInGame);
         ArrowComponent->SetVisibility(true);
     }
@@ -183,4 +185,63 @@ bool UPrototypeRoomConnectorComponent::IsCompatibleWith(const UPrototypeRoomConn
 ARoomModuleBase* UPrototypeRoomConnectorComponent::GetOwningRoom() const
 {
     return Cast<ARoomModuleBase>(GetOwner());
+}
+
+void UPrototypeRoomConnectorComponent::UpdateDebugAppearance()
+{
+    if (!ArrowComponent)
+    {
+        return;
+    }
+
+    ArrowComponent->ArrowColor = GetDebugColor().ToFColor(true);
+
+    switch (ClearanceClass)
+    {
+    case ERoomConnectorClearanceClass::HumanWide:
+        ArrowComponent->ArrowSize = 1.35f;
+        ArrowComponent->ArrowLength = 140.0f;
+        break;
+    case ERoomConnectorClearanceClass::Service:
+        ArrowComponent->ArrowSize = 1.15f;
+        ArrowComponent->ArrowLength = 110.0f;
+        break;
+    case ERoomConnectorClearanceClass::Vehicle:
+        ArrowComponent->ArrowSize = 1.6f;
+        ArrowComponent->ArrowLength = 160.0f;
+        break;
+    case ERoomConnectorClearanceClass::Any:
+        ArrowComponent->ArrowSize = 1.0f;
+        ArrowComponent->ArrowLength = 100.0f;
+        break;
+    case ERoomConnectorClearanceClass::HumanStandard:
+    default:
+        ArrowComponent->ArrowSize = 1.2f;
+        ArrowComponent->ArrowLength = 120.0f;
+        break;
+    }
+}
+
+FLinearColor UPrototypeRoomConnectorComponent::GetDebugColor() const
+{
+    switch (PassageKind)
+    {
+    case ERoomConnectorPassageKind::InteriorDoor:
+        return FLinearColor(0.15f, 0.85f, 1.0f, 1.0f);
+    case ERoomConnectorPassageKind::ExteriorDoor:
+        return FLinearColor(0.2f, 1.0f, 0.45f, 1.0f);
+    case ERoomConnectorPassageKind::OpenThreshold:
+        return FLinearColor(1.0f, 0.85f, 0.2f, 1.0f);
+    case ERoomConnectorPassageKind::Footpath:
+        return FLinearColor(1.0f, 0.5f, 0.2f, 1.0f);
+    case ERoomConnectorPassageKind::RoadLink:
+        return FLinearColor(0.85f, 0.25f, 1.0f, 1.0f);
+    case ERoomConnectorPassageKind::StairHandoff:
+        return FLinearColor(0.6f, 0.55f, 1.0f, 1.0f);
+    case ERoomConnectorPassageKind::ServiceHatch:
+        return FLinearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    case ERoomConnectorPassageKind::Any:
+    default:
+        return FLinearColor(0.8f, 0.8f, 0.8f, 1.0f);
+    }
 }

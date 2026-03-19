@@ -20,6 +20,7 @@ class UGinnyRoomProfile;
 class UMasonConstructionProfile;
 class UMasonBuilderComponent;
 class URoomSignageComponent;
+class UStagehandDebugVisualizerComponent;
 
 UENUM(BlueprintType)
 enum class ERoomParametricFootprintType : uint8
@@ -369,6 +370,12 @@ public:
     TObjectPtr<UStaticMeshComponent> RoomMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
+    TObjectPtr<USceneComponent> AuthoredContentRoot;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Gameplay")
+    TObjectPtr<USceneComponent> GameplayMarkerRoot;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<UInstancedStaticMeshComponent> GeneratedFloorMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
@@ -391,6 +398,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Debug")
     TObjectPtr<URoomSignageComponent> RoomSignage;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Debug")
+    TObjectPtr<UStagehandDebugVisualizerComponent> StagehandDebugVisualizer;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Construction")
     TObjectPtr<UMasonBuilderComponent> MasonBuilder;
@@ -476,6 +486,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
     FGameplayTagContainer ActivityTags;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay|Fallback")
+    bool bGenerateFallbackNPCMarkers = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay|Fallback", meta=(ClampMin="1", ClampMax="6", EditCondition="bGenerateFallbackNPCMarkers"))
+    int32 FallbackNPCMarkerCount = 3;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay|Fallback", meta=(ClampMin="0.0", EditCondition="bGenerateFallbackNPCMarkers"))
+    float FallbackNPCMarkerInset = 90.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> LegacyRoomMaterialOverride = nullptr;
 
@@ -490,6 +509,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
     TObjectPtr<UMaterialInterface> RoofMaterialOverride = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Appearance")
+    bool bRespectManualGeneratedMeshMaterials = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
     bool bSpawnPlayerStart = false;
@@ -635,6 +657,21 @@ protected:
     UPROPERTY()
     TObjectPtr<UMaterialInterface> DefaultMaterial;
 
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedRoomMeshMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedFloorMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedWallMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedCeilingMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedRoofMaterial = nullptr;
+
     UPrototypeRoomConnectorComponent* CreateConnector(const FName Name, const FVector& RelativeLocation, const FRotator& RelativeRotation, ERoomConnectorDirection Direction);
     const UGinnyRoomProfile* GetResolvedRoomProfile() const;
     const UMasonConstructionProfile* GetResolvedConstructionProfile() const;
@@ -647,6 +684,8 @@ protected:
     UMaterialInterface* GetResolvedRoofMaterial() const;
     FRoomGameplayMarker BuildGameplayMarker(const FString& Prefix, USceneComponent* SceneComponent) const;
     FRoomGameplayMarker BuildGameplayMarker(const FRegisteredGameplayMarkerComponent& RegisteredMarker) const;
+    TArray<FRoomGameplayMarker> BuildFallbackGameplayMarkers(ERoomGameplayMarkerFamily MarkerFamily) const;
+    FRoomGameplayMarker BuildFallbackGameplayMarker(const FString& MarkerPrefix, const FName MarkerName, const FVector& WorldLocation, const FRotator& WorldRotation) const;
 
     void BuildParametricGraybox();
     void BuildStockBoundsGraybox();

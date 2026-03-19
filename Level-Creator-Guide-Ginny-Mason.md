@@ -107,15 +107,27 @@ The probe actor can read generated rooms from a `RoomGenerator`, run the same fi
 
 For the first NPC-side consumer seam, use:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\BathhouseSimulationLibrary.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\BathhouseNPCMarkerProbe.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandNPCMarkerProbe.h`
 
 That path lets a bathhouse NPC profile choose a plausible `NPC_*` marker from generated rooms using:
 
 - the NPC's preferred and avoided room tags
 - the room's activity tags
 - the activity preference's own room preferences
-- deterministic scoring instead of interpretive séance work
+- deterministic scoring instead of interpretive seance work
+
+The first authored prototype NPC profiles live under:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles`
+
+Current profile assets:
+
+- `DA_NPCProfile_Ronin`
+- `DA_NPCProfile_FirstTimer`
+- `DA_NPCProfile_FitnessObsessive`
+- `DA_NPCProfile_FloorManager`
+- `DA_NPCProfile_OccultScholar`
 
 ## Healthy Baseline
 
@@ -425,6 +437,7 @@ These scripts are useful when updating baseline content:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 
 Be careful with broad scripts that rebuild lots of assets.

@@ -14,13 +14,18 @@ ARoomGameplayMarkerProbe::ARoomGameplayMarkerProbe()
 
     MarkerBillboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("MarkerBillboard"));
     MarkerBillboard->SetupAttachment(SceneRoot);
-    MarkerBillboard->SetHiddenInGame(false);
+    MarkerBillboard->SetHiddenInGame(true);
     MarkerBillboard->SetUsingAbsoluteRotation(true);
+    MarkerBillboard->SetIsVisualizationComponent(true);
+    MarkerBillboard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     MarkerArrow = CreateDefaultSubobject<UArrowComponent>(TEXT("MarkerArrow"));
     MarkerArrow->SetupAttachment(SceneRoot);
     MarkerArrow->ArrowSize = 1.4f;
     MarkerArrow->SetUsingAbsoluteRotation(true);
+    MarkerArrow->SetHiddenInGame(true);
+    MarkerArrow->SetIsVisualizationComponent(true);
+    MarkerArrow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void ARoomGameplayMarkerProbe::OnConstruction(const FTransform& Transform)
@@ -174,13 +179,13 @@ void ARoomGameplayMarkerProbe::ApplyVisualState()
     if (MarkerBillboard)
     {
         MarkerBillboard->SetVisibility(bHasSelection);
-        MarkerBillboard->SetHiddenInGame(!bHasSelection);
+        MarkerBillboard->SetHiddenInGame(bHideHelpersInGame || !bHasSelection);
     }
 
     if (MarkerArrow)
     {
         MarkerArrow->SetVisibility(bHasSelection);
-        MarkerArrow->SetHiddenInGame(!bHasSelection);
+        MarkerArrow->SetHiddenInGame(bHideHelpersInGame || !bHasSelection);
         MarkerArrow->ArrowColor = DebugColor.ToFColor(true);
     }
 

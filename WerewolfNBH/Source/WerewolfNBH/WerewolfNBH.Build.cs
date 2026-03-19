@@ -9,12 +9,15 @@ public class WerewolfNBH : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new[]
             {
+                "AIModule",
                 "Core",
                 "CoreUObject",
                 "Engine",
+                "GameplayTasks",
                 "InputCore",
                 "EnhancedInput",
-                "GameplayTags"
+                "GameplayTags",
+                "NavigationSystem"
             });
 
         PrivateDependencyModuleNames.AddRange(

@@ -1,12 +1,12 @@
-#include "BathhouseNPCMarkerProbe.h"
+#include "StagehandNPCMarkerProbe.h"
 
-#include "BathhouseSimulationLibrary.h"
+#include "StagehandSimulationLibrary.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "RoomGameplayMarkerLibrary.h"
 #include "RoomGenerator.h"
 
-ABathhouseNPCMarkerProbe::ABathhouseNPCMarkerProbe()
+AStagehandNPCMarkerProbe::AStagehandNPCMarkerProbe()
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -15,16 +15,21 @@ ABathhouseNPCMarkerProbe::ABathhouseNPCMarkerProbe()
 
     MarkerBillboard = CreateDefaultSubobject<UBillboardComponent>(TEXT("MarkerBillboard"));
     MarkerBillboard->SetupAttachment(SceneRoot);
-    MarkerBillboard->SetHiddenInGame(false);
+    MarkerBillboard->SetHiddenInGame(true);
     MarkerBillboard->SetUsingAbsoluteRotation(true);
+    MarkerBillboard->SetIsVisualizationComponent(true);
+    MarkerBillboard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     MarkerArrow = CreateDefaultSubobject<UArrowComponent>(TEXT("MarkerArrow"));
     MarkerArrow->SetupAttachment(SceneRoot);
     MarkerArrow->ArrowSize = 1.4f;
     MarkerArrow->SetUsingAbsoluteRotation(true);
+    MarkerArrow->SetHiddenInGame(true);
+    MarkerArrow->SetIsVisualizationComponent(true);
+    MarkerArrow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void ABathhouseNPCMarkerProbe::OnConstruction(const FTransform& Transform)
+void AStagehandNPCMarkerProbe::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
@@ -38,18 +43,18 @@ void ABathhouseNPCMarkerProbe::OnConstruction(const FTransform& Transform)
     }
 }
 
-void ABathhouseNPCMarkerProbe::BeginPlay()
+void AStagehandNPCMarkerProbe::BeginPlay()
 {
     Super::BeginPlay();
     RefreshProbe();
 }
 
-bool ABathhouseNPCMarkerProbe::RefreshProbe()
+bool AStagehandNPCMarkerProbe::RefreshProbe()
 {
-    Selection = FBathhouseNPCMarkerSelection();
+    Selection = FStagehandNPCMarkerSelection();
 
     const TArray<ARoomModuleBase*> Rooms = GatherGeneratorRooms();
-    Selection = UBathhouseSimulationLibrary::PickMarkerForNPCProfile(
+    Selection = UStagehandSimulationLibrary::PickMarkerForNPCProfile(
         NPCProfile,
         Rooms,
         Phase,
@@ -77,7 +82,7 @@ bool ABathhouseNPCMarkerProbe::RefreshProbe()
     return Selection.bFoundSelection;
 }
 
-TArray<ARoomModuleBase*> ABathhouseNPCMarkerProbe::GatherGeneratorRooms() const
+TArray<ARoomModuleBase*> AStagehandNPCMarkerProbe::GatherGeneratorRooms() const
 {
     TArray<ARoomModuleBase*> Rooms;
     if (!TargetGenerator)
@@ -96,20 +101,20 @@ TArray<ARoomModuleBase*> ABathhouseNPCMarkerProbe::GatherGeneratorRooms() const
     return Rooms;
 }
 
-void ABathhouseNPCMarkerProbe::ApplyVisualState()
+void AStagehandNPCMarkerProbe::ApplyVisualState()
 {
     const bool bHasSelection = Selection.bFoundSelection && Selection.Room && !Selection.Marker.MarkerName.IsNone();
 
     if (MarkerBillboard)
     {
         MarkerBillboard->SetVisibility(bHasSelection);
-        MarkerBillboard->SetHiddenInGame(!bHasSelection);
+        MarkerBillboard->SetHiddenInGame(bHideHelpersInGame || !bHasSelection);
     }
 
     if (MarkerArrow)
     {
         MarkerArrow->SetVisibility(bHasSelection);
-        MarkerArrow->SetHiddenInGame(!bHasSelection);
+        MarkerArrow->SetHiddenInGame(bHideHelpersInGame || !bHasSelection);
         MarkerArrow->ArrowColor = DebugColor.ToFColor(true);
     }
 

@@ -59,7 +59,7 @@ enum class ERoomConnectorClearanceClass : uint8
     Any
 };
 
-UCLASS(ClassGroup=(WerewolfBH), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Stagehand), meta=(BlueprintSpawnableComponent))
 class WEREWOLFNBH_API UPrototypeRoomConnectorComponent : public USceneComponent
 {
     GENERATED_BODY()
@@ -68,59 +68,65 @@ public:
     UPrototypeRoomConnectorComponent();
     virtual void OnRegister() override;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Connector")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Connector")
     TObjectPtr<UArrowComponent> ArrowComponent;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Debug")
     bool bHideArrowInGame = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     FName SocketID = NAME_None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     ERoomConnectorDirection Direction = ERoomConnectorDirection::North;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     ERoomConnectionType ConnectionType = ERoomConnectionType::Public;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Contract")
     ERoomConnectorPassageKind PassageKind = ERoomConnectorPassageKind::InteriorDoor;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Contract")
     ERoomConnectorBoundaryKind BoundaryKind = ERoomConnectorBoundaryKind::Interior;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Contract")
     ERoomConnectorClearanceClass ClearanceClass = ERoomConnectorClearanceClass::HumanStandard;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Contract")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Contract")
     FName ContractTag = NAME_None;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bOccupied = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bCanConnectToPublic = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bCanConnectToStaff = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bCanConnectToHidden = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bAllowDeadEndFallback = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector")
     bool bCanMoonriseShift = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Connector|Openings")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Connector|Openings")
     TObjectPtr<UGinnyOpeningProfile> OpeningProfileOverride = nullptr;
 
-    UFUNCTION(BlueprintPure, Category="Connector")
+    UFUNCTION(BlueprintPure, Category="Stagehand|Connector")
     bool IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other) const;
 
     bool IsCompatibleWith(const UPrototypeRoomConnectorComponent* Other, FString* OutReason) const;
 
-    UFUNCTION(BlueprintPure, Category="Connector")
+    UFUNCTION(BlueprintPure, Category="Stagehand|Connector")
     ARoomModuleBase* GetOwningRoom() const;
+
+    UFUNCTION(BlueprintCallable, Category="Stagehand|Connector|Debug")
+    void UpdateDebugAppearance();
+
+    UFUNCTION(BlueprintPure, Category="Stagehand|Connector|Debug")
+    FLinearColor GetDebugColor() const;
 };

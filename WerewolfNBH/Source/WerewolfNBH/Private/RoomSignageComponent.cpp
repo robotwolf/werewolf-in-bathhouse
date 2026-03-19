@@ -70,16 +70,16 @@ void URoomSignageComponent::ApplyVisibility()
     }
 
     MarkerBillboard->SetVisibility(bShowMarkerBillboard);
-    MarkerBillboard->SetHiddenInGame(!bShowMarkerBillboard);
+    MarkerBillboard->SetHiddenInGame(bHideHelpersInGame || !bShowMarkerBillboard);
 
     InteriorLabel->SetVisibility(bShowInteriorLabel);
-    InteriorLabel->SetHiddenInGame(!bShowInteriorLabel);
+    InteriorLabel->SetHiddenInGame(bHideHelpersInGame || !bShowInteriorLabel);
 
     ExteriorRoofLabel->SetVisibility(bShowExteriorRoofLabel);
-    ExteriorRoofLabel->SetHiddenInGame(!bShowExteriorRoofLabel);
+    ExteriorRoofLabel->SetHiddenInGame(bHideHelpersInGame || !bShowExteriorRoofLabel);
 
     MarkerLight->SetVisibility(bShowMarkerLight);
-    MarkerLight->SetHiddenInGame(!bShowMarkerLight);
+    MarkerLight->SetHiddenInGame(bHideHelpersInGame || !bShowMarkerLight);
 }
 
 void URoomSignageComponent::UpdateBillboarding()
@@ -163,7 +163,7 @@ void URoomSignageComponent::EnsureHelperComponents()
         MarkerLight->RegisterComponent();
     }
 
-    MarkerBillboard->SetHiddenInGame(false);
+    MarkerBillboard->SetHiddenInGame(bHideHelpersInGame);
     MarkerBillboard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     InteriorLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);

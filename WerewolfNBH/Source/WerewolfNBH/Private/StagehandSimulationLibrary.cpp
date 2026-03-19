@@ -1,13 +1,13 @@
-#include "BathhouseSimulationLibrary.h"
+#include "StagehandSimulationLibrary.h"
 
-#include "BathhouseSimulationData.h"
+#include "StagehandSimulationData.h"
 #include "RoomGameplayMarkerLibrary.h"
 
 namespace
 {
     void GatherPhaseActivityModifiers(
-        const UBathhouseNPCProfile* NPCProfile,
-        EBathhouseRunPhase Phase,
+        const UStagehandNPCProfile* NPCProfile,
+        EStagehandRunPhase Phase,
         FGameplayTagContainer& OutAddedActivityTags,
         FGameplayTagContainer& OutBlockedActivityTags)
     {
@@ -19,7 +19,7 @@ namespace
             return;
         }
 
-        for (const FBathhousePhaseActivityModifier& Modifier : NPCProfile->PhaseOverrides)
+        for (const FStagehandPhaseActivityModifier& Modifier : NPCProfile->PhaseOverrides)
         {
             if (Modifier.Phase != Phase)
             {
@@ -32,7 +32,7 @@ namespace
     }
 
     float GetWerewolfActivityBonus(
-        const UBathhouseNPCProfile* NPCProfile,
+        const UStagehandNPCProfile* NPCProfile,
         const FGameplayTag& ActivityTag,
         bool bIsWerewolf)
     {
@@ -50,12 +50,12 @@ namespace
     }
 }
 
-TArray<FBathhouseActivityPreference> UBathhouseSimulationLibrary::GetApplicableActivitiesForPhase(
-    const UBathhouseNPCProfile* NPCProfile,
-    EBathhouseRunPhase Phase,
+TArray<FStagehandActivityPreference> UStagehandSimulationLibrary::GetApplicableActivitiesForPhase(
+    const UStagehandNPCProfile* NPCProfile,
+    EStagehandRunPhase Phase,
     bool bIsWerewolf)
 {
-    TArray<FBathhouseActivityPreference> Activities;
+    TArray<FStagehandActivityPreference> Activities;
     if (!NPCProfile)
     {
         return Activities;
@@ -65,7 +65,7 @@ TArray<FBathhouseActivityPreference> UBathhouseSimulationLibrary::GetApplicableA
     FGameplayTagContainer BlockedActivityTags;
     GatherPhaseActivityModifiers(NPCProfile, Phase, AddedActivityTags, BlockedActivityTags);
 
-    for (const FBathhouseActivityPreference& Activity : NPCProfile->BaselineActivities)
+    for (const FStagehandActivityPreference& Activity : NPCProfile->BaselineActivities)
     {
         if (Activity.bWerewolfOnly && !bIsWerewolf)
         {
@@ -77,7 +77,7 @@ TArray<FBathhouseActivityPreference> UBathhouseSimulationLibrary::GetApplicableA
             continue;
         }
 
-        FBathhouseActivityPreference& Copy = Activities.Add_GetRef(Activity);
+        FStagehandActivityPreference& Copy = Activities.Add_GetRef(Activity);
         if (Activity.ActivityTag.IsValid() && AddedActivityTags.HasTag(Activity.ActivityTag))
         {
             Copy.Weight += 1.0f;
@@ -89,15 +89,15 @@ TArray<FBathhouseActivityPreference> UBathhouseSimulationLibrary::GetApplicableA
     return Activities;
 }
 
-FBathhouseNPCMarkerSelection UBathhouseSimulationLibrary::PickMarkerForNPCProfile(
-    const UBathhouseNPCProfile* NPCProfile,
+FStagehandNPCMarkerSelection UStagehandSimulationLibrary::PickMarkerForNPCProfile(
+    const UStagehandNPCProfile* NPCProfile,
     const TArray<ARoomModuleBase*>& Rooms,
-    EBathhouseRunPhase Phase,
+    EStagehandRunPhase Phase,
     bool bIsWerewolf,
     int32 SelectionSeed)
 {
-    FBathhouseNPCMarkerSelection Result;
-    Result.NPCProfile = const_cast<UBathhouseNPCProfile*>(NPCProfile);
+    FStagehandNPCMarkerSelection Result;
+    Result.NPCProfile = const_cast<UStagehandNPCProfile*>(NPCProfile);
     Result.Phase = Phase;
     Result.bIsWerewolfContext = bIsWerewolf;
 
@@ -113,7 +113,7 @@ FBathhouseNPCMarkerSelection UBathhouseSimulationLibrary::PickMarkerForNPCProfil
         return Result;
     }
 
-    const TArray<FBathhouseActivityPreference> Activities = GetApplicableActivitiesForPhase(NPCProfile, Phase, bIsWerewolf);
+    const TArray<FStagehandActivityPreference> Activities = GetApplicableActivitiesForPhase(NPCProfile, Phase, bIsWerewolf);
     if (Activities.IsEmpty())
     {
         Result.Notes = TEXT("No applicable activities for this NPC and phase.");
@@ -121,13 +121,13 @@ FBathhouseNPCMarkerSelection UBathhouseSimulationLibrary::PickMarkerForNPCProfil
     }
 
     float BestScore = -1.0f;
-    const FBathhouseActivityPreference* BestActivity = nullptr;
+    const FStagehandActivityPreference* BestActivity = nullptr;
     ARoomModuleBase* BestRoom = nullptr;
     FRoomGameplayMarker BestMarker;
 
     for (int32 ActivityIndex = 0; ActivityIndex < Activities.Num(); ++ActivityIndex)
     {
-        const FBathhouseActivityPreference& Activity = Activities[ActivityIndex];
+        const FStagehandActivityPreference& Activity = Activities[ActivityIndex];
 
         FGameplayTagContainer PreferredRoomTags = NPCProfile->PreferredRoomTags;
         PreferredRoomTags.AppendTags(Activity.PreferredRoomTags);

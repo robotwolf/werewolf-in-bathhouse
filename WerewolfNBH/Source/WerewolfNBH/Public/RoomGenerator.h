@@ -3,9 +3,12 @@
 #include "CoreMinimal.h"
 #include "GinnyProfiles.h"
 #include "GameFramework/Actor.h"
+#include "StagehandSimulationData.h"
 #include "RoomGenerator.generated.h"
 
 class ARoomModuleBase;
+class AStagehandDemoCoordinator;
+class AStagehandDemoNPCCharacter;
 class AButchDecorator;
 class UGinnyLayoutProfile;
 class UPrototypeRoomConnectorComponent;
@@ -130,6 +133,30 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration", meta=(EditCondition="bRunButchAfterGeneration"))
     TSubclassOf<AButchDecorator> ButchDecoratorClass;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
+    bool bAutoSpawnStagehandDemoCoordinator = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    bool bLimitStagehandDemoToGeneratorTestMap = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    TSubclassOf<AStagehandDemoCoordinator> StagehandDemoCoordinatorClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    TSubclassOf<AStagehandDemoNPCCharacter> StagehandDemoNPCClass;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    TObjectPtr<UStagehandNPCProfile> StagehandDemoProfile = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    EStagehandRunPhase StagehandDemoPhase = EStagehandRunPhase::OpeningHours;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    bool bTreatStagehandDemoAsWerewolf = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
+    int32 StagehandDemoSeedOffset = 101;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<TObjectPtr<ARoomModuleBase>> SpawnedRooms;
 
@@ -147,6 +174,9 @@ public:
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     int32 LastHallwayChainUsageCount = 0;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
+    TObjectPtr<AStagehandDemoCoordinator> SpawnedStagehandDemoCoordinator = nullptr;
 
     UPROPERTY(VisibleInstanceOnly, Category="Generation")
     TArray<FOpenDoorState> OpenDoors;
@@ -168,6 +198,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Generation")
     bool RunLayoutValidation(bool bLogIssues = true);
+
+    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
+    bool SpawnStagehandDemoCoordinator();
 
 protected:
     FRandomStream RandomStream;
