@@ -15,6 +15,7 @@ ROOM_BLUEPRINT_PATHS = {
     "LockerHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall",
     "PublicHallStraight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight",
     "PublicHallCorner": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner",
+    "PublicHallLTurn": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E",
     "PublicHallStair": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up",
     "WashShower": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_WashShower",
     "PoolHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall",
@@ -89,6 +90,158 @@ MARKER_REQUIREMENTS = {
     ],
 }
 
+ROOM_TAGS = {
+    "EntryReception": [
+        "Room.Category.Anchor",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Entry",
+        "Room.Function.Social",
+        "Room.System.Required",
+        "Room.System.NPCHub",
+        "Room.System.CanShift",
+    ],
+    "LockerHall": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Changing",
+        "Room.Function.Social",
+        "Room.Function.Task",
+        "Room.System.Required",
+        "Room.System.NPCHub",
+        "Room.System.ClueDense",
+    ],
+    "PublicHallStraight": [
+        "Room.Category.Connector",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Transition",
+        "Room.System.Required",
+        "Room.System.CanShift",
+    ],
+    "PublicHallCorner": [
+        "Room.Category.Connector",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Transition",
+        "Room.System.Optional",
+        "Room.System.CanShift",
+    ],
+    "PublicHallLTurn": [
+        "Room.Category.Connector",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Transition",
+        "Room.System.Optional",
+        "Room.System.CanShift",
+    ],
+    "PublicHallStair": [
+        "Room.Category.Connector",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Transition",
+        "Room.Function.Shortcut",
+        "Room.System.Optional",
+    ],
+    "WashShower": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Wet",
+        "Room.Env.Reflective",
+        "Room.Function.Hygiene",
+        "Room.System.Required",
+        "Room.System.CanShift",
+    ],
+    "PoolHall": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Wet",
+        "Room.Function.Relaxation",
+        "Room.Function.Social",
+        "Room.System.Required",
+        "Room.System.NPCHub",
+        "Room.System.ClueDense",
+        "Room.System.CanShift",
+    ],
+    "Sauna": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Hot",
+        "Room.Env.SteamLow",
+        "Room.Function.Relaxation",
+        "Room.System.Required",
+        "Room.System.HighRisk",
+        "Room.System.CanShift",
+    ],
+    "BoilerService": [
+        "Room.Category.Service",
+        "Room.Category.Staff",
+        "Room.Access.Staff",
+        "Room.Access.Restricted",
+        "Room.Env.Mechanical",
+        "Room.Function.Task",
+        "Room.Function.Maintenance",
+        "Room.System.Required",
+        "Room.System.HighRisk",
+        "Room.System.ClueDense",
+    ],
+    "ColdPlunge": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Wet",
+        "Room.Env.Cold",
+        "Room.Function.Relaxation",
+        "Room.System.Optional",
+    ],
+    "SteamRoom": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Wet",
+        "Room.Env.Hot",
+        "Room.Env.SteamHigh",
+        "Room.Function.Relaxation",
+        "Room.System.Optional",
+        "Room.System.HighRisk",
+    ],
+    "Toilet": [
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Wet",
+        "Room.Function.Hygiene",
+        "Room.System.Optional",
+    ],
+    "Storage": [
+        "Room.Category.Service",
+        "Room.Access.Staff",
+        "Room.Function.Storage",
+        "Room.Function.Task",
+        "Room.System.Optional",
+    ],
+}
+
+ROOM_ACTIVITY_TAGS = {
+    "EntryReception": ["NPC.Activity.Wait", "NPC.Activity.Gossip", "NPC.Activity.Observe"],
+    "LockerHall": ["NPC.Activity.Gossip", "NPC.Activity.Wait", "NPC.Activity.Observe", "NPC.Activity.Clean"],
+    "PublicHallStraight": ["NPC.Activity.Wait", "NPC.Activity.Observe"],
+    "PublicHallCorner": ["NPC.Activity.Wait", "NPC.Activity.Observe"],
+    "PublicHallLTurn": ["NPC.Activity.Wait", "NPC.Activity.Observe"],
+    "PublicHallStair": ["NPC.Activity.Wait", "NPC.Activity.Observe"],
+    "WashShower": ["NPC.Activity.Groom", "NPC.Activity.Relax", "NPC.Activity.Observe"],
+    "PoolHall": ["NPC.Activity.Relax", "NPC.Activity.Gossip", "NPC.Activity.Observe"],
+    "Sauna": ["NPC.Activity.Relax", "NPC.Activity.Observe", "NPC.Activity.Hide"],
+    "BoilerService": ["NPC.Activity.Clean", "NPC.Activity.Observe", "NPC.Activity.Hide"],
+    "ColdPlunge": ["NPC.Activity.Relax", "NPC.Activity.Observe"],
+    "SteamRoom": ["NPC.Activity.Relax", "NPC.Activity.Hide"],
+    "Toilet": ["NPC.Activity.Hide", "NPC.Activity.Groom"],
+    "Storage": ["NPC.Activity.Clean", "NPC.Activity.Hide"],
+}
+
 
 def log(message: str) -> None:
     unreal.log(f"[sync_ginny_profiles] {message}")
@@ -134,6 +287,10 @@ def create_data_asset(asset_name: str, package_path: str, asset_class):
 
 def save_asset(asset) -> None:
     unreal.EditorAssetLibrary.save_loaded_asset(asset)
+
+
+def make_tag_container(tag_names):
+    return unreal.WerewolfGameplayTagLibrary.make_gameplay_tag_container_from_names(list(tag_names), False)
 
 
 def get_material(key: str):
@@ -272,7 +429,7 @@ def configure_mason_profiles():
 
 
 def get_mason_profile_for_room(profile_name: str, mason_profiles):
-    if profile_name == "PublicHallCorner":
+    if profile_name in ("PublicHallCorner", "PublicHallLTurn"):
         return mason_profiles["corner"]
     if profile_name == "PublicHallStair":
         return mason_profiles["stair"]
@@ -319,6 +476,8 @@ def sync_room_profiles(default_opening_profile, stair_opening_profile, mason_pro
         profile.set_editor_property("AllowedNeighborRoomTypes", list(cdo.get_editor_property("AllowedNeighborRoomTypes")))
         profile.set_editor_property("TransitionType", cdo.get_editor_property("TransitionType"))
         profile.set_editor_property("TransitionTargetConfigId", cdo.get_editor_property("TransitionTargetConfigId"))
+        profile.set_editor_property("RoomTags", make_tag_container(ROOM_TAGS.get(profile_name, [])))
+        profile.set_editor_property("ActivityTags", make_tag_container(ROOM_ACTIVITY_TAGS.get(profile_name, [])))
         profile.set_editor_property("GameplayMarkerRequirements", build_marker_requirements(profile_name))
 
         stock_settings = cdo.get_editor_property("StockAssemblySettings")
@@ -376,6 +535,15 @@ def sync_layout_profile():
         "MaxLayoutAttempts",
         "bEnableHallwayChains",
         "MaxHallwayChainSegments",
+        "bUseIntentionalHallApproaches",
+        "MinHallwayApproachSegments",
+        "MaxHallwayApproachSegments",
+        "HallwayExtraSegmentChance",
+        "bAllowIntentionalApproachesOnMainPath",
+        "bAllowIntentionalApproachesOnBranches",
+        "StraightHallWeight",
+        "CornerHallWeight",
+        "LTurnHallWeight",
         "bRunButchAfterGeneration",
         "bSpawnButchIfMissing",
     ):

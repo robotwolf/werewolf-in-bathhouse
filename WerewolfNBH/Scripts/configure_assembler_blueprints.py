@@ -18,6 +18,7 @@ TOILET_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet.BP_Room_Toilet_C
 STORAGE_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage.BP_Room_Storage_C"
 PUBLIC_HALL_STRAIGHT_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight.BP_Room_PublicHall_Straight_C"
 PUBLIC_HALL_CORNER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner.BP_Room_PublicHall_Corner_C"
+PUBLIC_HALL_LTURN_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E.BP_Room_PublicHall_LTurn_E_C"
 PUBLIC_HALL_STAIR_UP_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up.BP_Room_PublicHall_Stair_Up_C"
 
 
@@ -82,9 +83,10 @@ def main() -> None:
     storage_class = unreal.load_class(None, STORAGE_PATH)
     public_hall_straight_class = unreal.load_class(None, PUBLIC_HALL_STRAIGHT_PATH)
     public_hall_corner_class = unreal.load_class(None, PUBLIC_HALL_CORNER_PATH)
+    public_hall_lturn_class = unreal.load_class(None, PUBLIC_HALL_LTURN_PATH)
     public_hall_stair_up_class = unreal.load_class(None, PUBLIC_HALL_STAIR_UP_PATH)
 
-    if not entry_class or not locker_class or not wash_class or not pool_class or not sauna_class or not boiler_class or not plunge_class or not steam_class or not toilet_class or not storage_class or not public_hall_straight_class or not public_hall_corner_class:
+    if not entry_class or not locker_class or not wash_class or not pool_class or not sauna_class or not boiler_class or not plunge_class or not steam_class or not toilet_class or not storage_class or not public_hall_straight_class or not public_hall_corner_class or not public_hall_lturn_class:
         raise RuntimeError("Could not load one or more bathhouse room blueprint classes")
 
     primary_hall_class = public_hall_straight_class
@@ -104,16 +106,36 @@ def main() -> None:
     append_unique(available_rooms, public_hall_stair_up_class)
     append_unique(available_rooms, primary_hall_class)
     append_unique(available_rooms, public_hall_corner_class)
+    append_unique(available_rooms, public_hall_lturn_class)
     cdo.set_editor_property("AvailableRooms", available_rooms)
     if has_editor_property(cdo, "ConnectorFallbackRooms"):
         fallback_rooms = []
         append_unique(fallback_rooms, primary_hall_class)
         append_unique(fallback_rooms, public_hall_corner_class)
+        append_unique(fallback_rooms, public_hall_lturn_class)
         cdo.set_editor_property("ConnectorFallbackRooms", fallback_rooms)
     if has_editor_property(cdo, "bEnableHallwayChains"):
         cdo.set_editor_property("bEnableHallwayChains", True)
     if has_editor_property(cdo, "MaxHallwayChainSegments"):
         cdo.set_editor_property("MaxHallwayChainSegments", 3)
+    if has_editor_property(cdo, "bUseIntentionalHallApproaches"):
+        cdo.set_editor_property("bUseIntentionalHallApproaches", True)
+    if has_editor_property(cdo, "MinHallwayApproachSegments"):
+        cdo.set_editor_property("MinHallwayApproachSegments", 1)
+    if has_editor_property(cdo, "MaxHallwayApproachSegments"):
+        cdo.set_editor_property("MaxHallwayApproachSegments", 3)
+    if has_editor_property(cdo, "HallwayExtraSegmentChance"):
+        cdo.set_editor_property("HallwayExtraSegmentChance", 0.55)
+    if has_editor_property(cdo, "bAllowIntentionalApproachesOnMainPath"):
+        cdo.set_editor_property("bAllowIntentionalApproachesOnMainPath", True)
+    if has_editor_property(cdo, "bAllowIntentionalApproachesOnBranches"):
+        cdo.set_editor_property("bAllowIntentionalApproachesOnBranches", True)
+    if has_editor_property(cdo, "StraightHallWeight"):
+        cdo.set_editor_property("StraightHallWeight", 1.0)
+    if has_editor_property(cdo, "CornerHallWeight"):
+        cdo.set_editor_property("CornerHallWeight", 0.85)
+    if has_editor_property(cdo, "LTurnHallWeight"):
+        cdo.set_editor_property("LTurnHallWeight", 1.35)
     if has_editor_property(cdo, "RequiredMainPathRooms"):
         cdo.set_editor_property("RequiredMainPathRooms", [primary_hall_class, locker_class, wash_class, primary_hall_class, pool_class])
     if has_editor_property(cdo, "RequiredBranchRooms"):
@@ -210,6 +232,11 @@ def main() -> None:
         corner_entry.set_editor_property("Weight", 1.0)
         corner_entry.set_editor_property("MinRoomsBetweenUses", 0)
 
+        lturn_entry = unreal.RoomClassEntry()
+        lturn_entry.set_editor_property("RoomClass", public_hall_lturn_class)
+        lturn_entry.set_editor_property("Weight", 0.95)
+        lturn_entry.set_editor_property("MinRoomsBetweenUses", 0)
+
         pool_entries.append(locker_entry)
         pool_entries.append(wash_entry)
         pool_entries.append(pool_entry)
@@ -222,6 +249,7 @@ def main() -> None:
         pool_entries.append(stair_entry)
         pool_entries.append(hall_entry)
         pool_entries.append(corner_entry)
+        pool_entries.append(lturn_entry)
 
         cdo.set_editor_property("RoomClassPool", pool_entries)
         readback = cdo.get_editor_property("RoomClassPool")

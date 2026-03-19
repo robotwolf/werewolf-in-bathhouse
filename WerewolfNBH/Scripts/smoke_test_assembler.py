@@ -7,6 +7,13 @@ PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
 STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
 BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_ButchDecorator_C"
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
+NPC_PROFILE_PATHS = (
+    "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_Ronin",
+    "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_FirstTimer",
+    "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_FitnessObsessive",
+    "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_FloorManager",
+    "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_OccultScholar",
+)
 
 
 def get_marker_count_for_family(room, family):
@@ -125,44 +132,76 @@ def validate_scored_cross_room_marker_picker(rooms, family, seed):
         fail(f"Scored cross-room marker picker returned negative score for family {family.name}")
 
 
-def validate_npc_profile_marker_consumer(rooms, seed):
+def load_npc_profiles():
+    profiles = []
+    for path in NPC_PROFILE_PATHS:
+        profile = unreal.load_asset(path)
+        if not profile:
+            fail(f"Missing authored NPC profile asset: {path}")
+        profiles.append(profile)
+    return profiles
+
+
+def validate_npc_profile_marker_consumer(rooms, generator, seed):
     if not rooms:
         return
 
-    npc_profile = unreal.new_object(unreal.BathhouseNPCProfile)
-    npc_profile.set_editor_property("NPCId", "SmokeNPC")
+    probe_class = getattr(unreal, "StagehandNPCMarkerProbe", None)
+    if not probe_class:
+        fail("Could not resolve StagehandNPCMarkerProbe class")
 
-    activity = unreal.BathhouseActivityPreference()
-    activity.set_editor_property("Weight", 1.0)
-    npc_profile.set_editor_property("BaselineActivities", [activity])
+    profiles = load_npc_profiles()
+    for index, npc_profile in enumerate(profiles):
+        activities = unreal.StagehandSimulationLibrary.get_applicable_activities_for_phase(
+            npc_profile,
+            unreal.StagehandRunPhase.OPENING_HOURS,
+            False,
+        )
+        if not activities:
+            fail(f"StagehandSimulationLibrary returned no applicable activities for authored NPC {npc_profile.get_name()}")
 
-    activities = unreal.BathhouseSimulationLibrary.get_applicable_activities_for_phase(
-        npc_profile,
-        unreal.BathhouseRunPhase.OPENING_HOURS,
-        False,
-    )
-    if not activities:
-        fail("BathhouseSimulationLibrary returned no applicable activities for transient smoke NPC")
+        selection = unreal.StagehandSimulationLibrary.pick_marker_for_npc_profile(
+            npc_profile,
+            rooms,
+            unreal.StagehandRunPhase.OPENING_HOURS,
+            False,
+            seed + index,
+        )
 
-    selection = unreal.BathhouseSimulationLibrary.pick_marker_for_npc_profile(
-        npc_profile,
-        rooms,
-        unreal.BathhouseRunPhase.OPENING_HOURS,
-        False,
-        seed,
-    )
+        if not selection.get_editor_property("bFoundSelection"):
+            fail(f"StagehandSimulationLibrary failed to find an NPC marker for authored NPC {npc_profile.get_name()}")
 
-    if not selection.get_editor_property("bFoundSelection"):
-        fail("BathhouseSimulationLibrary failed to find an NPC marker for transient smoke NPC")
+        selected_room = selection.get_editor_property("Room")
+        if not selected_room:
+            fail(f"StagehandSimulationLibrary returned no room for authored NPC {npc_profile.get_name()}")
 
-    selected_room = selection.get_editor_property("Room")
-    if not selected_room:
-        fail("BathhouseSimulationLibrary returned no room for transient smoke NPC")
+        marker = selection.get_editor_property("Marker")
+        marker_name = marker.get_editor_property("MarkerName")
+        if not marker_name:
+            fail(f"StagehandSimulationLibrary returned an empty marker for authored NPC {npc_profile.get_name()}")
 
-    marker = selection.get_editor_property("Marker")
-    marker_name = marker.get_editor_property("MarkerName")
-    if not marker_name:
-        fail("BathhouseSimulationLibrary returned an empty marker for transient smoke NPC")
+        probe = unreal.EditorLevelLibrary.spawn_actor_from_class(
+            probe_class,
+            unreal.Vector(0.0, 0.0, 0.0),
+            unreal.Rotator(0.0, 0.0, 0.0),
+        )
+        if not probe:
+            fail(f"Failed to spawn StagehandNPCMarkerProbe for authored NPC {npc_profile.get_name()}")
+
+        probe.set_editor_property("TargetGenerator", generator)
+        probe.set_editor_property("NPCProfile", npc_profile)
+        probe.set_editor_property("Phase", unreal.StagehandRunPhase.OPENING_HOURS)
+        probe.set_editor_property("SelectionSeed", seed + index)
+        probe.set_editor_property("bDrawDebugMarker", False)
+
+        if not probe.refresh_probe():
+            fail(f"StagehandNPCMarkerProbe failed to refresh for authored NPC {npc_profile.get_name()}")
+
+        probe_selection = probe.get_editor_property("Selection")
+        if not probe_selection.get_editor_property("bFoundSelection"):
+            fail(f"StagehandNPCMarkerProbe did not record a selection for authored NPC {npc_profile.get_name()}")
+
+        probe.destroy_actor()
 
 
 def log(message: str) -> None:
@@ -296,7 +335,7 @@ def build_layout_signature(generator, seed: int):
         validate_cross_room_marker_picker(spawned_rooms, family, seed)
         validate_scored_cross_room_marker_picker(spawned_rooms, family, seed)
 
-    validate_npc_profile_marker_consumer(spawned_rooms, seed)
+    validate_npc_profile_marker_consumer(spawned_rooms, generator, seed)
 
     visited = set()
     stack = [spawned_rooms[0]]
@@ -329,8 +368,19 @@ def build_layout_signature(generator, seed: int):
 
     fallback_classes = generator.get_editor_property("ConnectorFallbackRooms")
     fallback_paths = {cls.get_path_name() for cls in fallback_classes if cls}
-    if not fallback_paths or any(("PublicHall_Straight" not in path and "PublicHall_Corner" not in path) for path in fallback_paths):
+    if not fallback_paths or any(("PublicHall_Straight" not in path and "PublicHall_Corner" not in path and "PublicHall_LTurn" not in path) for path in fallback_paths):
         fail(f"ConnectorFallbackRooms contains non-hallway classes: {sorted(fallback_paths)}")
+
+    if not generator.get_editor_property("bUseIntentionalHallApproaches"):
+        fail("Intentional hall approaches are not enabled on the generator baseline")
+
+    min_approach_segments = generator.get_editor_property("MinHallwayApproachSegments")
+    max_approach_segments = generator.get_editor_property("MaxHallwayApproachSegments")
+    if min_approach_segments < 1 or max_approach_segments < min_approach_segments:
+        fail(
+            "Invalid intentional hallway approach settings: "
+            f"min={min_approach_segments} max={max_approach_segments}"
+        )
 
     available_paths = {cls.get_path_name() for cls in generator.get_editor_property("AvailableRooms") if cls}
     if not any(STAIR_CLASS_FRAGMENT in path for path in available_paths):

@@ -15,6 +15,48 @@ DEFINE_LOG_CATEGORY(LogGinny);
 
 namespace
 {
+    enum class EHallwaySegmentKind : uint8
+    {
+        Straight,
+        Corner,
+        LTurn,
+        Other
+    };
+
+    EHallwaySegmentKind GetHallwaySegmentKind(TSubclassOf<ARoomModuleBase> RoomClass)
+    {
+        const ARoomModuleBase* RoomCDO = RoomClass ? RoomClass->GetDefaultObject<ARoomModuleBase>() : nullptr;
+        FString Label;
+        if (RoomCDO && !RoomCDO->GetResolvedRoomID().IsNone())
+        {
+            Label = RoomCDO->GetResolvedRoomID().ToString();
+        }
+        else if (RoomCDO && !RoomCDO->GetResolvedRoomType().IsNone())
+        {
+            Label = RoomCDO->GetResolvedRoomType().ToString();
+        }
+        else
+        {
+            Label = GetNameSafe(RoomClass);
+        }
+
+        Label = Label.ToLower();
+        if (Label.Contains(TEXT("lturn")))
+        {
+            return EHallwaySegmentKind::LTurn;
+        }
+        if (Label.Contains(TEXT("corner")))
+        {
+            return EHallwaySegmentKind::Corner;
+        }
+        if (Label.Contains(TEXT("straight")) || Label.Contains(TEXT("hall")))
+        {
+            return EHallwaySegmentKind::Straight;
+        }
+
+        return EHallwaySegmentKind::Other;
+    }
+
     void ShuffleConnectors(FRandomStream& Stream, TArray<UPrototypeRoomConnectorComponent*>& Connectors)
     {
         for (int32 Index = Connectors.Num() - 1; Index > 0; --Index)
@@ -424,6 +466,11 @@ bool ARoomGenerator::TryPlaceHallwayChain(
         return false;
     }
 
+    if (SpawnedRooms.Num() + RemainingSegments + 1 > GetConfiguredMaxRooms())
+    {
+        return false;
+    }
+
     auto CaptureSnapshot = [this]() -> FGeneratorSnapshot
     {
         FGeneratorSnapshot Snapshot;
@@ -577,7 +624,8 @@ bool ARoomGenerator::TryPlaceHallwayChain(
                 Context,
                 AssignedRole,
                 HallRoom->GeneratedDepthFromStart,
-                FinalRoom))
+                FinalRoom,
+                false))
             {
                 OutPlacedRoom = FinalRoom ? FinalRoom : HallRoom;
                 return true;
@@ -1252,13 +1300,334 @@ void ARoomGenerator::FillBranches()
     }
 }
 
+bool ARoomGenerator::TryPlaceIntentionalHallApproach(
+    UPrototypeRoomConnectorComponent* TargetConnector,
+    const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+    EGeneratorPathContext Context,
+    ERoomPlacementRole AssignedRole,
+    int32 BaseDepthFromStart,
+    ARoomModuleBase*& OutPlacedRoom)
+{
+    OutPlacedRoom = nullptr;
+
+    if (!TargetConnector || TargetConnector->bOccupied || CandidateClasses.IsEmpty())
+    {
+        return false;
+    }
+
+    const bool bContextAllowed =
+        (Context == EGeneratorPathContext::MainPath && GetConfiguredAllowIntentionalApproachesOnMainPath()) ||
+        (Context == EGeneratorPathContext::Branch && GetConfiguredAllowIntentionalApproachesOnBranches());
+    if (!GetConfiguredUseIntentionalHallApproaches() || !bContextAllowed)
+    {
+        return false;
+    }
+
+    const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
+    if (ConfiguredFallbackRooms.IsEmpty())
+    {
+        return false;
+    }
+
+    const bool bHasNonHallTarget = CandidateClasses.ContainsByPredicate([&](TSubclassOf<ARoomModuleBase> CandidateClass)
+    {
+        return CandidateClass && !ConfiguredFallbackRooms.Contains(CandidateClass);
+    });
+    if (!bHasNonHallTarget)
+    {
+        return false;
+    }
+
+    const int32 MinSegments = FMath::Max(0, GetConfiguredMinHallwayApproachSegments());
+    const int32 MaxSegments = FMath::Max(MinSegments, GetConfiguredMaxHallwayApproachSegments());
+    int32 TargetSegments = MinSegments;
+    while (TargetSegments < MaxSegments && RandomStream.FRand() < GetConfiguredHallwayExtraSegmentChance())
+    {
+        ++TargetSegments;
+    }
+
+    if (TargetSegments <= 0)
+    {
+        return false;
+    }
+
+    const int32 MaxApproachSegmentsByBudget = FMath::Max(0, GetConfiguredMaxRooms() - SpawnedRooms.Num() - 1);
+    TargetSegments = FMath::Min(TargetSegments, MaxApproachSegmentsByBudget);
+    if (TargetSegments <= 0)
+    {
+        return false;
+    }
+
+    auto CaptureSnapshot = [this]() -> FGeneratorSnapshot
+    {
+        FGeneratorSnapshot Snapshot;
+        Snapshot.SpawnedRooms = SpawnedRooms;
+        Snapshot.GeneratedMainPathRooms = GeneratedMainPathRooms;
+        Snapshot.OpenDoors = OpenDoors;
+        Snapshot.LastUsedIndex = LastUsedIndex;
+        Snapshot.RoomSpawnIndex = RoomSpawnIndex;
+
+        for (ARoomModuleBase* Room : SpawnedRooms)
+        {
+            if (!Room)
+            {
+                continue;
+            }
+
+            FRoomSnapshot RoomSnapshot;
+            RoomSnapshot.Room = Room;
+            RoomSnapshot.Connections = Room->ConnectedRooms;
+            for (UPrototypeRoomConnectorComponent* Connector : Room->DoorSockets)
+            {
+                if (!Connector)
+                {
+                    continue;
+                }
+
+                FConnectorOccupancySnapshot ConnectorSnapshot;
+                ConnectorSnapshot.Connector = Connector;
+                ConnectorSnapshot.bOccupied = Connector->bOccupied;
+                RoomSnapshot.ConnectorStates.Add(ConnectorSnapshot);
+            }
+
+            Snapshot.RoomStates.Add(RoomSnapshot);
+        }
+
+        return Snapshot;
+    };
+
+    auto RestoreSnapshot = [this](const FGeneratorSnapshot& Snapshot)
+    {
+        TSet<ARoomModuleBase*> OriginalRooms;
+        for (ARoomModuleBase* Room : Snapshot.SpawnedRooms)
+        {
+            if (Room)
+            {
+                OriginalRooms.Add(Room);
+            }
+        }
+
+        TArray<TObjectPtr<ARoomModuleBase>> CurrentRooms = SpawnedRooms;
+        for (ARoomModuleBase* Room : CurrentRooms)
+        {
+            if (Room && !OriginalRooms.Contains(Room))
+            {
+                Room->Destroy();
+            }
+        }
+
+        SpawnedRooms = Snapshot.SpawnedRooms;
+        GeneratedMainPathRooms = Snapshot.GeneratedMainPathRooms;
+        OpenDoors = Snapshot.OpenDoors;
+        LastUsedIndex = Snapshot.LastUsedIndex;
+        RoomSpawnIndex = Snapshot.RoomSpawnIndex;
+
+        for (const FRoomSnapshot& RoomSnapshot : Snapshot.RoomStates)
+        {
+            ARoomModuleBase* Room = RoomSnapshot.Room;
+            if (!Room)
+            {
+                continue;
+            }
+
+            Room->ConnectedRooms = RoomSnapshot.Connections;
+            for (const FConnectorOccupancySnapshot& ConnectorSnapshot : RoomSnapshot.ConnectorStates)
+            {
+                if (ConnectorSnapshot.Connector)
+                {
+                    ConnectorSnapshot.Connector->bOccupied = ConnectorSnapshot.bOccupied;
+                }
+            }
+        }
+    };
+
+    auto GetApproachWeightForHall = [this](TSubclassOf<ARoomModuleBase> HallClass) -> float
+    {
+        switch (GetHallwaySegmentKind(HallClass))
+        {
+        case EHallwaySegmentKind::Straight:
+            return GetCandidateWeight(HallClass) * GetConfiguredStraightHallWeight();
+        case EHallwaySegmentKind::Corner:
+            return GetCandidateWeight(HallClass) * GetConfiguredCornerHallWeight();
+        case EHallwaySegmentKind::LTurn:
+            return GetCandidateWeight(HallClass) * GetConfiguredLTurnHallWeight();
+        default:
+            return 0.0f;
+        }
+    };
+
+    TFunction<bool(UPrototypeRoomConnectorComponent*, int32, int32, ARoomModuleBase*&)> PlaceApproach;
+    PlaceApproach = [&](UPrototypeRoomConnectorComponent* CurrentConnector, int32 CurrentDepth, int32 RemainingSegments, ARoomModuleBase*& FinalPlacedRoom) -> bool
+    {
+        FinalPlacedRoom = nullptr;
+        if (!CurrentConnector || CurrentConnector->bOccupied)
+        {
+            return false;
+        }
+
+        if (SpawnedRooms.Num() + RemainingSegments + 1 > GetConfiguredMaxRooms())
+        {
+            return false;
+        }
+
+        if (RemainingSegments <= 0)
+        {
+            TArray<TSubclassOf<ARoomModuleBase>> FinalCandidates = BuildCandidateList(
+                CurrentConnector,
+                &CandidateClasses,
+                false,
+                Context,
+                CurrentDepth + 1);
+            FinalCandidates = FinalCandidates.FilterByPredicate([&](TSubclassOf<ARoomModuleBase> CandidateClass)
+            {
+                return CandidateClass && !ConfiguredFallbackRooms.Contains(CandidateClass);
+            });
+
+            for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !FinalCandidates.IsEmpty(); ++Attempt)
+            {
+                const int32 PickedIndex = ChooseWeightedCandidateIndex(FinalCandidates);
+                if (!FinalCandidates.IsValidIndex(PickedIndex))
+                {
+                    break;
+                }
+
+                const TSubclassOf<ARoomModuleBase> CandidateClass = FinalCandidates[PickedIndex];
+                if (TryPlaceRoomForDoor(CurrentConnector, CandidateClass, AssignedRole, CurrentConnector->GetOwningRoom(), CurrentDepth + 1))
+                {
+                    FinalPlacedRoom = SpawnedRooms.Last();
+                    return true;
+                }
+
+                FinalCandidates.RemoveAt(PickedIndex);
+            }
+
+            return false;
+        }
+
+        TArray<TSubclassOf<ARoomModuleBase>> HallCandidates = BuildCandidateList(
+            CurrentConnector,
+            &ConfiguredFallbackRooms,
+            false,
+            EGeneratorPathContext::HallwayChain,
+            CurrentDepth + 1);
+        HallCandidates = HallCandidates.FilterByPredicate([&](TSubclassOf<ARoomModuleBase> CandidateClass)
+        {
+            return GetApproachWeightForHall(CandidateClass) > 0.0f;
+        });
+
+        while (!HallCandidates.IsEmpty())
+        {
+            float TotalWeight = 0.0f;
+            for (const TSubclassOf<ARoomModuleBase>& HallClass : HallCandidates)
+            {
+                TotalWeight += GetApproachWeightForHall(HallClass);
+            }
+
+            int32 PickedIndex = INDEX_NONE;
+            if (TotalWeight <= KINDA_SMALL_NUMBER)
+            {
+                PickedIndex = RandomStream.RandRange(0, HallCandidates.Num() - 1);
+            }
+            else
+            {
+                float Roll = RandomStream.FRandRange(0.0f, TotalWeight);
+                for (int32 Index = 0; Index < HallCandidates.Num(); ++Index)
+                {
+                    Roll -= GetApproachWeightForHall(HallCandidates[Index]);
+                    if (Roll <= 0.0f)
+                    {
+                        PickedIndex = Index;
+                        break;
+                    }
+                }
+
+                if (!HallCandidates.IsValidIndex(PickedIndex))
+                {
+                    PickedIndex = HallCandidates.Num() - 1;
+                }
+            }
+
+            if (!HallCandidates.IsValidIndex(PickedIndex))
+            {
+                break;
+            }
+
+            const FGeneratorSnapshot Snapshot = CaptureSnapshot();
+            const TSubclassOf<ARoomModuleBase> HallClass = HallCandidates[PickedIndex];
+            LogDebugMessage(FString::Printf(
+                TEXT("Intentional hall approach target=%s.%s segment=%s remaining=%d"),
+                *GetNameSafe(CurrentConnector->GetOwningRoom()),
+                *CurrentConnector->GetName(),
+                *GetNameSafe(HallClass),
+                RemainingSegments));
+
+            if (!TryPlaceRoomForDoor(CurrentConnector, HallClass, AssignedRole, CurrentConnector->GetOwningRoom(), CurrentDepth + 1))
+            {
+                HallCandidates.RemoveAt(PickedIndex);
+                continue;
+            }
+
+            ARoomModuleBase* HallRoom = nullptr;
+            for (int32 RoomIndex = SpawnedRooms.Num() - 1; RoomIndex >= 0; --RoomIndex)
+            {
+                if (SpawnedRooms[RoomIndex] && !Snapshot.SpawnedRooms.Contains(SpawnedRooms[RoomIndex]))
+                {
+                    HallRoom = SpawnedRooms[RoomIndex];
+                    break;
+                }
+            }
+
+            if (!HallRoom)
+            {
+                RestoreSnapshot(Snapshot);
+                HallCandidates.RemoveAt(PickedIndex);
+                continue;
+            }
+
+            TArray<UPrototypeRoomConnectorComponent*> ForwardConnectors = HallRoom->GetOpenConnectors();
+            SortConnectorsForStability(ForwardConnectors);
+            ShuffleConnectors(RandomStream, ForwardConnectors);
+
+            for (UPrototypeRoomConnectorComponent* ForwardConnector : ForwardConnectors)
+            {
+                if (!ForwardConnector || ForwardConnector->bOccupied)
+                {
+                    continue;
+                }
+
+                ARoomModuleBase* RecursivePlacedRoom = nullptr;
+                if (PlaceApproach(ForwardConnector, HallRoom->GeneratedDepthFromStart, RemainingSegments - 1, RecursivePlacedRoom))
+                {
+                    FinalPlacedRoom = RecursivePlacedRoom ? RecursivePlacedRoom : HallRoom;
+                    return true;
+                }
+            }
+
+            RestoreSnapshot(Snapshot);
+            HallCandidates.RemoveAt(PickedIndex);
+        }
+
+        return false;
+    };
+
+    ARoomModuleBase* PlacedRoom = nullptr;
+    if (PlaceApproach(TargetConnector, BaseDepthFromStart, TargetSegments, PlacedRoom))
+    {
+        OutPlacedRoom = PlacedRoom;
+        return true;
+    }
+
+    return false;
+}
+
 bool ARoomGenerator::TryPlaceFromRoomOpenConnectors(
     ARoomModuleBase* AnchorRoom,
     const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
     EGeneratorPathContext Context,
     ERoomPlacementRole AssignedRole,
     int32 BaseDepthFromStart,
-    ARoomModuleBase*& OutPlacedRoom)
+    ARoomModuleBase*& OutPlacedRoom,
+    bool bAllowIntentionalApproach)
 {
     OutPlacedRoom = nullptr;
     if (!AnchorRoom)
@@ -1268,7 +1637,7 @@ bool ARoomGenerator::TryPlaceFromRoomOpenConnectors(
 
     TArray<UPrototypeRoomConnectorComponent*> Connectors = AnchorRoom->GetOpenConnectors();
     SortConnectorsForStability(Connectors);
-    return TryPlaceFromConnectorList(Connectors, CandidateClasses, Context, AssignedRole, BaseDepthFromStart, OutPlacedRoom);
+    return TryPlaceFromConnectorList(Connectors, CandidateClasses, Context, AssignedRole, BaseDepthFromStart, OutPlacedRoom, bAllowIntentionalApproach);
 }
 
 bool ARoomGenerator::TryPlaceFromConnectorList(
@@ -1277,7 +1646,8 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
     EGeneratorPathContext Context,
     ERoomPlacementRole AssignedRole,
     int32 BaseDepthFromStart,
-    ARoomModuleBase*& OutPlacedRoom)
+    ARoomModuleBase*& OutPlacedRoom,
+    bool bAllowIntentionalApproach)
 {
     OutPlacedRoom = nullptr;
 
@@ -1304,6 +1674,17 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
         TArray<TSubclassOf<ARoomModuleBase>> Candidates = CandidateClasses.IsEmpty()
             ? BuildCandidateList(TargetConnector, nullptr, false, Context, ProposedDepth)
             : BuildCandidateList(TargetConnector, &CandidateClasses, false, Context, ProposedDepth);
+
+        if (bAllowIntentionalApproach && CandidateClasses.IsEmpty() && TryPlaceIntentionalHallApproach(
+            TargetConnector,
+            Candidates,
+            Context,
+            AssignedRole,
+            ParentDepth,
+            OutPlacedRoom))
+        {
+            return true;
+        }
 
         for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !Candidates.IsEmpty(); ++Attempt)
         {
@@ -1904,6 +2285,51 @@ bool ARoomGenerator::GetConfiguredEnableHallwayChains() const
 int32 ARoomGenerator::GetConfiguredMaxHallwayChainSegments() const
 {
     return LayoutProfile ? LayoutProfile->MaxHallwayChainSegments : MaxHallwayChainSegments;
+}
+
+bool ARoomGenerator::GetConfiguredUseIntentionalHallApproaches() const
+{
+    return LayoutProfile ? LayoutProfile->bUseIntentionalHallApproaches : bUseIntentionalHallApproaches;
+}
+
+int32 ARoomGenerator::GetConfiguredMinHallwayApproachSegments() const
+{
+    return LayoutProfile ? LayoutProfile->MinHallwayApproachSegments : MinHallwayApproachSegments;
+}
+
+int32 ARoomGenerator::GetConfiguredMaxHallwayApproachSegments() const
+{
+    return LayoutProfile ? LayoutProfile->MaxHallwayApproachSegments : MaxHallwayApproachSegments;
+}
+
+float ARoomGenerator::GetConfiguredHallwayExtraSegmentChance() const
+{
+    return LayoutProfile ? LayoutProfile->HallwayExtraSegmentChance : HallwayExtraSegmentChance;
+}
+
+bool ARoomGenerator::GetConfiguredAllowIntentionalApproachesOnMainPath() const
+{
+    return LayoutProfile ? LayoutProfile->bAllowIntentionalApproachesOnMainPath : bAllowIntentionalApproachesOnMainPath;
+}
+
+bool ARoomGenerator::GetConfiguredAllowIntentionalApproachesOnBranches() const
+{
+    return LayoutProfile ? LayoutProfile->bAllowIntentionalApproachesOnBranches : bAllowIntentionalApproachesOnBranches;
+}
+
+float ARoomGenerator::GetConfiguredStraightHallWeight() const
+{
+    return LayoutProfile ? LayoutProfile->StraightHallWeight : StraightHallWeight;
+}
+
+float ARoomGenerator::GetConfiguredCornerHallWeight() const
+{
+    return LayoutProfile ? LayoutProfile->CornerHallWeight : CornerHallWeight;
+}
+
+float ARoomGenerator::GetConfiguredLTurnHallWeight() const
+{
+    return LayoutProfile ? LayoutProfile->LTurnHallWeight : LTurnHallWeight;
 }
 
 bool ARoomGenerator::GetConfiguredRunButchAfterGeneration() const

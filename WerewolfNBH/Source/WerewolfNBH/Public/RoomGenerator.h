@@ -124,6 +124,33 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayChain", meta=(ClampMin="1", ClampMax="4", EditCondition="bEnableHallwayChains"))
     int32 MaxHallwayChainSegments = 3;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach")
+    bool bUseIntentionalHallApproaches = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bUseIntentionalHallApproaches"))
+    int32 MinHallwayApproachSegments = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bUseIntentionalHallApproaches"))
+    int32 MaxHallwayApproachSegments = 2;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0.0", ClampMax="1.0", EditCondition="bUseIntentionalHallApproaches"))
+    float HallwayExtraSegmentChance = 0.45f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(EditCondition="bUseIntentionalHallApproaches"))
+    bool bAllowIntentionalApproachesOnMainPath = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(EditCondition="bUseIntentionalHallApproaches"))
+    bool bAllowIntentionalApproachesOnBranches = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0.0", EditCondition="bUseIntentionalHallApproaches"))
+    float StraightHallWeight = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0.0", EditCondition="bUseIntentionalHallApproaches"))
+    float CornerHallWeight = 0.75f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0.0", EditCondition="bUseIntentionalHallApproaches"))
+    float LTurnHallWeight = 1.35f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration")
     bool bRunButchAfterGeneration = true;
 
@@ -224,6 +251,13 @@ protected:
         ERoomPlacementRole AssignedRole,
         int32 DepthFromStart,
         ARoomModuleBase*& OutPlacedRoom);
+    bool TryPlaceIntentionalHallApproach(
+        UPrototypeRoomConnectorComponent* TargetConnector,
+        const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+        EGeneratorPathContext Context,
+        ERoomPlacementRole AssignedRole,
+        int32 BaseDepthFromStart,
+        ARoomModuleBase*& OutPlacedRoom);
     void CloseDoor(UPrototypeRoomConnectorComponent* Connector) const;
     TArray<TSubclassOf<ARoomModuleBase>> BuildCandidateList(
         const UPrototypeRoomConnectorComponent* TargetConnector,
@@ -242,14 +276,16 @@ protected:
         EGeneratorPathContext Context,
         ERoomPlacementRole AssignedRole,
         int32 BaseDepthFromStart,
-        ARoomModuleBase*& OutPlacedRoom);
+        ARoomModuleBase*& OutPlacedRoom,
+        bool bAllowIntentionalApproach = true);
     bool TryPlaceFromConnectorList(
         const TArray<UPrototypeRoomConnectorComponent*>& CandidateConnectors,
         const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
         EGeneratorPathContext Context,
         ERoomPlacementRole AssignedRole,
         int32 BaseDepthFromStart,
-        ARoomModuleBase*& OutPlacedRoom);
+        ARoomModuleBase*& OutPlacedRoom,
+        bool bAllowIntentionalApproach = true);
     void DrawDebugState() const;
     void LogDebugMessage(const FString& Message) const;
     AButchDecorator* FindButchDecorator() const;
@@ -284,6 +320,15 @@ protected:
     int32 GetConfiguredMaxLayoutAttempts() const;
     bool GetConfiguredEnableHallwayChains() const;
     int32 GetConfiguredMaxHallwayChainSegments() const;
+    bool GetConfiguredUseIntentionalHallApproaches() const;
+    int32 GetConfiguredMinHallwayApproachSegments() const;
+    int32 GetConfiguredMaxHallwayApproachSegments() const;
+    float GetConfiguredHallwayExtraSegmentChance() const;
+    bool GetConfiguredAllowIntentionalApproachesOnMainPath() const;
+    bool GetConfiguredAllowIntentionalApproachesOnBranches() const;
+    float GetConfiguredStraightHallWeight() const;
+    float GetConfiguredCornerHallWeight() const;
+    float GetConfiguredLTurnHallWeight() const;
     bool GetConfiguredRunButchAfterGeneration() const;
     bool GetConfiguredSpawnButchIfMissing() const;
 };
