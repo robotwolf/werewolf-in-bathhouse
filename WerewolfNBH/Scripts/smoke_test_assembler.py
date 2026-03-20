@@ -5,8 +5,10 @@ MAP_PATH = "/Game/WerewolfBH/GeneratorTest"
 SEEDS = (1337, 1338, 1351)
 PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
 STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
+SMOKING_PATIO_CLASS_FRAGMENT = "BP_Room_SmokingPatioPocket"
 BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_ButchDecorator_C"
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
+SMOKING_PATIO_PROFILE_PATH = "/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_SmokingPatioPocket"
 NPC_PROFILE_PATHS = (
     "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_Ronin",
     "/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_FirstTimer",
@@ -385,6 +387,22 @@ def build_layout_signature(generator, seed: int):
     available_paths = {cls.get_path_name() for cls in generator.get_editor_property("AvailableRooms") if cls}
     if not any(STAIR_CLASS_FRAGMENT in path for path in available_paths):
         fail("Stair room is not present in AvailableRooms despite being part of the optional branch policy")
+    if not any(SMOKING_PATIO_CLASS_FRAGMENT in path for path in available_paths):
+        fail("Contained exterior room is not present in AvailableRooms despite being part of the optional branch policy")
+
+    smoking_patio_profile = unreal.load_asset(SMOKING_PATIO_PROFILE_PATH)
+    if not smoking_patio_profile:
+        fail(f"Missing contained exterior room profile asset: {SMOKING_PATIO_PROFILE_PATH}")
+    if not smoking_patio_profile.get_editor_property("bOverrideHallwayApproachPolicy"):
+        fail("Contained exterior room profile is missing hallway-override policy")
+    if smoking_patio_profile.get_editor_property("MinRequiredApproachSegments") < 2:
+        fail("Contained exterior room profile does not require a long enough approach")
+    if smoking_patio_profile.get_editor_property("RequiredMinimumCornerLikeSegments") < 1:
+        fail("Contained exterior room profile does not require a corner-like approach segment")
+    if not smoking_patio_profile.get_editor_property("bRequireApproachBeforePlacement"):
+        fail("Contained exterior room profile should require approach-before-placement")
+    if not smoking_patio_profile.get_editor_property("bRequireOverrideSatisfaction"):
+        fail("Contained exterior room profile should require override satisfaction")
 
     butch_class = unreal.load_class(None, BUTCH_CLASS_PATH)
     if butch_class:
@@ -395,6 +413,9 @@ def build_layout_signature(generator, seed: int):
     stair_rooms = [room for room in spawned_rooms if STAIR_CLASS_FRAGMENT in room.get_class().get_path_name()]
     if len(stair_rooms) > 1:
         fail(f"Expected at most one stair room, found {len(stair_rooms)} for seed {seed}")
+    smoking_patio_rooms = [room for room in spawned_rooms if SMOKING_PATIO_CLASS_FRAGMENT in room.get_class().get_path_name()]
+    if len(smoking_patio_rooms) > 1:
+        fail(f"Expected at most one contained exterior room, found {len(smoking_patio_rooms)} for seed {seed}")
 
     main_path_set = set(ordered_main_path)
     for stair_room in stair_rooms:
@@ -407,6 +428,13 @@ def build_layout_signature(generator, seed: int):
         stair_profile = stair_room.get_editor_property("RoomProfile")
         if not stair_profile:
             fail(f"Stair room is missing its RoomProfile for seed {seed}")
+
+    for smoking_patio_room in smoking_patio_rooms:
+        if smoking_patio_room in main_path_set:
+            fail(f"Contained exterior room should not appear on the main path for seed {seed}")
+        smoking_profile = smoking_patio_room.get_editor_property("RoomProfile")
+        if not smoking_profile:
+            fail(f"Contained exterior room is missing its RoomProfile for seed {seed}")
 
     required_branch_types = {"Sauna", "BoilerService"}
     for required_type in required_branch_types:

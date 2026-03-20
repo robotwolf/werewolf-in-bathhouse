@@ -42,6 +42,7 @@ If you are brand new to this stack and want the practical onboarding path first,
     - stock graybox settings
     - stock graybox appearance defaults
     - gameplay marker requirements
+    - room-level hallway approach overrides for strange destination rooms
 
 - `UGinnyLayoutProfile`
   - Data asset that defines generator policy for a whole local layout regime.
@@ -135,6 +136,9 @@ If you are brand new to this stack and want the practical onboarding path first,
   - Performs final semantic validation before accepting a layout.
   - Stores a generation-complete report in `LastGenerationSummaryLines`.
   - Resolves layout policy from `LayoutProfile` first, then falls back to legacy generator properties.
+  - Supports:
+    - layout-level intentional hallway approaches for optional destination rooms
+    - room-level hallway override policies when a specific room demands a longer or stranger lead-in
   - Logs to `LogGinny`.
 
 - `URoomGameplayMarkerLibrary`
@@ -354,7 +358,9 @@ The current stable program is:
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Stair_Up`
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SmokingPatioPocket`
 
 - Room profiles:
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_EntryReception`
@@ -369,15 +375,25 @@ The current stable program is:
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_Storage`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallStraight`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallCorner`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallLTurn`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_PublicHallStair`
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_SmokingPatioPocket`
 
 Notes:
 
 - `BP_Room_PublicHall_Stair_Up` can appear as a single optional branch landmark.
 - The stair blueprint now uses a broader public-stair profile and is marked as a future handoff to `SecondFloor_PrivateCubicles`.
 - Legacy large L-turn assets are not part of the healthy default pool.
+- Canonical hallway fallback and intentional-approach modules now include:
+  - `PublicHallStraight`
+  - `PublicHallCorner`
+  - `PublicHallLTurn`
 - `Butch` still exists, but default generator config keeps him asleep.
 - The new support rooms are optional pool/branch content, not part of the required core path.
+- The first contained-exterior special room is:
+  - `SmokingPatioPocket`
+  - visually outside, topologically honest
+  - still publishes normal room tags, connector semantics, and gameplay markers
 
 ## Graybox Standards
 
@@ -442,7 +458,30 @@ Important:
 - Only hallway utility pieces are allowed in default chain fallback:
   - `BP_Room_PublicHall_Straight`
   - `BP_Room_PublicHall_Corner`
+  - `BP_Room_PublicHall_LTurn_E`
 - Chain attempts roll back spawned rooms, connector occupancy, connection records, and usage bookkeeping if they fail.
+
+### Hallway approaches
+
+- Layout-level hallway approach settings now live on `UGinnyLayoutProfile` and `ARoomGenerator`:
+  - `bUseIntentionalHallApproaches`
+  - `MinHallwayApproachSegments`
+  - `MaxHallwayApproachSegments`
+  - `HallwayExtraSegmentChance`
+  - `StraightHallWeight`
+  - `CornerHallWeight`
+  - `LTurnHallWeight`
+- Those defaults apply to optional destination-room placement, not to hallway modules themselves.
+- `UGinnyRoomProfile` can now override that policy per room:
+  - `bOverrideHallwayApproachPolicy`
+  - `MinRequiredApproachSegments`
+  - `MaxRequiredApproachSegments`
+  - `RequiredMinimumCornerLikeSegments`
+  - `bRequireApproachBeforePlacement`
+  - `bRequireOverrideSatisfaction`
+- `Corner` and `LTurn` both count as "corner-like" for override satisfaction.
+- Current special use:
+  - `SmokingPatioPocket` requires a tucked-away branch approach with at least one corner-like segment.
 
 ### Validation
 
@@ -504,6 +543,7 @@ Healthy default generator settings are now primarily authored by:
 Migration/bootstrap helpers still in use:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_contained_exterior_room.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 
@@ -513,11 +553,16 @@ Expected healthy defaults:
 - `bSpawnButchIfMissing = false`
 - `bAllowVerticalTransitions = false`
 - `MaxLayoutAttempts = 5`
-- `MaxRooms = 10`
-- `ConnectorFallbackRooms = [PublicHallStraight, PublicHallCorner]`
+- `MaxRooms = 12`
+- `ConnectorFallbackRooms = [PublicHallStraight, PublicHallCorner, PublicHallLTurn]`
 - `RequiredMainPathRooms = [PublicHallStraight, LockerHall, WashShower, PublicHallStraight, PoolHall]`
 - `RequiredBranchRooms = [Sauna, BoilerService]`
 - optional branch landmark: `PublicHallStairUp`
+- optional special branch room:
+  - `SmokingPatioPocket`
+  - low weight
+  - one instance max
+  - room-profile hallway override requiring a liminal lead-in
 
 Current profile-driven bathhouse material families:
 
@@ -597,9 +642,12 @@ Key scripts:
 - first room after entry is `PublicHallStraight`
 - `LockerHall` is not directly adjacent to `EntryReception`
 - hallway fallback list contains only straight/corner hall pieces
+- hallway fallback list contains `Straight`, `Corner`, and `LTurn` hall pieces only
 - all rooms satisfy connection budgets
 - main path length is at least `3`
 - stair appears at most once, never on the main path, and reports `SecondFloor_PrivateCubicles` if present
+- contained exterior room is in `AvailableRooms`, appears at most once, and never lands on the main path
+- contained exterior room profile keeps its hallway override contract
 - negative validation probe correctly fails when adjacency is corrupted
 
 Current healthy test seeds:

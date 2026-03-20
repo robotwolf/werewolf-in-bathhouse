@@ -635,6 +635,66 @@ TArray<FRoomGameplayMarkerRequirement> ARoomModuleBase::GetResolvedGameplayMarke
     return {};
 }
 
+bool ARoomModuleBase::HasResolvedHallwayApproachOverride() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->bOverrideHallwayApproachPolicy;
+    }
+
+    return false;
+}
+
+int32 ARoomModuleBase::GetResolvedMinRequiredApproachSegments() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->MinRequiredApproachSegments;
+    }
+
+    return 0;
+}
+
+int32 ARoomModuleBase::GetResolvedMaxRequiredApproachSegments() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->MaxRequiredApproachSegments;
+    }
+
+    return 0;
+}
+
+int32 ARoomModuleBase::GetResolvedRequiredMinimumCornerLikeSegments() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->RequiredMinimumCornerLikeSegments;
+    }
+
+    return 0;
+}
+
+bool ARoomModuleBase::GetResolvedRequireApproachBeforePlacement() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->bRequireApproachBeforePlacement;
+    }
+
+    return false;
+}
+
+bool ARoomModuleBase::GetResolvedRequireOverrideSatisfaction() const
+{
+    if (const UGinnyRoomProfile* Profile = GetResolvedRoomProfile())
+    {
+        return Profile->bRequireOverrideSatisfaction;
+    }
+
+    return false;
+}
+
 bool ARoomModuleBase::HasResolvedRoomTag(FGameplayTag Tag) const
 {
     return Tag.IsValid() && GetResolvedRoomTags().HasTag(Tag);

@@ -642,6 +642,24 @@ public:
     UFUNCTION(BlueprintPure, Category="Room|Gameplay")
     TArray<FRoomGameplayMarkerRequirement> GetResolvedGameplayMarkerRequirements() const;
 
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    bool HasResolvedHallwayApproachOverride() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    int32 GetResolvedMinRequiredApproachSegments() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    int32 GetResolvedMaxRequiredApproachSegments() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    int32 GetResolvedRequiredMinimumCornerLikeSegments() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    bool GetResolvedRequireApproachBeforePlacement() const;
+
+    UFUNCTION(BlueprintPure, Category="Room|HallwayApproach")
+    bool GetResolvedRequireOverrideSatisfaction() const;
+
     UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
     bool ValidateGameplayMarkerRequirements(TArray<FString>& OutIssues) const;
 

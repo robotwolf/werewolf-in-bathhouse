@@ -16,6 +16,7 @@ PLUNGE_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_ColdPlunge.BP_Room_Cold
 STEAM_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom.BP_Room_SteamRoom_C"
 TOILET_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet.BP_Room_Toilet_C"
 STORAGE_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage.BP_Room_Storage_C"
+SMOKING_PATIO_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SmokingPatioPocket.BP_Room_SmokingPatioPocket_C"
 PUBLIC_HALL_STRAIGHT_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight.BP_Room_PublicHall_Straight_C"
 PUBLIC_HALL_CORNER_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Corner.BP_Room_PublicHall_Corner_C"
 PUBLIC_HALL_LTURN_PATH = "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_LTurn_E.BP_Room_PublicHall_LTurn_E_C"
@@ -81,12 +82,13 @@ def main() -> None:
     steam_class = unreal.load_class(None, STEAM_PATH)
     toilet_class = unreal.load_class(None, TOILET_PATH)
     storage_class = unreal.load_class(None, STORAGE_PATH)
+    smoking_patio_class = unreal.load_class(None, SMOKING_PATIO_PATH)
     public_hall_straight_class = unreal.load_class(None, PUBLIC_HALL_STRAIGHT_PATH)
     public_hall_corner_class = unreal.load_class(None, PUBLIC_HALL_CORNER_PATH)
     public_hall_lturn_class = unreal.load_class(None, PUBLIC_HALL_LTURN_PATH)
     public_hall_stair_up_class = unreal.load_class(None, PUBLIC_HALL_STAIR_UP_PATH)
 
-    if not entry_class or not locker_class or not wash_class or not pool_class or not sauna_class or not boiler_class or not plunge_class or not steam_class or not toilet_class or not storage_class or not public_hall_straight_class or not public_hall_corner_class or not public_hall_lturn_class:
+    if not entry_class or not locker_class or not wash_class or not pool_class or not sauna_class or not boiler_class or not plunge_class or not steam_class or not toilet_class or not storage_class or not smoking_patio_class or not public_hall_straight_class or not public_hall_corner_class or not public_hall_lturn_class:
         raise RuntimeError("Could not load one or more bathhouse room blueprint classes")
 
     primary_hall_class = public_hall_straight_class
@@ -103,6 +105,7 @@ def main() -> None:
     append_unique(available_rooms, steam_class)
     append_unique(available_rooms, toilet_class)
     append_unique(available_rooms, storage_class)
+    append_unique(available_rooms, smoking_patio_class)
     append_unique(available_rooms, public_hall_stair_up_class)
     append_unique(available_rooms, primary_hall_class)
     append_unique(available_rooms, public_hall_corner_class)
@@ -147,7 +150,7 @@ def main() -> None:
     if has_editor_property(cdo, "ButchDecoratorClass"):
         cdo.set_editor_property("ButchDecoratorClass", butch_bp.generated_class())
     cdo.set_editor_property("RunSeed", 1337)
-    cdo.set_editor_property("MaxRooms", 10)
+    cdo.set_editor_property("MaxRooms", 12)
     cdo.set_editor_property("AttemptsPerDoor", 5)
     if has_editor_property(cdo, "MaxLayoutAttempts"):
         cdo.set_editor_property("MaxLayoutAttempts", 5)
@@ -217,6 +220,11 @@ def main() -> None:
         storage_entry.set_editor_property("Weight", 0.24)
         storage_entry.set_editor_property("MinRoomsBetweenUses", 2)
 
+        smoking_patio_entry = unreal.RoomClassEntry()
+        smoking_patio_entry.set_editor_property("RoomClass", smoking_patio_class)
+        smoking_patio_entry.set_editor_property("Weight", 0.12)
+        smoking_patio_entry.set_editor_property("MinRoomsBetweenUses", 6)
+
         stair_entry = unreal.RoomClassEntry()
         stair_entry.set_editor_property("RoomClass", public_hall_stair_up_class)
         stair_entry.set_editor_property("Weight", 0.18)
@@ -246,6 +254,7 @@ def main() -> None:
         pool_entries.append(steam_entry)
         pool_entries.append(toilet_entry)
         pool_entries.append(storage_entry)
+        pool_entries.append(smoking_patio_entry)
         pool_entries.append(stair_entry)
         pool_entries.append(hall_entry)
         pool_entries.append(corner_entry)

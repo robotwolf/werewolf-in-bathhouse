@@ -95,6 +95,24 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Gameplay")
     TArray<FRoomGameplayMarkerRequirement> GameplayMarkerRequirements;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach")
+    bool bOverrideHallwayApproachPolicy = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bOverrideHallwayApproachPolicy", EditConditionHides))
+    int32 MinRequiredApproachSegments = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bOverrideHallwayApproachPolicy", EditConditionHides))
+    int32 MaxRequiredApproachSegments = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bOverrideHallwayApproachPolicy", EditConditionHides))
+    int32 RequiredMinimumCornerLikeSegments = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach", meta=(EditCondition="bOverrideHallwayApproachPolicy", EditConditionHides))
+    bool bRequireApproachBeforePlacement = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|HallwayApproach", meta=(EditCondition="bOverrideHallwayApproachPolicy", EditConditionHides))
+    bool bRequireOverrideSatisfaction = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Transition")
     ERoomTransitionType TransitionType = ERoomTransitionType::None;
 

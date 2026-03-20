@@ -48,8 +48,10 @@ $materialSetupScript = Join-Path $scriptDir "create_assembler_test_materials.py"
 $roomSetupScript = Join-Path $scriptDir "setup_bathhouse_rooms.py"
 $standardizeLTurnScript = Join-Path $scriptDir "standardize_lturn_assets.py"
 $generatorConfigScript = Join-Path $scriptDir "configure_assembler_blueprints.py"
+$containedExteriorRoomScript = Join-Path $scriptDir "sync_contained_exterior_room.py"
 $profileSyncScript = Join-Path $scriptDir "sync_ginny_profiles.py"
 $gameplayMarkerSyncScript = Join-Path $scriptDir "sync_room_gameplay_markers.py"
+$npcProfileSyncScript = Join-Path $scriptDir "sync_stagehand_npc_profiles.py"
 $syncGeneratorScript = Join-Path $scriptDir "sync_generator_instances.py"
 $smokeTestScript = Join-Path $scriptDir "smoke_test_assembler.py"
 
@@ -59,8 +61,10 @@ Throw-IfMissing $editorCmd "UnrealEditor-Cmd.exe"
 Throw-IfMissing $materialSetupScript "assembler material setup script"
 Throw-IfMissing $roomSetupScript "room setup script"
 Throw-IfMissing $generatorConfigScript "generator config script"
+Throw-IfMissing $containedExteriorRoomScript "contained exterior room sync script"
 Throw-IfMissing $profileSyncScript "Ginny profile sync script"
 Throw-IfMissing $gameplayMarkerSyncScript "room gameplay marker sync script"
+Throw-IfMissing $npcProfileSyncScript "Stagehand NPC profile sync script"
 Throw-IfMissing $syncGeneratorScript "generator instance sync script"
 if ($RunStandardizeLTurn) {
     Throw-IfMissing $standardizeLTurnScript "L-turn standardization script"
@@ -127,6 +131,15 @@ if (-not $SkipGeneratorConfig) {
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,
         "-run=pythonscript",
+        "-script=$containedExteriorRoomScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Contained Exterior Room Sync"
+
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
         "-script=$generatorConfigScript",
         "-unattended",
         "-nop4",
@@ -150,6 +163,15 @@ if (-not $SkipGeneratorConfig) {
         "-nop4",
         "-nosourcecontrol"
     ) -StepName "Room Gameplay Marker Sync"
+
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
+        "-script=$npcProfileSyncScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Stagehand NPC Profile Sync"
 
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,

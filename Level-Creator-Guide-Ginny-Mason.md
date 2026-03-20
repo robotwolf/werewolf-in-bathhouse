@@ -194,6 +194,7 @@ It contains:
 - required branches
 - optional room pool
 - fallback hallway pool
+- intentional hallway approach defaults
 - room budget
 - generation attempts
 - vertical on/off
@@ -353,6 +354,28 @@ Example:
 
 The smoke test validates authored requirements for spawned rooms.
 
+## Special Destination Rooms
+
+If a room is meant to feel tucked away, liminal, or oddly hard to reach, do not fake that by lying with connectors.
+
+Use room-profile hallway overrides instead:
+
+- `bOverrideHallwayApproachPolicy`
+- `MinRequiredApproachSegments`
+- `MaxRequiredApproachSegments`
+- `RequiredMinimumCornerLikeSegments`
+- `bRequireApproachBeforePlacement`
+- `bRequireOverrideSatisfaction`
+
+Current example:
+
+- `BP_Room_SmokingPatioPocket`
+  - branch-only
+  - optional
+  - one instance max
+  - visually outdoors inside a larger shell
+  - still a normal room as far as tags, connectors, and gameplay markers are concerned
+
 ## How to Make a New Room
 
 ### Option A: Duplicate an existing room
@@ -436,6 +459,7 @@ powershell -ExecutionPolicy Bypass -File E:\Documents\Projects\werewolf-in-bathh
 These scripts are useful when updating baseline content:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_contained_exterior_room.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`

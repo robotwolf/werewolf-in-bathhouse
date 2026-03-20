@@ -25,6 +25,7 @@ ROOM_BLUEPRINT_PATHS = {
     "SteamRoom": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SteamRoom",
     "Toilet": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Toilet",
     "Storage": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Storage",
+    "SmokingPatioPocket": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SmokingPatioPocket",
 }
 
 STANDARD_OPENING_ASSET = "DA_GinnyOpening_Standard"
@@ -87,6 +88,12 @@ MARKER_REQUIREMENTS = {
         ("Clue", 1, -1, "Boiler room should support a clue surface."),
         ("MissionSocket", 1, -1, "Boiler room should support one mission pocket."),
         ("FX", 1, -1, "Boiler room should support an FX anchor."),
+    ],
+    "SmokingPatioPocket": [
+        ("NPC", 3, -1, "Contained exterior pocket should support lingering, gossip, and hiding."),
+        ("Clue", 1, -1, "Contained exterior pocket should support at least one clue surface."),
+        ("MissionSocket", 1, -1, "Contained exterior pocket should support at least one mission beat."),
+        ("FX", 1, -1, "Contained exterior pocket should support ambient FX."),
     ],
 }
 
@@ -223,6 +230,14 @@ ROOM_TAGS = {
         "Room.Function.Task",
         "Room.System.Optional",
     ],
+    "SmokingPatioPocket": [
+        "Room.Category.Special",
+        "Room.Access.Public",
+        "Room.Function.Social",
+        "Room.Function.Relaxation",
+        "Room.System.Optional",
+        "Room.System.CanShift",
+    ],
 }
 
 ROOM_ACTIVITY_TAGS = {
@@ -240,6 +255,25 @@ ROOM_ACTIVITY_TAGS = {
     "SteamRoom": ["NPC.Activity.Relax", "NPC.Activity.Hide"],
     "Toilet": ["NPC.Activity.Hide", "NPC.Activity.Groom"],
     "Storage": ["NPC.Activity.Clean", "NPC.Activity.Hide"],
+    "SmokingPatioPocket": ["NPC.Activity.Gossip", "NPC.Activity.Wait", "NPC.Activity.Observe", "NPC.Activity.Hide"],
+}
+
+ROOM_APPROACH_OVERRIDES = {
+    "SmokingPatioPocket": {
+        "bOverrideHallwayApproachPolicy": True,
+        "MinRequiredApproachSegments": 2,
+        "MaxRequiredApproachSegments": 4,
+        "RequiredMinimumCornerLikeSegments": 1,
+        "bRequireApproachBeforePlacement": True,
+        "bRequireOverrideSatisfaction": True,
+    },
+}
+
+EXTRA_ALLOWED_NEIGHBOR_TYPES = {
+    "PublicHallStraight": ["SmokingPatioPocket"],
+    "PublicHallCorner": ["SmokingPatioPocket"],
+    "PublicHallLTurn": ["SmokingPatioPocket"],
+    "PoolHall": ["SmokingPatioPocket"],
 }
 
 
@@ -457,6 +491,14 @@ def build_marker_requirements(profile_name: str):
     return requirements
 
 
+def build_allowed_neighbor_types(profile_name: str, cdo):
+    allowed_neighbors = list(cdo.get_editor_property("AllowedNeighborRoomTypes"))
+    for neighbor_type in EXTRA_ALLOWED_NEIGHBOR_TYPES.get(profile_name, []):
+        if neighbor_type not in allowed_neighbors:
+            allowed_neighbors.append(neighbor_type)
+    return allowed_neighbors
+
+
 def sync_room_profiles(default_opening_profile, stair_opening_profile, mason_profiles):
     room_blueprints = {}
 
@@ -473,12 +515,20 @@ def sync_room_profiles(default_opening_profile, stair_opening_profile, mason_pro
         profile.set_editor_property("MaxConnections", cdo.get_editor_property("MaxConnections"))
         profile.set_editor_property("bRequired", cdo.get_editor_property("bRequired"))
         profile.set_editor_property("PlacementRules", cdo.get_editor_property("PlacementRules"))
-        profile.set_editor_property("AllowedNeighborRoomTypes", list(cdo.get_editor_property("AllowedNeighborRoomTypes")))
+        profile.set_editor_property("AllowedNeighborRoomTypes", build_allowed_neighbor_types(profile_name, cdo))
         profile.set_editor_property("TransitionType", cdo.get_editor_property("TransitionType"))
         profile.set_editor_property("TransitionTargetConfigId", cdo.get_editor_property("TransitionTargetConfigId"))
         profile.set_editor_property("RoomTags", make_tag_container(ROOM_TAGS.get(profile_name, [])))
         profile.set_editor_property("ActivityTags", make_tag_container(ROOM_ACTIVITY_TAGS.get(profile_name, [])))
         profile.set_editor_property("GameplayMarkerRequirements", build_marker_requirements(profile_name))
+        profile.set_editor_property("bOverrideHallwayApproachPolicy", False)
+        profile.set_editor_property("MinRequiredApproachSegments", 0)
+        profile.set_editor_property("MaxRequiredApproachSegments", 0)
+        profile.set_editor_property("RequiredMinimumCornerLikeSegments", 0)
+        profile.set_editor_property("bRequireApproachBeforePlacement", False)
+        profile.set_editor_property("bRequireOverrideSatisfaction", False)
+        for property_name, property_value in ROOM_APPROACH_OVERRIDES.get(profile_name, {}).items():
+            profile.set_editor_property(property_name, property_value)
 
         stock_settings = cdo.get_editor_property("StockAssemblySettings")
         stock_settings.set_editor_property("DoorWidthMode", unreal.RoomStockDoorWidthMode.STANDARD)

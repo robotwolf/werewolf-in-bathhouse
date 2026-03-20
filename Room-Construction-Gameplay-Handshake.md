@@ -61,6 +61,11 @@ The constructor side is responsible for publishing these signals:
    - authored meshes, props, and child actors should live under `AuthoredContentRoot`
    - gameplay-facing `USceneComponent` markers should live under `GameplayMarkerRoot`
    - decorative content should not impersonate gameplay markers by accident
+   - a room that visually pretends to be outside still publishes normal indoor room truth:
+     - room tags
+     - connector semantics
+     - gameplay markers
+   - gameplay should not infer "outside" purely from presentation
 
 ### Gameplay -> Constructor
 
@@ -85,6 +90,7 @@ Bad requests:
 - `Ginny` owns which rooms exist and how they connect.
 - `Mason` owns how the room shell is physically built.
 - `ARoomModuleBase` owns room-local metadata and marker discovery.
+- special contained-exterior rooms are local `Ginny` rooms first, not a separate gameplay class of lie.
 - `BP_RunManager` should own phase, werewolf assignment, and escalation later.
 - NPC/StateTree logic should choose markers from room output, not change room truth directly.
 

@@ -1302,7 +1302,8 @@ void ARoomGenerator::FillBranches()
 
 bool ARoomGenerator::TryPlaceIntentionalHallApproach(
     UPrototypeRoomConnectorComponent* TargetConnector,
-    const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+    TSubclassOf<ARoomModuleBase> CandidateClass,
+    const FResolvedHallwayApproachPolicy& Policy,
     EGeneratorPathContext Context,
     ERoomPlacementRole AssignedRole,
     int32 BaseDepthFromStart,
@@ -1310,42 +1311,18 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
 {
     OutPlacedRoom = nullptr;
 
-    if (!TargetConnector || TargetConnector->bOccupied || CandidateClasses.IsEmpty())
-    {
-        return false;
-    }
-
-    const bool bContextAllowed =
-        (Context == EGeneratorPathContext::MainPath && GetConfiguredAllowIntentionalApproachesOnMainPath()) ||
-        (Context == EGeneratorPathContext::Branch && GetConfiguredAllowIntentionalApproachesOnBranches());
-    if (!GetConfiguredUseIntentionalHallApproaches() || !bContextAllowed)
+    if (!TargetConnector || TargetConnector->bOccupied || !CandidateClass || !Policy.bUsePolicy)
     {
         return false;
     }
 
     const TArray<TSubclassOf<ARoomModuleBase>>& ConfiguredFallbackRooms = GetConfiguredConnectorFallbackRooms();
-    if (ConfiguredFallbackRooms.IsEmpty())
+    if (ConfiguredFallbackRooms.IsEmpty() || ConfiguredFallbackRooms.Contains(CandidateClass))
     {
         return false;
     }
 
-    const bool bHasNonHallTarget = CandidateClasses.ContainsByPredicate([&](TSubclassOf<ARoomModuleBase> CandidateClass)
-    {
-        return CandidateClass && !ConfiguredFallbackRooms.Contains(CandidateClass);
-    });
-    if (!bHasNonHallTarget)
-    {
-        return false;
-    }
-
-    const int32 MinSegments = FMath::Max(0, GetConfiguredMinHallwayApproachSegments());
-    const int32 MaxSegments = FMath::Max(MinSegments, GetConfiguredMaxHallwayApproachSegments());
-    int32 TargetSegments = MinSegments;
-    while (TargetSegments < MaxSegments && RandomStream.FRand() < GetConfiguredHallwayExtraSegmentChance())
-    {
-        ++TargetSegments;
-    }
-
+    int32 TargetSegments = ResolveHallwayApproachTargetSegments(Policy);
     if (TargetSegments <= 0)
     {
         return false;
@@ -1441,23 +1418,23 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
         }
     };
 
-    auto GetApproachWeightForHall = [this](TSubclassOf<ARoomModuleBase> HallClass) -> float
+    auto GetApproachWeightForHall = [this, &Policy](TSubclassOf<ARoomModuleBase> HallClass) -> float
     {
         switch (GetHallwaySegmentKind(HallClass))
         {
         case EHallwaySegmentKind::Straight:
-            return GetCandidateWeight(HallClass) * GetConfiguredStraightHallWeight();
+            return GetCandidateWeight(HallClass) * Policy.StraightWeight;
         case EHallwaySegmentKind::Corner:
-            return GetCandidateWeight(HallClass) * GetConfiguredCornerHallWeight();
+            return GetCandidateWeight(HallClass) * Policy.CornerWeight;
         case EHallwaySegmentKind::LTurn:
-            return GetCandidateWeight(HallClass) * GetConfiguredLTurnHallWeight();
+            return GetCandidateWeight(HallClass) * Policy.LTurnWeight;
         default:
             return 0.0f;
         }
     };
 
-    TFunction<bool(UPrototypeRoomConnectorComponent*, int32, int32, ARoomModuleBase*&)> PlaceApproach;
-    PlaceApproach = [&](UPrototypeRoomConnectorComponent* CurrentConnector, int32 CurrentDepth, int32 RemainingSegments, ARoomModuleBase*& FinalPlacedRoom) -> bool
+    TFunction<bool(UPrototypeRoomConnectorComponent*, int32, int32, int32, ARoomModuleBase*&)> PlaceApproach;
+    PlaceApproach = [&](UPrototypeRoomConnectorComponent* CurrentConnector, int32 CurrentDepth, int32 RemainingSegments, int32 CornerLikeSegments, ARoomModuleBase*& FinalPlacedRoom) -> bool
     {
         FinalPlacedRoom = nullptr;
         if (!CurrentConnector || CurrentConnector->bOccupied)
@@ -1472,33 +1449,15 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
 
         if (RemainingSegments <= 0)
         {
-            TArray<TSubclassOf<ARoomModuleBase>> FinalCandidates = BuildCandidateList(
-                CurrentConnector,
-                &CandidateClasses,
-                false,
-                Context,
-                CurrentDepth + 1);
-            FinalCandidates = FinalCandidates.FilterByPredicate([&](TSubclassOf<ARoomModuleBase> CandidateClass)
+            if (CornerLikeSegments < Policy.RequiredMinimumCornerLikeSegments)
             {
-                return CandidateClass && !ConfiguredFallbackRooms.Contains(CandidateClass);
-            });
+                return false;
+            }
 
-            for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !FinalCandidates.IsEmpty(); ++Attempt)
+            if (TryPlaceRoomForDoor(CurrentConnector, CandidateClass, AssignedRole, CurrentConnector->GetOwningRoom(), CurrentDepth + 1))
             {
-                const int32 PickedIndex = ChooseWeightedCandidateIndex(FinalCandidates);
-                if (!FinalCandidates.IsValidIndex(PickedIndex))
-                {
-                    break;
-                }
-
-                const TSubclassOf<ARoomModuleBase> CandidateClass = FinalCandidates[PickedIndex];
-                if (TryPlaceRoomForDoor(CurrentConnector, CandidateClass, AssignedRole, CurrentConnector->GetOwningRoom(), CurrentDepth + 1))
-                {
-                    FinalPlacedRoom = SpawnedRooms.Last();
-                    return true;
-                }
-
-                FinalCandidates.RemoveAt(PickedIndex);
+                FinalPlacedRoom = SpawnedRooms.Last();
+                return true;
             }
 
             return false;
@@ -1555,11 +1514,12 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
             const FGeneratorSnapshot Snapshot = CaptureSnapshot();
             const TSubclassOf<ARoomModuleBase> HallClass = HallCandidates[PickedIndex];
             LogDebugMessage(FString::Printf(
-                TEXT("Intentional hall approach target=%s.%s segment=%s remaining=%d"),
+                TEXT("Intentional hall approach target=%s.%s segment=%s remaining=%d final=%s"),
                 *GetNameSafe(CurrentConnector->GetOwningRoom()),
                 *CurrentConnector->GetName(),
                 *GetNameSafe(HallClass),
-                RemainingSegments));
+                RemainingSegments,
+                *GetNameSafe(CandidateClass)));
 
             if (!TryPlaceRoomForDoor(CurrentConnector, HallClass, AssignedRole, CurrentConnector->GetOwningRoom(), CurrentDepth + 1))
             {
@@ -1595,8 +1555,16 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
                     continue;
                 }
 
+                const EHallwaySegmentKind HallKind = GetHallwaySegmentKind(HallClass);
+                const int32 UpdatedCornerLikeSegments = CornerLikeSegments +
+                    ((HallKind == EHallwaySegmentKind::Corner || HallKind == EHallwaySegmentKind::LTurn) ? 1 : 0);
                 ARoomModuleBase* RecursivePlacedRoom = nullptr;
-                if (PlaceApproach(ForwardConnector, HallRoom->GeneratedDepthFromStart, RemainingSegments - 1, RecursivePlacedRoom))
+                if (PlaceApproach(
+                    ForwardConnector,
+                    HallRoom->GeneratedDepthFromStart,
+                    RemainingSegments - 1,
+                    UpdatedCornerLikeSegments,
+                    RecursivePlacedRoom))
                 {
                     FinalPlacedRoom = RecursivePlacedRoom ? RecursivePlacedRoom : HallRoom;
                     return true;
@@ -1611,7 +1579,7 @@ bool ARoomGenerator::TryPlaceIntentionalHallApproach(
     };
 
     ARoomModuleBase* PlacedRoom = nullptr;
-    if (PlaceApproach(TargetConnector, BaseDepthFromStart, TargetSegments, PlacedRoom))
+    if (PlaceApproach(TargetConnector, BaseDepthFromStart, TargetSegments, 0, PlacedRoom))
     {
         OutPlacedRoom = PlacedRoom;
         return true;
@@ -1675,17 +1643,6 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             ? BuildCandidateList(TargetConnector, nullptr, false, Context, ProposedDepth)
             : BuildCandidateList(TargetConnector, &CandidateClasses, false, Context, ProposedDepth);
 
-        if (bAllowIntentionalApproach && CandidateClasses.IsEmpty() && TryPlaceIntentionalHallApproach(
-            TargetConnector,
-            Candidates,
-            Context,
-            AssignedRole,
-            ParentDepth,
-            OutPlacedRoom))
-        {
-            return true;
-        }
-
         for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !Candidates.IsEmpty(); ++Attempt)
         {
             const int32 PickedIndex = ChooseWeightedCandidateIndex(Candidates);
@@ -1695,6 +1652,33 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             }
 
             const TSubclassOf<ARoomModuleBase> CandidateClass = Candidates[PickedIndex];
+            const FResolvedHallwayApproachPolicy ApproachPolicy = bAllowIntentionalApproach
+                ? GetHallwayApproachPolicyForCandidate(CandidateClass, Context, CandidateClasses.IsEmpty())
+                : FResolvedHallwayApproachPolicy();
+
+            if (ApproachPolicy.bUsePolicy)
+            {
+                ARoomModuleBase* ApproachPlacedRoom = nullptr;
+                if (TryPlaceIntentionalHallApproach(
+                    TargetConnector,
+                    CandidateClass,
+                    ApproachPolicy,
+                    Context,
+                    AssignedRole,
+                    ParentDepth,
+                    ApproachPlacedRoom))
+                {
+                    OutPlacedRoom = ApproachPlacedRoom;
+                    return true;
+                }
+
+                if (ApproachPolicy.bRequireOverrideSatisfaction || ApproachPolicy.bRequireApproachBeforePlacement)
+                {
+                    Candidates.RemoveAt(PickedIndex);
+                    continue;
+                }
+            }
+
             if (TryPlaceRoomForDoor(TargetConnector, CandidateClass, AssignedRole, ParentRoom, ProposedDepth))
             {
                 OutPlacedRoom = SpawnedRooms.Last();
@@ -2330,6 +2314,83 @@ float ARoomGenerator::GetConfiguredCornerHallWeight() const
 float ARoomGenerator::GetConfiguredLTurnHallWeight() const
 {
     return LayoutProfile ? LayoutProfile->LTurnHallWeight : LTurnHallWeight;
+}
+
+FResolvedHallwayApproachPolicy ARoomGenerator::GetHallwayApproachPolicyForCandidate(TSubclassOf<ARoomModuleBase> CandidateClass, EGeneratorPathContext Context, bool bAllowDefaultPolicy) const
+{
+    FResolvedHallwayApproachPolicy Policy;
+    if (!CandidateClass || GetConfiguredConnectorFallbackRooms().Contains(CandidateClass))
+    {
+        return Policy;
+    }
+
+    const bool bContextAllowed =
+        (Context == EGeneratorPathContext::MainPath && GetConfiguredAllowIntentionalApproachesOnMainPath()) ||
+        (Context == EGeneratorPathContext::Branch && GetConfiguredAllowIntentionalApproachesOnBranches());
+
+    if (bAllowDefaultPolicy && GetConfiguredUseIntentionalHallApproaches() && bContextAllowed)
+    {
+        Policy.bUsePolicy = true;
+        Policy.MinSegments = FMath::Max(0, GetConfiguredMinHallwayApproachSegments());
+        Policy.MaxSegments = FMath::Max(Policy.MinSegments, GetConfiguredMaxHallwayApproachSegments());
+        Policy.ExtraSegmentChance = FMath::Clamp(GetConfiguredHallwayExtraSegmentChance(), 0.0f, 1.0f);
+        Policy.StraightWeight = FMath::Max(0.0f, GetConfiguredStraightHallWeight());
+        Policy.CornerWeight = FMath::Max(0.0f, GetConfiguredCornerHallWeight());
+        Policy.LTurnWeight = FMath::Max(0.0f, GetConfiguredLTurnHallWeight());
+    }
+
+    const ARoomModuleBase* CandidateCDO = CandidateClass->GetDefaultObject<ARoomModuleBase>();
+    if (CandidateCDO && CandidateCDO->HasResolvedHallwayApproachOverride())
+    {
+        Policy.bUsePolicy = true;
+        Policy.MinSegments = FMath::Max(0, CandidateCDO->GetResolvedMinRequiredApproachSegments());
+        Policy.MaxSegments = FMath::Max(Policy.MinSegments, CandidateCDO->GetResolvedMaxRequiredApproachSegments());
+        Policy.RequiredMinimumCornerLikeSegments = FMath::Max(0, CandidateCDO->GetResolvedRequiredMinimumCornerLikeSegments());
+        Policy.bRequireApproachBeforePlacement = CandidateCDO->GetResolvedRequireApproachBeforePlacement();
+        Policy.bRequireOverrideSatisfaction = CandidateCDO->GetResolvedRequireOverrideSatisfaction();
+        Policy.ExtraSegmentChance = FMath::Clamp(GetConfiguredHallwayExtraSegmentChance(), 0.0f, 1.0f);
+        Policy.StraightWeight = FMath::Max(0.0f, GetConfiguredStraightHallWeight());
+        Policy.CornerWeight = FMath::Max(0.0f, GetConfiguredCornerHallWeight());
+        Policy.LTurnWeight = FMath::Max(0.0f, GetConfiguredLTurnHallWeight());
+    }
+
+    if (Policy.bUsePolicy && Policy.MaxSegments <= 0 && (Policy.bRequireApproachBeforePlacement || Policy.bRequireOverrideSatisfaction || Policy.RequiredMinimumCornerLikeSegments > 0))
+    {
+        Policy.MinSegments = FMath::Max(1, Policy.MinSegments);
+        Policy.MaxSegments = FMath::Max(Policy.MinSegments, 1);
+    }
+
+    if (Policy.MaxSegments <= 0)
+    {
+        Policy.bUsePolicy = false;
+    }
+
+    if (Policy.StraightWeight <= 0.0f && Policy.CornerWeight <= 0.0f && Policy.LTurnWeight <= 0.0f)
+    {
+        Policy.StraightWeight = 1.0f;
+        Policy.CornerWeight = 1.0f;
+        Policy.LTurnWeight = 1.0f;
+    }
+
+    return Policy;
+}
+
+int32 ARoomGenerator::ResolveHallwayApproachTargetSegments(const FResolvedHallwayApproachPolicy& Policy)
+{
+    if (!Policy.bUsePolicy)
+    {
+        return 0;
+    }
+
+    const int32 MinSegments = FMath::Max(0, Policy.MinSegments);
+    const int32 MaxSegments = FMath::Max(MinSegments, Policy.MaxSegments);
+    int32 TargetSegments = MinSegments;
+    while (TargetSegments < MaxSegments && RandomStream.FRand() < FMath::Clamp(Policy.ExtraSegmentChance, 0.0f, 1.0f))
+    {
+        ++TargetSegments;
+    }
+
+    return TargetSegments;
 }
 
 bool ARoomGenerator::GetConfiguredRunButchAfterGeneration() const

@@ -36,6 +36,20 @@ struct FOpenDoorState
     int32 FailedAttempts = 0;
 };
 
+struct FResolvedHallwayApproachPolicy
+{
+    bool bUsePolicy = false;
+    bool bRequireApproachBeforePlacement = false;
+    bool bRequireOverrideSatisfaction = false;
+    int32 MinSegments = 0;
+    int32 MaxSegments = 0;
+    int32 RequiredMinimumCornerLikeSegments = 0;
+    float ExtraSegmentChance = 0.0f;
+    float StraightWeight = 1.0f;
+    float CornerWeight = 1.0f;
+    float LTurnWeight = 1.0f;
+};
+
 UCLASS(Blueprintable)
 class WEREWOLFNBH_API ARoomGenerator : public AActor
 {
@@ -253,7 +267,8 @@ protected:
         ARoomModuleBase*& OutPlacedRoom);
     bool TryPlaceIntentionalHallApproach(
         UPrototypeRoomConnectorComponent* TargetConnector,
-        const TArray<TSubclassOf<ARoomModuleBase>>& CandidateClasses,
+        TSubclassOf<ARoomModuleBase> CandidateClass,
+        const FResolvedHallwayApproachPolicy& Policy,
         EGeneratorPathContext Context,
         ERoomPlacementRole AssignedRole,
         int32 BaseDepthFromStart,
@@ -329,6 +344,8 @@ protected:
     float GetConfiguredStraightHallWeight() const;
     float GetConfiguredCornerHallWeight() const;
     float GetConfiguredLTurnHallWeight() const;
+    FResolvedHallwayApproachPolicy GetHallwayApproachPolicyForCandidate(TSubclassOf<ARoomModuleBase> CandidateClass, EGeneratorPathContext Context, bool bAllowDefaultPolicy) const;
+    int32 ResolveHallwayApproachTargetSegments(const FResolvedHallwayApproachPolicy& Policy);
     bool GetConfiguredRunButchAfterGeneration() const;
     bool GetConfiguredSpawnButchIfMissing() const;
 };

@@ -8,6 +8,7 @@ ROOM_BLUEPRINT_PATHS = {
     "PoolHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PoolHall",
     "Sauna": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_Sauna",
     "BoilerService": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_BoilerService",
+    "SmokingPatioPocket": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SmokingPatioPocket",
 }
 
 
@@ -51,6 +52,15 @@ MARKER_LAYOUTS = {
         ("Clue_Valve_A", unreal.Vector(-240.0, 180.0, 80.0), unreal.Rotator(0.0, 0.0, 0.0), ["Clue.Physical", "Room.Env.Mechanical"]),
         ("MissionSocket_A", unreal.Vector(0.0, -60.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0), ["Room.Function.Maintenance"]),
         ("FX_Steam_A", unreal.Vector(0.0, 0.0, 220.0), unreal.Rotator(0.0, 0.0, 0.0), ["Room.Env.Mechanical", "Room.Env.SteamLow"]),
+    ],
+    "SmokingPatioPocket": [
+        ("NPC_Gossip_A", unreal.Vector(-420.0, 120.0, 0.0), unreal.Rotator(0.0, 35.0, 0.0), ["NPC.Activity.Gossip", "Room.Function.Social"]),
+        ("NPC_Gossip_B", unreal.Vector(-280.0, 220.0, 0.0), unreal.Rotator(0.0, 210.0, 0.0), ["NPC.Activity.Gossip", "Room.Function.Social"]),
+        ("NPC_Wait_A", unreal.Vector(120.0, -40.0, 0.0), unreal.Rotator(0.0, 90.0, 0.0), ["NPC.Activity.Wait", "Room.Function.Relaxation"]),
+        ("NPC_Hide_A", unreal.Vector(620.0, 320.0, 0.0), unreal.Rotator(0.0, 180.0, 0.0), ["NPC.Activity.Hide", "Room.Category.Special"]),
+        ("Clue_BenchAsh_A", unreal.Vector(-520.0, 80.0, 48.0), unreal.Rotator(0.0, 0.0, 0.0), ["Clue.Physical", "Room.Category.Special"]),
+        ("MissionSocket_A", unreal.Vector(-60.0, 260.0, 0.0), unreal.Rotator(0.0, 180.0, 0.0), ["Room.Function.Social", "Room.Category.Special"]),
+        ("FX_Smoke_A", unreal.Vector(-320.0, 20.0, 180.0), unreal.Rotator(0.0, 0.0, 0.0), ["Room.Category.Special", "NPC.Activity.Observe"]),
     ],
 }
 
