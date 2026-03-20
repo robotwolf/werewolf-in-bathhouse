@@ -119,7 +119,9 @@ void AStagehandDemoNPCCharacter::StartBehaviorLoop()
 {
     LastFailureReason.Reset();
     CurrentSelection = FStagehandNPCMarkerSelection();
+    LastSelection = FStagehandNPCMarkerSelection();
     CurrentMoveDestination = FVector::ZeroVector;
+    ConsecutiveRetryCount = 0;
     SetLoopState(EStagehandDemoLoopState::WaitForLayout, TEXT("Starting marker-loop demo."));
     ScheduleBehavior(0.05f);
 }
@@ -173,6 +175,7 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
         if (!MatchesLastSelection(CandidateSelection))
         {
             CurrentSelection = CandidateSelection;
+            ConsecutiveRetryCount = 0;
             LastFailureReason.Reset();
             UpdateDebugText();
 
@@ -192,6 +195,15 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
 
     if (HasUsableSelection(FirstValidSelection))
     {
+        if (IsSelectionNearCurrentLocation(FirstValidSelection))
+        {
+            CurrentSelection = FStagehandNPCMarkerSelection();
+            CurrentMoveDestination = FVector::ZeroVector;
+            LastFailureReason = TEXT("Only the previous marker was available, and we're already standing on it.");
+            UpdateDebugText();
+            return false;
+        }
+
         CurrentSelection = FirstValidSelection;
         LastFailureReason = TEXT("Only the previous marker was available; reusing it.");
         UpdateDebugText();
@@ -298,6 +310,7 @@ void AStagehandDemoNPCCharacter::EvaluateBehavior()
 
     case EStagehandDemoLoopState::PauseAtMarker:
         LastSelection = CurrentSelection;
+        ConsecutiveRetryCount = 0;
         ++CompletedLoops;
         SelectionSeed = HashCombineFast(SelectionSeed, CompletedLoops * 17 + 13);
         SetLoopState(EStagehandDemoLoopState::SelectMarker, TEXT("Selecting a new marker."));
@@ -305,6 +318,8 @@ void AStagehandDemoNPCCharacter::EvaluateBehavior()
         return;
 
     case EStagehandDemoLoopState::Retry:
+        ++ConsecutiveRetryCount;
+        SelectionSeed = HashCombineFast(SelectionSeed, ConsecutiveRetryCount * 97 + 11);
         SetLoopState(EStagehandDemoLoopState::SelectMarker, TEXT("Retrying marker selection."));
         ScheduleBehavior(0.0f);
         return;
@@ -483,7 +498,7 @@ void AStagehandDemoNPCCharacter::UpdateDebugText()
                 TEXT("Move %s | Loop %d | %s"),
                 *DestinationName,
                 CompletedLoops,
-                *FailureText)));
+                *FString::Printf(TEXT("%s | Retry %d"), *FailureText, ConsecutiveRetryCount))));
     }
 
     if (TargetArrow)
@@ -501,6 +516,18 @@ void AStagehandDemoNPCCharacter::UpdateDebugText()
             }
         }
     }
+}
+
+bool AStagehandDemoNPCCharacter::IsSelectionNearCurrentLocation(const FStagehandNPCMarkerSelection& Selection) const
+{
+    if (!HasUsableSelection(Selection))
+    {
+        return false;
+    }
+
+    const FVector MarkerLocation = Selection.Marker.WorldTransform.GetLocation();
+    const float DistanceToMarker = FVector::Dist2D(GetActorLocation(), MarkerLocation);
+    return DistanceToMarker <= FMath::Max(10.0f, AcceptanceRadius * 0.9f);
 }
 
 bool AStagehandDemoNPCCharacter::MatchesLastSelection(const FStagehandNPCMarkerSelection& Selection) const

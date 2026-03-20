@@ -107,6 +107,44 @@ namespace
         return nullptr;
     }
 
+    void MergeUniqueRoomClasses(
+        TArray<TSubclassOf<ARoomModuleBase>>& OutMerged,
+        const TArray<TSubclassOf<ARoomModuleBase>>& AdditionalClasses)
+    {
+        for (const TSubclassOf<ARoomModuleBase>& RoomClass : AdditionalClasses)
+        {
+            if (RoomClass && !OutMerged.Contains(RoomClass))
+            {
+                OutMerged.Add(RoomClass);
+            }
+        }
+    }
+
+    void MergeRoomClassEntries(
+        TArray<FRoomClassEntry>& OutMerged,
+        const TArray<FRoomClassEntry>& OverrideEntries)
+    {
+        for (const FRoomClassEntry& Entry : OverrideEntries)
+        {
+            if (!Entry.RoomClass)
+            {
+                continue;
+            }
+
+            if (FRoomClassEntry* ExistingEntry = OutMerged.FindByPredicate([&](const FRoomClassEntry& Existing)
+                {
+                    return Existing.RoomClass == Entry.RoomClass;
+                }))
+            {
+                *ExistingEntry = Entry;
+            }
+            else
+            {
+                OutMerged.Add(Entry);
+            }
+        }
+    }
+
     struct FConnectorOccupancySnapshot
     {
         TObjectPtr<UPrototypeRoomConnectorComponent> Connector = nullptr;
@@ -2208,17 +2246,38 @@ TSubclassOf<ARoomModuleBase> ARoomGenerator::GetConfiguredDeadEndRoomClass() con
 
 const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredAvailableRooms() const
 {
-    return LayoutProfile ? LayoutProfile->AvailableRooms : AvailableRooms;
+    if (!LayoutProfile)
+    {
+        return AvailableRooms;
+    }
+
+    MergedAvailableRoomsCache = LayoutProfile->AvailableRooms;
+    MergeUniqueRoomClasses(MergedAvailableRoomsCache, AvailableRooms);
+    return MergedAvailableRoomsCache;
 }
 
 const TArray<FRoomClassEntry>& ARoomGenerator::GetConfiguredRoomClassPool() const
 {
-    return LayoutProfile ? LayoutProfile->RoomClassPool : RoomClassPool;
+    if (!LayoutProfile)
+    {
+        return RoomClassPool;
+    }
+
+    MergedRoomClassPoolCache = LayoutProfile->RoomClassPool;
+    MergeRoomClassEntries(MergedRoomClassPoolCache, RoomClassPool);
+    return MergedRoomClassPoolCache;
 }
 
 const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredConnectorFallbackRooms() const
 {
-    return LayoutProfile ? LayoutProfile->ConnectorFallbackRooms : ConnectorFallbackRooms;
+    if (!LayoutProfile)
+    {
+        return ConnectorFallbackRooms;
+    }
+
+    MergedConnectorFallbackRoomsCache = LayoutProfile->ConnectorFallbackRooms;
+    MergeUniqueRoomClasses(MergedConnectorFallbackRoomsCache, ConnectorFallbackRooms);
+    return MergedConnectorFallbackRoomsCache;
 }
 
 const TArray<TSubclassOf<ARoomModuleBase>>& ARoomGenerator::GetConfiguredRequiredMainPathRooms() const

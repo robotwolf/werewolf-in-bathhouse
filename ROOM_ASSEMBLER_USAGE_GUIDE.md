@@ -559,8 +559,8 @@ Expected healthy defaults:
 - `RequiredBranchRooms = [Sauna, BoilerService]`
 - optional branch landmark: `PublicHallStairUp`
 - optional special branch room:
-  - `SmokingPatioPocket`
-  - low weight
+- `SmokingPatioPocket`
+  - rare-but-real weight
   - one instance max
   - room-profile hallway override requiring a liminal lead-in
 
@@ -731,6 +731,13 @@ Generator policy resolves in this order:
 
 1. `LayoutProfile`
 2. legacy BP-authored fields on `ARoomGenerator`
+
+For array-style room lists, the level instance is now additive:
+
+1. `LayoutProfile` remains the base source of truth
+2. extra classes or overridden pool entries placed directly on the `ARoomGenerator` instance are merged in
+
+That means quick level-side experiments in `AvailableRooms`, `RoomClassPool`, and `ConnectorFallbackRooms` now actually matter instead of being quietly ignored by the profile.
 
 ## Debugging
 

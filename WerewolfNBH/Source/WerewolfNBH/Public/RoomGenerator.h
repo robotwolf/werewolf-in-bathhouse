@@ -245,6 +245,9 @@ public:
 
 protected:
     FRandomStream RandomStream;
+    mutable TArray<TSubclassOf<ARoomModuleBase>> MergedAvailableRoomsCache;
+    mutable TArray<FRoomClassEntry> MergedRoomClassPoolCache;
+    mutable TArray<TSubclassOf<ARoomModuleBase>> MergedConnectorFallbackRoomsCache;
 
     ARoomModuleBase* SpawnRoom(TSubclassOf<ARoomModuleBase> RoomClass, const FTransform& SpawnTransform);
     void RegisterOpenDoors(ARoomModuleBase* Room);

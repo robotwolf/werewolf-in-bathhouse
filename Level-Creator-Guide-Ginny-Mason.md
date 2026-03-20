@@ -393,6 +393,12 @@ This is the easiest path and the one most people should take first.
 7. Add gameplay markers
 8. Update the relevant layout profile to include the room if appropriate
 
+Important:
+
+- if the generator has a `LayoutProfile`, that profile still provides the default room lists
+- but level-instance edits to `AvailableRooms`, `RoomClassPool`, and `ConnectorFallbackRooms` are now merged in on top
+- that means you can do a quick level-only test without having to fully re-author the layout profile first
+
 ### Option B: Make a new room from scratch
 
 1. Create a new Blueprint inheriting from `ARoomModuleBase`

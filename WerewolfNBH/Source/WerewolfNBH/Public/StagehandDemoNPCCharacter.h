@@ -105,6 +105,9 @@ public:
     int32 CompletedLoops = 0;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
+    int32 ConsecutiveRetryCount = 0;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
     FString LastFailureReason;
 
     UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
@@ -127,6 +130,7 @@ protected:
     void ScheduleBehavior(float DelaySeconds);
     void SetLoopState(EStagehandDemoLoopState NewState, const FString& DebugReason);
     void UpdateDebugText();
+    bool IsSelectionNearCurrentLocation(const FStagehandNPCMarkerSelection& Selection) const;
     bool MatchesLastSelection(const FStagehandNPCMarkerSelection& Selection) const;
     bool HasUsableSelection(const FStagehandNPCMarkerSelection& Selection) const;
 

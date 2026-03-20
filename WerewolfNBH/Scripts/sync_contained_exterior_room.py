@@ -36,7 +36,7 @@ def main():
         room,
         "SmokingPatioPocket",
         "SmokingPatioPocket",
-        0.14,
+        0.9,
         1,
         1,
         False,
