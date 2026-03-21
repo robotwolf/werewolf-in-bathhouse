@@ -433,6 +433,7 @@ def configure_layout_profile(lane_blueprint, rv_blueprint):
     lane_class = lane_blueprint.generated_class()
     rv_class = rv_blueprint.generated_class()
 
+    layout.set_editor_property("LayoutConfigId", "RVPark_ProofLoop")
     layout.set_editor_property("StartRoomClass", lane_class)
     layout.set_editor_property("DeadEndRoomClass", None)
     layout.set_editor_property("AvailableRooms", [lane_class, rv_class])
