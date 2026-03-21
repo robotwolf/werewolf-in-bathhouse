@@ -12,6 +12,7 @@ public class WerewolfNBHEditor : ModuleRules
                 "Core",
                 "CoreUObject",
                 "Engine",
+                "WerewolfNBH",
                 "UMG"
             });
 
@@ -28,7 +29,10 @@ public class WerewolfNBHEditor : ModuleRules
                 "BlueprintGraph",
                 "KismetCompiler",
                 "Kismet",
-                "PythonScriptPlugin"
+                "PythonScriptPlugin",
+                "GameplayStateTreeModule",
+                "StateTreeModule",
+                "StateTreeEditorModule"
             });
     }
 }

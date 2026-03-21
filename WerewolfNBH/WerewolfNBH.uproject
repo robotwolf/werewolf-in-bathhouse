@@ -28,6 +28,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "StateTree",
+			"Enabled": true
+		},
+		{
 			"Name": "PCG",
 			"Enabled": true
 		},

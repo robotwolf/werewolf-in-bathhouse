@@ -14,10 +14,13 @@ public class WerewolfNBH : ModuleRules
                 "CoreUObject",
                 "Engine",
                 "GameplayTasks",
+                "GameplayStateTreeModule",
                 "InputCore",
                 "EnhancedInput",
                 "GameplayTags",
-                "NavigationSystem"
+                "NavigationSystem",
+                "StateTreeModule",
+                "UMG"
             });
 
         PrivateDependencyModuleNames.AddRange(
