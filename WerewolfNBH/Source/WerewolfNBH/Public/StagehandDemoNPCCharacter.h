@@ -2,6 +2,7 @@
 
 #include "AITypes.h"
 #include "CoreMinimal.h"
+#include "GideonRuntimeTypes.h"
 #include "GameFramework/Character.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "StagehandSimulationData.h"
@@ -22,6 +23,54 @@ enum class EStagehandDemoLoopState : uint8
     MoveToMarker,
     PauseAtMarker,
     Retry
+};
+
+UENUM(BlueprintType)
+enum class EStagehandDemoActionState : uint8
+{
+    None,
+    Transit,
+    IdleWait,
+    Observe,
+    InspectClue,
+    Socialize,
+    Hide
+};
+
+USTRUCT(BlueprintType)
+struct FStagehandDemoPresentationPayload
+{
+    GENERATED_BODY()
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    EStagehandDemoActionState ActionState = EStagehandDemoActionState::None;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FText HeaderText;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FText StateText;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FText DetailText;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FText StatusText;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FName RoomName = NAME_None;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FName MarkerName = NAME_None;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FName SocialPartnerName = NAME_None;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    bool bHasConversationPartner = false;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    bool bHasClueContext = false;
 };
 
 UCLASS(Blueprintable)
@@ -71,6 +120,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Selection", meta=(ClampMin="1", ClampMax="12"))
     int32 MaxSelectionAttempts = 5;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Action", meta=(ClampMin="0.0"))
+    float SocialPartnerSearchRadius = 650.0f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
     bool bDrawDebugMarker = true;
 
@@ -101,6 +153,12 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
     FVector CurrentMoveDestination = FVector::ZeroVector;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Action")
+    EStagehandDemoActionState CurrentActionState = EStagehandDemoActionState::None;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    FStagehandDemoPresentationPayload CurrentPresentation;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
     int32 CompletedLoops = 0;
 
@@ -109,6 +167,24 @@ public:
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
     FString LastFailureReason;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
+    EGideonNPCRuntimeMode GideonRuntimeMode = EGideonNPCRuntimeMode::Spawning;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
+    TObjectPtr<ARoomModuleBase> GideonRetreatRoom = nullptr;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime", meta=(ClampMin="0.0"))
+    float CurrentFear = 0.0f;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime", meta=(ClampMin="0"))
+    int32 GideonScareCount = 0;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
+    EGideonTowelTier GideonTowelTier = EGideonTowelTier::CrowdSimple;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
+    int32 GideonQueueSlotIndex = INDEX_NONE;
 
     UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
     void StartBehaviorLoop();
@@ -119,6 +195,59 @@ public:
     UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
     bool SelectNextMarker();
 
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void ConfigureForGideon(
+        ARoomGenerator* InTargetGenerator,
+        UStagehandNPCProfile* InNPCProfile,
+        EStagehandRunPhase InPhase,
+        bool bInTreatAsWerewolf,
+        int32 InSelectionSeed);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    bool MoveToQueueLocation(const FVector& QueueLocation, int32 QueueSlotIndex = -1);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void SetAwaitingAdmissionState(int32 QueueSlotIndex = -1);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    bool AdmitToBathhouse(const FVector& AdmitLocation);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    bool EnterHideState(ARoomModuleBase* HideRoom);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    bool BeginLeavingBathhouse(const FVector& ExitLocation);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void ResumeRoamingFromGideon();
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void SetRunPhaseState(EStagehandRunPhase NewPhase);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void SetRetreatRoom(ARoomModuleBase* RetreatRoom);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void SetTowelTier(EGideonTowelTier NewTowelTier);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void AddFear(float FearDelta);
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    void SetFear(float NewFear);
+
+    UFUNCTION(BlueprintPure, Category="Gideon|Runtime")
+    FGideonNPCRuntimeState GetGideonRuntimeState() const;
+
+    UFUNCTION(BlueprintPure, Category="Gideon|Runtime")
+    ARoomModuleBase* GetCurrentResolvedRoom() const;
+
+    UFUNCTION(BlueprintPure, Category="Gideon|Runtime")
+    bool CanBeForcedToLeave() const;
+
+    UFUNCTION(BlueprintPure, Category="Gideon|Runtime")
+    bool IsGideonAutonomousRoaming() const;
+
 protected:
     TArray<ARoomModuleBase*> GatherGeneratorRooms() const;
     AStagehandDemoAIController* ResolveDemoController(bool bSpawnIfMissing);
@@ -127,6 +256,17 @@ protected:
     void MoveToCurrentSelection();
     void HandleMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type ResultCode);
     void FaceCurrentMarker();
+    bool RequestGideonMove(const FVector& TargetLocation, EGideonNPCRuntimeMode TargetMode, const FString& DebugReason);
+    void HandleGideonMoveCompleted(EPathFollowingResult::Type ResultCode);
+    FVector ResolveHideDestination(ARoomModuleBase* HideRoom, FRoomGameplayMarker* OutMarker = nullptr) const;
+    ARoomModuleBase* FindNearestGeneratedRoom() const;
+    void UpdateActionState(EStagehandDemoActionState NewActionState, const FString& DebugReason);
+    void RefreshPresentationPayload(const FString& DebugReason = FString());
+    EStagehandDemoActionState ResolveActionStateForCurrentSelection() const;
+    AStagehandDemoNPCCharacter* FindConversationPartner() const;
+    bool HasClueContext() const;
+    FText BuildPlaceholderDialogueText() const;
+    FText BuildActionLabelText(EStagehandDemoActionState ActionState) const;
     void ScheduleBehavior(float DelaySeconds);
     void SetLoopState(EStagehandDemoLoopState NewState, const FString& DebugReason);
     void UpdateDebugText();
@@ -136,4 +276,6 @@ protected:
 
     FTimerHandle BehaviorTimerHandle;
     TWeakObjectPtr<AStagehandDemoAIController> CachedDemoController;
+    FString GideonStatusReason;
+    bool bDestroyOnGideonMoveArrival = false;
 };

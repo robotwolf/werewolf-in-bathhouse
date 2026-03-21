@@ -155,6 +155,18 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Simulation", meta=(ClampMin="0.0"))
     float BaseSuspicionScalar = 1.0f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Simulation", meta=(ClampMin="0.0"))
+    float FearTolerance = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Simulation", meta=(ClampMin="0.0"))
+    float FearDecayPerSecond = 0.08f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Simulation", meta=(ClampMin="0.0"))
+    float FearGainScalar = 1.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Simulation")
+    bool bStoryPinned = false;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Debug")
     FLinearColor DebugColor = FLinearColor(0.8f, 0.85f, 1.0f, 1.0f);
 };

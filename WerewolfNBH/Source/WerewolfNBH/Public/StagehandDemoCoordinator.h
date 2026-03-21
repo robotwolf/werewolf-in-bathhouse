@@ -80,6 +80,7 @@ protected:
     bool SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomModuleBase*>& Rooms);
     FTransform BuildInitialSpawnTransform(const TArray<ARoomModuleBase*>& Rooms, int32 NPCIndex, int32 TotalNPCs) const;
     UStagehandNPCProfile* ResolveProfileForIndex(int32 NPCIndex);
+    int32 ResolveTargetNPCCount() const;
 
     FTimerHandle DemoPollTimerHandle;
     bool bRequestedLayoutGeneration = false;

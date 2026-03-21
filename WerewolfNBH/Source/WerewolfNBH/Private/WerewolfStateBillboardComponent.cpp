@@ -7,6 +7,7 @@ UWerewolfStateBillboardComponent::UWerewolfStateBillboardComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     bTickInEditor = true;
+    CompactSeparatorText = FText::FromString(TEXT(" | "));
 
     SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
     SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
@@ -37,6 +38,26 @@ void UWerewolfStateBillboardComponent::SetDisplayLines(
     StateText = MoveTemp(InStateText);
     DetailText = MoveTemp(InDetailText);
     StatusText = MoveTemp(InStatusText);
+    PresentationMode = EWerewolfBillboardPresentationMode::DebugStack;
+    RefreshDisplay();
+}
+
+void UWerewolfStateBillboardComponent::SetConversationDisplay(
+    FText InSpeakerText,
+    FText InConversationText,
+    FText InContextText)
+{
+    HeaderText = MoveTemp(InSpeakerText);
+    StateText = MoveTemp(InConversationText);
+    DetailText = MoveTemp(InContextText);
+    StatusText = FText::GetEmpty();
+    PresentationMode = EWerewolfBillboardPresentationMode::OverheadCompact;
+    RefreshDisplay();
+}
+
+void UWerewolfStateBillboardComponent::SetPresentationMode(EWerewolfBillboardPresentationMode InPresentationMode)
+{
+    PresentationMode = InPresentationMode;
     RefreshDisplay();
 }
 
@@ -83,6 +104,32 @@ FString UWerewolfStateBillboardComponent::BuildDisplayString() const
             Lines.Add(StringValue);
         }
     };
+
+    if (PresentationMode == EWerewolfBillboardPresentationMode::OverheadCompact)
+    {
+        AppendLine(HeaderText);
+
+        TArray<FString> CompactSegments;
+        auto AppendSegment = [&CompactSegments](const FText& SourceText)
+        {
+            const FString StringValue = SourceText.ToString();
+            if (!StringValue.IsEmpty())
+            {
+                CompactSegments.Add(StringValue);
+            }
+        };
+
+        AppendSegment(StateText);
+        AppendSegment(DetailText);
+        AppendSegment(StatusText);
+
+        if (CompactSegments.Num() > 0)
+        {
+            Lines.Add(FString::Join(CompactSegments, *CompactSeparatorText.ToString()));
+        }
+
+        return FString::Join(Lines, TEXT("\n"));
+    }
 
     AppendLine(HeaderText);
     AppendLine(StateText);

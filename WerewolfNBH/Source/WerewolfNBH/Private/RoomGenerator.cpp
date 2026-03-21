@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GideonDirector.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.h"
 #include "StagehandDemoCoordinator.h"
@@ -178,6 +179,7 @@ ARoomGenerator::ARoomGenerator()
 {
     PrimaryActorTick.bCanEverTick = false;
     ButchDecoratorClass = AButchDecorator::StaticClass();
+    GideonDirectorClass = AGideonDirector::StaticClass();
     StagehandDemoCoordinatorClass = AStagehandDemoCoordinator::StaticClass();
 }
 
@@ -190,7 +192,11 @@ void ARoomGenerator::BeginPlay()
         GenerateLayout();
     }
 
-    if (bAutoSpawnStagehandDemoCoordinator)
+    if (bAutoSpawnGideonDirector)
+    {
+        SpawnGideonDirector();
+    }
+    else if (bAutoSpawnStagehandDemoCoordinator)
     {
         SpawnStagehandDemoCoordinator();
     }
@@ -365,6 +371,11 @@ bool ARoomGenerator::SpawnStagehandDemoCoordinator()
         return false;
     }
 
+    if (SpawnedGideonDirector)
+    {
+        return false;
+    }
+
     if (SpawnedStagehandDemoCoordinator)
     {
         return true;
@@ -411,6 +422,72 @@ bool ARoomGenerator::SpawnStagehandDemoCoordinator()
 
     SpawnedStagehandDemoCoordinator = DemoCoordinator;
     DemoCoordinator->FinishSpawning(FTransform(GetActorRotation(), GetActorLocation()));
+    return true;
+}
+
+bool ARoomGenerator::SpawnGideonDirector()
+{
+    if (!bAutoSpawnGideonDirector)
+    {
+        return false;
+    }
+
+    UWorld* World = GetWorld();
+    if (!World)
+    {
+        return false;
+    }
+
+    if (bLimitGideonToGeneratorTestMap && !IsGeneratorTestMap(World))
+    {
+        return false;
+    }
+
+    if (SpawnedGideonDirector)
+    {
+        return true;
+    }
+
+    for (TActorIterator<AGideonDirector> It(World); It; ++It)
+    {
+        if (*It && It->TargetGenerator == this)
+        {
+            SpawnedGideonDirector = *It;
+            return true;
+        }
+    }
+
+    if (!GideonDirectorClass)
+    {
+        return false;
+    }
+
+    AGideonDirector* GideonDirector = World->SpawnActorDeferred<AGideonDirector>(
+        GideonDirectorClass,
+        FTransform(GetActorRotation(), GetActorLocation()),
+        this,
+        nullptr,
+        ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
+
+    if (!GideonDirector)
+    {
+        return false;
+    }
+
+    GideonDirector->TargetGenerator = this;
+    GideonDirector->CurrentRunPhase = StagehandDemoPhase;
+    GideonDirector->bTreatNPCsAsWerewolves = bTreatStagehandDemoAsWerewolf;
+    if (StagehandDemoNPCClass)
+    {
+        GideonDirector->NPCClass = StagehandDemoNPCClass;
+    }
+    if (StagehandDemoProfile)
+    {
+        GideonDirector->DefaultNPCProfile = StagehandDemoProfile;
+    }
+
+    SpawnedGideonDirector = GideonDirector;
+    GideonDirector->FinishSpawning(FTransform(GetActorRotation(), GetActorLocation()));
     return true;
 }
 

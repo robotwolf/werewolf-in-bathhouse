@@ -51,7 +51,7 @@ void AStagehandDemoCoordinator::StartDemo()
 
 void AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC()
 {
-    if (SpawnedDemoNPCs.Num() >= FMath::Max(1, NumDemoNPCs))
+    if (SpawnedDemoNPCs.Num() >= ResolveTargetNPCCount())
     {
         return;
     }
@@ -144,7 +144,7 @@ bool AStagehandDemoCoordinator::SpawnDemoNPCs()
     }
 
     const TArray<ARoomModuleBase*> Rooms = GatherGeneratorRooms();
-    const int32 TargetCount = FMath::Max(1, NumDemoNPCs);
+    const int32 TargetCount = ResolveTargetNPCCount();
     bool bSpawnedAny = false;
     for (int32 NPCIndex = SpawnedDemoNPCs.Num(); NPCIndex < TargetCount; ++NPCIndex)
     {
@@ -168,7 +168,7 @@ bool AStagehandDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomM
         return false;
     }
 
-    const int32 TargetCount = FMath::Max(1, NumDemoNPCs);
+    const int32 TargetCount = ResolveTargetNPCCount();
     const FTransform SpawnTransform = BuildInitialSpawnTransform(Rooms, NPCIndex, TargetCount);
     AStagehandDemoNPCCharacter* DemoNPC = GetWorld()->SpawnActorDeferred<AStagehandDemoNPCCharacter>(
         DemoNPCClass,
@@ -258,4 +258,11 @@ UStagehandNPCProfile* AStagehandDemoCoordinator::ResolveProfileForIndex(int32 NP
     }
 
     return ResolveDefaultDemoProfile();
+}
+
+int32 AStagehandDemoCoordinator::ResolveTargetNPCCount() const
+{
+    const int32 RequestedCount = FMath::Max(1, NumDemoNPCs);
+    const int32 ProfileCount = NPCProfiles.Num();
+    return FMath::Max(RequestedCount, ProfileCount);
 }

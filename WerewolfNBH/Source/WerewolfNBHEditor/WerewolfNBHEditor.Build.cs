@@ -27,7 +27,8 @@ public class WerewolfNBHEditor : ModuleRules
                 "UMGEditor",
                 "BlueprintGraph",
                 "KismetCompiler",
-                "Kismet"
+                "Kismet",
+                "PythonScriptPlugin"
             });
     }
 }

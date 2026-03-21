@@ -7,6 +7,7 @@
 #include "RoomGenerator.generated.h"
 
 class ARoomModuleBase;
+class AGideonDirector;
 class AStagehandDemoCoordinator;
 class AStagehandDemoNPCCharacter;
 class AButchDecorator;
@@ -198,6 +199,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
     int32 StagehandDemoSeedOffset = 101;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime")
+    bool bAutoSpawnGideonDirector = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime", meta=(EditCondition="bAutoSpawnGideonDirector"))
+    bool bLimitGideonToGeneratorTestMap = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime", meta=(EditCondition="bAutoSpawnGideonDirector"))
+    TSubclassOf<AGideonDirector> GideonDirectorClass;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<TObjectPtr<ARoomModuleBase>> SpawnedRooms;
 
@@ -218,6 +228,9 @@ public:
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
     TObjectPtr<AStagehandDemoCoordinator> SpawnedStagehandDemoCoordinator = nullptr;
+
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
+    TObjectPtr<AGideonDirector> SpawnedGideonDirector = nullptr;
 
     UPROPERTY(VisibleInstanceOnly, Category="Generation")
     TArray<FOpenDoorState> OpenDoors;
@@ -242,6 +255,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
     bool SpawnStagehandDemoCoordinator();
+
+    UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
+    bool SpawnGideonDirector();
 
 protected:
     FRandomStream RandomStream;
