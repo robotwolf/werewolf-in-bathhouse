@@ -390,6 +390,15 @@ def build_layout_signature(generator, seed: int):
     if not any(SMOKING_PATIO_CLASS_FRAGMENT in path for path in available_paths):
         fail("Contained exterior room is not present in AvailableRooms despite being part of the optional branch policy")
 
+    pool_paths = {
+        room_class.get_path_name()
+        for entry in generator.get_editor_property("RoomClassPool")
+        for room_class in [entry.get_editor_property("RoomClass")]
+        if room_class
+    }
+    if not any(SMOKING_PATIO_CLASS_FRAGMENT in path for path in pool_paths):
+        fail("Contained exterior room is not present in RoomClassPool despite being part of the optional branch policy")
+
     smoking_patio_profile = unreal.load_asset(SMOKING_PATIO_PROFILE_PATH)
     if not smoking_patio_profile:
         fail(f"Missing contained exterior room profile asset: {SMOKING_PATIO_PROFILE_PATH}")

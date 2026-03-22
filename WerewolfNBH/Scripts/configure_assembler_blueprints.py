@@ -222,8 +222,8 @@ def main() -> None:
 
         smoking_patio_entry = unreal.RoomClassEntry()
         smoking_patio_entry.set_editor_property("RoomClass", smoking_patio_class)
-        smoking_patio_entry.set_editor_property("Weight", 0.48)
-        smoking_patio_entry.set_editor_property("MinRoomsBetweenUses", 6)
+        smoking_patio_entry.set_editor_property("Weight", 0.9)
+        smoking_patio_entry.set_editor_property("MinRoomsBetweenUses", 3)
 
         stair_entry = unreal.RoomClassEntry()
         stair_entry.set_editor_property("RoomClass", public_hall_stair_up_class)

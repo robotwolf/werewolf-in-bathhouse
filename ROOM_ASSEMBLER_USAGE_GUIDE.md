@@ -20,6 +20,122 @@ If you are brand new to this stack and want the practical onboarding path first,
   - `stairs are optional branch landmarks only`
   - `guided main spine + short branches`
 
+## 1000-Foot API Map
+
+If you need the fastest possible "who does what around here?" read, use this section first and save the deeper doc spelunking for after the coffee hits.
+
+### `Ginny`
+
+`Ginny` is the layout and topology brain.
+
+Owns:
+
+- room selection
+- connector matching
+- required vs optional program rules
+- hallway approaches and hallway weirdness policy
+- validation and generation summaries
+
+Primary files:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGenerator.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\RoomGenerator.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Ginny`
+
+### `Mason`
+
+`Mason` is the embodiment and primitive-construction layer.
+
+Owns:
+
+- floors
+- walls
+- ceilings
+- roofs
+- openings
+- technique-specific shell building
+
+Primary files:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\MasonBuilderComponent.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\MasonBuilderComponent.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Mason`
+
+### `Stagehand`
+
+`Stagehand` is the gameplay handshake, query, and debug layer.
+
+Owns:
+
+- room marker lookup
+- room and marker filtering
+- debug probes
+- early NPC-facing selection helpers
+
+Primary files:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerProbe.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandNPCMarkerProbe.h`
+
+### `Gideon`
+
+`Gideon` is the runtime crowd orchestration layer that arrives after the building exists.
+
+Owns:
+
+- NPC spawn/admission flow
+- runtime crowd coordination
+- POI-driven reactions
+- per-NPC runtime state
+
+Primary files:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonDirector.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonAdmissionBooth.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonRuntimeTypes.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
+### `Butch`
+
+`Butch` is the decoration and dressing pass.
+
+Owns:
+
+- visual dressing
+- prop/decal/FX decoration ideas
+
+Current status:
+
+- optional
+- often frozen in the healthy baseline
+
+### `Flo`
+
+`Flo` is the future config-to-config flow layer.
+
+Owns eventually:
+
+- movement between distinct layout regimes
+- transition contracts between local generations
+- future wrong-space orchestration
+
+Current status:
+
+- design/spec only
+
+### The Actual Handoff
+
+The clean mental model is:
+
+1. `Ginny` decides what exists.
+2. `Mason` builds it.
+3. `Stagehand` makes it queryable to gameplay.
+4. `Gideon` uses that published truth to run live crowd behavior.
+5. `Butch` dresses it.
+6. `Flo` will eventually connect bigger regimes together.
+
 ## Core Classes
 
 - `UGinnyOpeningProfile`

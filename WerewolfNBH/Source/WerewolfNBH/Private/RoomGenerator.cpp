@@ -173,6 +173,14 @@ namespace
     {
         return World && World->GetMapName().Contains(TEXT("GeneratorTest"));
     }
+
+    bool IsHallwayCandidateClass(TSubclassOf<ARoomModuleBase> CandidateClass)
+    {
+        const EHallwaySegmentKind Kind = GetHallwaySegmentKind(CandidateClass);
+        return Kind == EHallwaySegmentKind::Straight ||
+            Kind == EHallwaySegmentKind::Corner ||
+            Kind == EHallwaySegmentKind::LTurn;
+    }
 }
 
 ARoomGenerator::ARoomGenerator()
@@ -1330,9 +1338,15 @@ void ARoomGenerator::FillBranches()
     auto CollectBranchConnectors = [this]()
     {
         TArray<UPrototypeRoomConnectorComponent*> Connectors;
-        for (ARoomModuleBase* Room : GeneratedMainPathRooms)
+        for (ARoomModuleBase* Room : SpawnedRooms)
         {
             if (!Room || Room->GeneratedDepthFromStart < 1)
+            {
+                continue;
+            }
+
+            if (Room->GeneratedAssignedRole != ERoomPlacementRole::MainPath &&
+                Room->GeneratedAssignedRole != ERoomPlacementRole::Branch)
             {
                 continue;
             }
@@ -1757,6 +1771,32 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
         TArray<TSubclassOf<ARoomModuleBase>> Candidates = CandidateClasses.IsEmpty()
             ? BuildCandidateList(TargetConnector, nullptr, false, Context, ProposedDepth)
             : BuildCandidateList(TargetConnector, &CandidateClasses, false, Context, ProposedDepth);
+
+        if (CandidateClasses.IsEmpty() && Context == EGeneratorPathContext::Branch)
+        {
+            TArray<TSubclassOf<ARoomModuleBase>> NonHallCandidates;
+            TArray<TSubclassOf<ARoomModuleBase>> HallCandidates;
+            for (const TSubclassOf<ARoomModuleBase>& CandidateClass : Candidates)
+            {
+                if (IsHallwayCandidateClass(CandidateClass))
+                {
+                    HallCandidates.Add(CandidateClass);
+                }
+                else
+                {
+                    NonHallCandidates.Add(CandidateClass);
+                }
+            }
+
+            if (!NonHallCandidates.IsEmpty())
+            {
+                Candidates = MoveTemp(NonHallCandidates);
+            }
+            else
+            {
+                Candidates = MoveTemp(HallCandidates);
+            }
+        }
 
         for (int32 Attempt = 0; Attempt < GetConfiguredAttemptsPerDoor() && !Candidates.IsEmpty(); ++Attempt)
         {
