@@ -11,6 +11,7 @@ FLOWS_PATH = "/Game/WerewolfBH/Data/Flo/Flows"
 GENERATOR_BP_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator"
 
 ROOM_BLUEPRINT_PATHS = {
+    "EntryFacadeNight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryFacadeNight",
     "EntryReception": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception",
     "LockerHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall",
     "PublicHallStraight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight",
@@ -54,6 +55,12 @@ MATERIAL_PATHS = {
 }
 
 MARKER_REQUIREMENTS = {
+    "EntryFacadeNight": [
+        ("NPC", 4, -1, "Exterior entry should support arrival, queue, gossip, and hiding beats."),
+        ("Clue", 1, -1, "Exterior entry should support at least one clue pocket."),
+        ("MissionSocket", 2, -1, "Exterior entry should support admission and parking/arrival beats."),
+        ("FX", 1, -1, "Exterior entry should support at least one exterior-night FX anchor."),
+    ],
     "EntryReception": [
         ("NPC", 2, -1, "Entry should support waiting and gossip beats."),
         ("Clue", 1, -1, "Entry should support at least one clue pocket."),
@@ -98,6 +105,17 @@ MARKER_REQUIREMENTS = {
 }
 
 ROOM_TAGS = {
+    "EntryFacadeNight": [
+        "Room.Category.Anchor",
+        "Room.Category.Public",
+        "Room.Access.Public",
+        "Room.Env.Dry",
+        "Room.Function.Entry",
+        "Room.Function.Social",
+        "Room.System.Required",
+        "Room.System.NPCHub",
+        "Room.System.CanShift",
+    ],
     "EntryReception": [
         "Room.Category.Anchor",
         "Room.Category.Public",
@@ -241,6 +259,7 @@ ROOM_TAGS = {
 }
 
 ROOM_ACTIVITY_TAGS = {
+    "EntryFacadeNight": ["NPC.Activity.Wait", "NPC.Activity.Gossip", "NPC.Activity.Observe"],
     "EntryReception": ["NPC.Activity.Wait", "NPC.Activity.Gossip", "NPC.Activity.Observe"],
     "LockerHall": ["NPC.Activity.Gossip", "NPC.Activity.Wait", "NPC.Activity.Observe", "NPC.Activity.Clean"],
     "PublicHallStraight": ["NPC.Activity.Wait", "NPC.Activity.Observe"],
@@ -270,7 +289,7 @@ ROOM_APPROACH_OVERRIDES = {
 }
 
 EXTRA_ALLOWED_NEIGHBOR_TYPES = {
-    "PublicHallStraight": ["SmokingPatioPocket"],
+    "PublicHallStraight": ["EntryFacadeNight", "SmokingPatioPocket"],
     "PublicHallCorner": ["SmokingPatioPocket"],
     "PublicHallLTurn": ["SmokingPatioPocket"],
     "PoolHall": ["SmokingPatioPocket"],
@@ -335,7 +354,7 @@ def get_room_material_set(profile_name: str):
     ceiling = get_material("ceiling")
     roof = get_material("tron_glow")
 
-    if profile_name == "EntryReception":
+    if profile_name in ("EntryFacadeNight", "EntryReception"):
         return (None, get_material("entry_floor"), get_material("entry_wall"), ceiling, roof)
     if profile_name == "LockerHall":
         return (None, get_material("locker_floor"), get_material("locker_wall"), ceiling, roof)

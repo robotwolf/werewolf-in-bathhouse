@@ -71,12 +71,14 @@ Output log category:
 Current intended flow:
 
 1. `ARoomGenerator` generates the bathhouse layout.
-2. Gideon auto-spawns on supported maps.
-3. Gideon resolves the generator and booth.
-4. Gideon loads the default profile roster if no explicit `NPCProfiles` array is set.
-5. NPCs spawn one at a time.
-6. NPCs queue at the admission booth.
-7. NPCs are admitted and switch into the Stagehand roaming loop.
+2. The default threshold room is now `EntryFacadeNight`, a contained-exterior night facade that still publishes normal room truth.
+3. Gideon auto-spawns on supported maps.
+4. Gideon resolves the generator and booth.
+5. Gideon uses the entry-tagged threshold room for spawn, queue, booth, exit, parking, and hide markers.
+6. Gideon loads the default profile roster if no explicit `NPCProfiles` array is set.
+7. NPCs spawn one at a time.
+8. NPCs queue at the admission booth.
+9. NPCs are admitted and switch into the Stagehand roaming loop.
 
 If only one NPC spawns, check whether Gideon is falling back to a single `DefaultNPCProfile` instead of a populated `NPCProfiles` array.
 
@@ -130,6 +132,7 @@ Important note:
 
 - Marker names should still use supported prefixes like `NPC_` or `MissionSocket_`.
 - Do not invent new marker prefixes unless the room marker cache is updated to understand them.
+- For the current default bathhouse flow, those tags should live on `EntryFacadeNight`, not the retired default `EntryReception` room.
 
 ## What To Check In Editor
 

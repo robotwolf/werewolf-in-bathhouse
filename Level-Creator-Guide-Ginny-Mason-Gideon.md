@@ -237,6 +237,12 @@ It contains:
 - vertical on/off
 - optional landmarks such as the stair
 
+Current default bathhouse note:
+
+- the start room is `EntryFacadeNight`
+- it is a contained-exterior night facade
+- it still behaves like a normal room to Ginny, Stagehand, and Gideon
+
 Layout profiles live under:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Ginny\Layouts`
@@ -432,6 +438,10 @@ Current example:
   - one instance max
   - visually outdoors inside a larger shell
   - still a normal room as far as tags, connectors, and gameplay markers are concerned
+- `BP_Room_EntryFacadeNight`
+  - start-room contained exterior
+  - carries Gideon arrival, queue, booth, exit, parking, and hide markers
+  - is visually outside-at-night but still publishes ordinary room truth
 
 ## How to Make a New Room
 

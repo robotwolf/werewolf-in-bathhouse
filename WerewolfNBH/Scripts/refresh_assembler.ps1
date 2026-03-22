@@ -47,6 +47,7 @@ $editorCmd = "D:\EPIC\UE_5.7\Engine\Binaries\Win64\UnrealEditor-Cmd.exe"
 $materialSetupScript = Join-Path $scriptDir "create_assembler_test_materials.py"
 $roomSetupScript = Join-Path $scriptDir "setup_bathhouse_rooms.py"
 $standardizeLTurnScript = Join-Path $scriptDir "standardize_lturn_assets.py"
+$entryFacadeRoomScript = Join-Path $scriptDir "sync_entry_facade_night.py"
 $generatorConfigScript = Join-Path $scriptDir "configure_assembler_blueprints.py"
 $containedExteriorRoomScript = Join-Path $scriptDir "sync_contained_exterior_room.py"
 $profileSyncScript = Join-Path $scriptDir "sync_ginny_profiles.py"
@@ -60,6 +61,7 @@ Throw-IfMissing $buildBat "Build.bat"
 Throw-IfMissing $editorCmd "UnrealEditor-Cmd.exe"
 Throw-IfMissing $materialSetupScript "assembler material setup script"
 Throw-IfMissing $roomSetupScript "room setup script"
+Throw-IfMissing $entryFacadeRoomScript "entry facade room sync script"
 Throw-IfMissing $generatorConfigScript "generator config script"
 Throw-IfMissing $containedExteriorRoomScript "contained exterior room sync script"
 Throw-IfMissing $profileSyncScript "Ginny profile sync script"
@@ -128,6 +130,15 @@ else {
 }
 
 if (-not $SkipGeneratorConfig) {
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
+        "-script=$entryFacadeRoomScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Entry Facade Night Room Sync"
+
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,
         "-run=pythonscript",

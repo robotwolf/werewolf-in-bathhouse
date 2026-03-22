@@ -6,6 +6,7 @@ SEEDS = (1337, 1338, 1351)
 PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
 STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
 SMOKING_PATIO_CLASS_FRAGMENT = "BP_Room_SmokingPatioPocket"
+ENTRY_FACADE_PROFILE_PATH = "/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_EntryFacadeNight"
 BUTCH_CLASS_PATH = "/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator.BP_ButchDecorator_C"
 STAIR_TRANSITION_TARGET = "SecondFloor_PrivateCubicles"
 SMOKING_PATIO_PROFILE_PATH = "/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_SmokingPatioPocket"
@@ -142,6 +143,11 @@ def load_npc_profiles():
             fail(f"Missing authored NPC profile asset: {path}")
         profiles.append(profile)
     return profiles
+
+
+def marker_has_raw_tag(marker, tag_name: str) -> bool:
+    raw_tags = marker.get_editor_property("RawComponentTags")
+    return any(str(tag) == tag_name for tag in raw_tags)
 
 
 def validate_npc_profile_marker_consumer(rooms, generator, seed):
@@ -355,18 +361,35 @@ def build_layout_signature(generator, seed: int):
         fail(f"Main spine too short for seed {seed}: {len(ordered_main_path)}")
 
     entry_room = ordered_main_path[0]
-    if entry_room.get_editor_property("RoomType") != "EntryReception":
-        fail(f"First room is not EntryReception for seed {seed}")
+    if entry_room.get_editor_property("RoomType") != "EntryFacadeNight":
+        fail(f"First room is not EntryFacadeNight for seed {seed}")
 
     if len(ordered_main_path) < 2 or ordered_main_path[1].get_editor_property("RoomType") != "PublicHallStraight":
-        fail(f"First room after EntryReception is not PublicHallStraight for seed {seed}")
+        fail(f"First room after EntryFacadeNight is not PublicHallStraight for seed {seed}")
+
+    entry_facade_profile = unreal.load_asset(ENTRY_FACADE_PROFILE_PATH)
+    if not entry_facade_profile:
+        fail(f"Missing entry facade profile asset: {ENTRY_FACADE_PROFILE_PATH}")
+
+    entry_markers = entry_room.get_all_gameplay_markers()
+    required_entry_tags = (
+        "Gideon.Arrival.Spawn",
+        "Gideon.Arrival.Queue",
+        "Gideon.Admission.Booth",
+        "Gideon.Exit",
+        "Gideon.Parking",
+        "Gideon.Hide",
+    )
+    for required_tag in required_entry_tags:
+        if not any(marker_has_raw_tag(marker, required_tag) for marker in entry_markers):
+            fail(f"EntryFacadeNight is missing required Gideon marker tag {required_tag} for seed {seed}")
 
     for room, neighbors in adjacency.items():
         if room.get_editor_property("RoomType") != "LockerHall":
             continue
         for neighbor in neighbors:
-            if neighbor.get_editor_property("RoomType") == "EntryReception":
-                fail(f"LockerHall directly adjacent to EntryReception for seed {seed}")
+            if neighbor.get_editor_property("RoomType") == "EntryFacadeNight":
+                fail(f"LockerHall directly adjacent to EntryFacadeNight for seed {seed}")
 
     fallback_classes = generator.get_editor_property("ConnectorFallbackRooms")
     fallback_paths = {cls.get_path_name() for cls in fallback_classes if cls}

@@ -2,6 +2,7 @@ import unreal
 
 
 ROOM_BLUEPRINT_PATHS = {
+    "EntryFacadeNight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryFacadeNight",
     "EntryReception": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception",
     "PublicHallStraight": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_PublicHall_Straight",
     "LockerHall": "/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall",
@@ -13,6 +14,21 @@ ROOM_BLUEPRINT_PATHS = {
 
 
 MARKER_LAYOUTS = {
+    "EntryFacadeNight": [
+        ("NPC_ArrivalSpawn_A", unreal.Vector(0.0, -640.0, 0.0), unreal.Rotator(0.0, 90.0, 0.0), ["Gideon.Arrival.Spawn", "NPC.Activity.Wait", "Room.Function.Entry"]),
+        ("NPC_Queue_A", unreal.Vector(-120.0, -220.0, 0.0), unreal.Rotator(0.0, 90.0, 0.0), ["Gideon.Arrival.Queue", "NPC.Activity.Wait", "Room.Function.Entry"]),
+        ("NPC_Queue_B", unreal.Vector(120.0, -80.0, 0.0), unreal.Rotator(0.0, 90.0, 0.0), ["Gideon.Arrival.Queue", "NPC.Activity.Wait", "Room.Function.Entry"]),
+        ("MissionSocket_Booth_A", unreal.Vector(0.0, 380.0, 92.0), unreal.Rotator(0.0, -90.0, 0.0), ["Gideon.Admission.Booth", "Room.Function.Entry", "Room.Function.Social"]),
+        ("NPC_Gossip_A", unreal.Vector(-760.0, 40.0, 0.0), unreal.Rotator(0.0, 25.0, 0.0), ["NPC.Activity.Gossip", "Room.Function.Social"]),
+        ("NPC_Gossip_B", unreal.Vector(-620.0, 140.0, 0.0), unreal.Rotator(0.0, 210.0, 0.0), ["NPC.Activity.Gossip", "Room.Function.Social"]),
+        ("NPC_Wait_A", unreal.Vector(620.0, -120.0, 0.0), unreal.Rotator(0.0, 180.0, 0.0), ["NPC.Activity.Wait", "Room.Function.Entry"]),
+        ("NPC_Exit_A", unreal.Vector(360.0, -700.0, 0.0), unreal.Rotator(0.0, -90.0, 0.0), ["Gideon.Exit", "NPC.Activity.Wait", "Room.Function.Entry"]),
+        ("MissionSocket_Parking_A", unreal.Vector(-760.0, -620.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0), ["Gideon.Parking", "Room.Function.Entry"]),
+        ("NPC_Hide_Gideon_A", unreal.Vector(840.0, 40.0, 0.0), unreal.Rotator(0.0, 180.0, 0.0), ["Gideon.Hide", "NPC.Activity.Hide", "Room.Function.Entry"]),
+        ("Clue_TicketWindow_A", unreal.Vector(0.0, 430.0, 96.0), unreal.Rotator(0.0, -90.0, 0.0), ["Clue.Social", "Room.Function.Entry"]),
+        ("MissionSocket_A", unreal.Vector(560.0, 60.0, 0.0), unreal.Rotator(0.0, 180.0, 0.0), ["Room.Function.Entry", "Room.Function.Social"]),
+        ("FX_NeonSign_A", unreal.Vector(0.0, 520.0, 460.0), unreal.Rotator(0.0, -90.0, 0.0), ["Room.Function.Entry", "Room.Function.Social"]),
+    ],
     "EntryReception": [
         ("NPC_Wait_A", unreal.Vector(-180.0, -220.0, 0.0), unreal.Rotator(0.0, 0.0, 0.0), ["NPC.Activity.Wait", "Room.Function.Entry"]),
         ("NPC_Gossip_A", unreal.Vector(140.0, -40.0, 0.0), unreal.Rotator(0.0, 45.0, 0.0), ["NPC.Activity.Gossip", "Room.Function.Social"]),

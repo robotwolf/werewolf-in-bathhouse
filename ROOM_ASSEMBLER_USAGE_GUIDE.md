@@ -424,7 +424,7 @@ The current stable program is:
 
 ### Required main-path sequence
 
-1. `EntryReception`
+1. `EntryFacadeNight`
 2. `PublicHallStraight`
 3. `LockerHall`
 4. `WashShower`
@@ -438,7 +438,7 @@ The current stable program is:
 
 ### Default room policy
 
-- `EntryReception`
+- `EntryFacadeNight`
   - start room
   - one instance only
   - only allowed neighbor: `PublicHallStraight`
@@ -456,7 +456,7 @@ The current stable program is:
 - `LockerHall`
   - required transition room
   - main path only
-  - not allowed directly off `EntryReception`
+  - not allowed directly off `EntryFacadeNight`
 
 - `WashShower`
   - required transition room
@@ -490,7 +490,8 @@ The current stable program is:
   - `/Game/WerewolfBH/Data/Ginny/Openings/DA_GinnyOpening_Standard`
   - `/Game/WerewolfBH/Data/Ginny/Openings/DA_GinnyOpening_DoubleWide`
 
-- Room BPs managed by the setup script:
+- Current room blueprints in the bathhouse baseline:
+  - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryFacadeNight`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_EntryReception`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_LockerHall`
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_WashShower`
@@ -508,6 +509,7 @@ The current stable program is:
   - `/Game/WerewolfBH/Blueprints/Rooms/BP_Room_SmokingPatioPocket`
 
 - Room profiles:
+  - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_EntryFacadeNight`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_EntryReception`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_LockerHall`
   - `/Game/WerewolfBH/Data/Ginny/Rooms/DA_GinnyRoom_WashShower`
@@ -539,6 +541,10 @@ Notes:
   - `SmokingPatioPocket`
   - visually outside, topologically honest
   - still publishes normal room tags, connector semantics, and gameplay markers
+- The default start room is now also a contained exterior:
+  - `EntryFacadeNight`
+  - outside by presentation, normal room by systems truth
+  - carries the Gideon arrival threshold markers
 
 ## Graybox Standards
 
@@ -727,7 +733,7 @@ Expected healthy defaults:
 
 Current profile-driven bathhouse material families:
 
-- `EntryReception`
+- `EntryFacadeNight`, `EntryReception`
   - `M_Assembler_Test_Entry_Floor`
   - `M_Assembler_Test_Entry_Wall`
 - `LockerHall`
@@ -778,6 +784,7 @@ Key scripts:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\assembler_check.ps1`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\refresh_assembler.ps1`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_entry_facade_night.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\setup_bathhouse_rooms.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
@@ -799,9 +806,10 @@ Key scripts:
 - `UStagehandSimulationLibrary` finds a room + `NPC_*` marker for each authored NPC profile
 - `AStagehandNPCMarkerProbe` refreshes successfully for each authored NPC profile
 - spawned rooms satisfy any authored gameplay marker requirements
-- first room is `EntryReception`
+- first room is `EntryFacadeNight`
 - first room after entry is `PublicHallStraight`
-- `LockerHall` is not directly adjacent to `EntryReception`
+- `LockerHall` is not directly adjacent to `EntryFacadeNight`
+- `EntryFacadeNight` publishes the required Gideon threshold marker tags
 - hallway fallback list contains only straight/corner hall pieces
 - hallway fallback list contains `Straight`, `Corner`, and `LTurn` hall pieces only
 - all rooms satisfy connection budgets

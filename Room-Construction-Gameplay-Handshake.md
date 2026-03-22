@@ -97,6 +97,9 @@ Bad requests:
   - POI reactions
   - live runtime state
 - special contained-exterior rooms are local `Ginny` rooms first, not a separate gameplay class of lie.
+- the default start threshold may also be a contained-exterior room:
+  - Gideon arrival, queue, booth, exit, parking, and hide markers still live on ordinary room truth
+  - gameplay should not treat that room as a special topological exception
 - `BP_RunManager` should own phase, werewolf assignment, and escalation later.
 - NPC/StateTree logic should choose markers from room output, not change room truth directly.
 
