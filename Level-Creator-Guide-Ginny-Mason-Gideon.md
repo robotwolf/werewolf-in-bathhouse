@@ -1,4 +1,4 @@
-# Level Creator Guide: Ginny and Mason
+# Level Creator Guide: Ginny, Mason, and Gideon
 
 This guide is for a level creator who needs to work with the room assembler without first enduring a month of architectural séance notes.
 
@@ -6,6 +6,7 @@ If you only remember one thing, remember this:
 
 - `Ginny` decides **what exists and how it connects**
 - `Mason` decides **how that thing gets physically built**
+- `Gideon` decides **how the crowd shows up and behaves once the place exists**
 
 That separation is deliberate. Please do not teach either of them the other's job unless you enjoy future cleanup work.
 
@@ -83,6 +84,35 @@ Right now he exists, but he is not part of the healthy default assembly baseline
 
 Right now she exists as data and intent, not as full runtime orchestration.
 
+### `Gideon`
+
+`Gideon` is the runtime crowd orchestration layer.
+
+He is responsible for:
+
+- sequential NPC spawning
+- admission flow through the booth queue
+- runtime crowd coordination
+- POI-driven reactions like hiding or leaving
+- per-NPC runtime state tracking
+
+He is **not** responsible for:
+
+- generating the room layout
+- building the room shell
+- changing room truth after generation
+
+Primary code:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonDirector.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\GideonDirector.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonAdmissionBooth.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonRuntimeTypes.h`
+
+Primary doc:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
 ### Runtime Marker Consumer
 
 The first small runtime consumer for room markers now exists:
@@ -116,6 +146,12 @@ That path lets a bathhouse NPC profile choose a plausible `NPC_*` marker from ge
 - the room's activity tags
 - the activity preference's own room preferences
 - deterministic scoring instead of interpretive seance work
+
+When you need the live crowd layer rather than just room/marker selection helpers, read:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
+That is the handoff point where generated room truth starts feeding a real runtime admission/crowd loop instead of just debug probes.
 
 The first authored prototype NPC profiles live under:
 

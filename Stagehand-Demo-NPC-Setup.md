@@ -10,6 +10,8 @@ Runtime code:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoNPCCharacter.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandDemoCoordinator.h`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoCoordinator.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonDirector.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\GideonDirector.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\WerewolfStateBillboardComponent.h`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\WerewolfStateBillboardComponent.cpp`
 
@@ -57,6 +59,13 @@ Recommended asset additions and current repo paths:
 
 `AStagehandDemoCoordinator` now supports multiple NPCs directly.
 
+Important reality check:
+
+- `StagehandDemoCoordinator` is still useful as a focused demo path.
+- `Gideon` is now the fuller runtime crowd orchestration layer for generated bathhouse runs.
+- If you are validating the real generation-to-crowd handshake, also read:
+  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
 Relevant properties:
 
 - `NumDemoNPCs`
@@ -97,9 +106,10 @@ Architecture and implementation intent:
 
 Room authoring and generation:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason-Gideon.md`
 - `E:\Documents\Projects\werewolf-in-bathhouse\ROOM_ASSEMBLER_USAGE_GUIDE.md`
 - `E:\Documents\Projects\werewolf-in-bathhouse\Room-Construction-Gameplay-Handshake.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
 
 Repo-wide working guidance:
 

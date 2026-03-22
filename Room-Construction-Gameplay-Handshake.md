@@ -90,9 +90,37 @@ Bad requests:
 - `Ginny` owns which rooms exist and how they connect.
 - `Mason` owns how the room shell is physically built.
 - `ARoomModuleBase` owns room-local metadata and marker discovery.
+- `Stagehand` owns the first query/debug/selection layer that consumes room truth.
+- `Gideon` owns runtime crowd orchestration on top of that truth:
+  - spawn flow
+  - admission flow
+  - POI reactions
+  - live runtime state
 - special contained-exterior rooms are local `Ginny` rooms first, not a separate gameplay class of lie.
 - `BP_RunManager` should own phase, werewolf assignment, and escalation later.
 - NPC/StateTree logic should choose markers from room output, not change room truth directly.
+
+### Stagehand and Gideon
+
+`Stagehand` and `Gideon` are related, but not interchangeable.
+
+- `Stagehand` is the handshake/query/debug layer:
+  - marker libraries
+  - probes
+  - profile-driven room/marker selection helpers
+- `Gideon` is the runtime crowd coordinator:
+  - spawns NPCs
+  - routes them through admission
+  - reacts to runtime conditions and POIs
+
+Both should consume the same published room truth:
+
+- room tags
+- connector semantics
+- standard marker families
+- marker `ComponentTags`
+
+Do not make Gideon depend on secret room-only hacks if the same information can be published through the normal handshake.
 
 ## Marker List
 

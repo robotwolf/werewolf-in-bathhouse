@@ -36,9 +36,10 @@ Before making architectural changes, prioritize reading these docs if they exist
 3. `Room-Module-Spec.txt`
 4. `Room-Module-Box-Sizes.txt`
 5. `ROOM_ASSEMBLER_USAGE_GUIDE.md`
-6. `Level-Creator-Guide-Ginny-Mason.md`
+6. `Level-Creator-Guide-Ginny-Mason-Gideon.md`
 7. `Room-Construction-Gameplay-Handshake.md`
-8. `Bathhouse-Designer-Pass.md`
+8. `WerewolfNBH/Docs/GideonRuntime.md`
+9. `Bathhouse-Designer-Pass.md`
 
 If a `.txt` and `.md` version of the same doc both exist, prefer the `.txt` first, then use the `.md` as supporting context.
 
@@ -46,9 +47,10 @@ Treat those files as project intent unless the code clearly supersedes them.
 
 Recommended reading order for new collaborators:
 
-1. `Level-Creator-Guide-Ginny-Mason.md`
+1. `Level-Creator-Guide-Ginny-Mason-Gideon.md`
 2. `ROOM_ASSEMBLER_USAGE_GUIDE.md`
 3. `Room-Construction-Gameplay-Handshake.md`
+4. `WerewolfNBH/Docs/GideonRuntime.md`
 
 When intent and implementation diverge, prefer surfacing the mismatch plainly rather than silently picking one and hoping nobody notices.
 
@@ -86,6 +88,12 @@ Current functional separation:
 - **Mason**: construction/graybox builder
   - turns bounds + connector/opening rules into usable primitive-built geometry
   - owns construction techniques such as `BoxShell`, `SliceFootprint`, `PublicStairShell`, and future non-bathhouse techniques
+- **Stagehand**: gameplay/query/debug handshake layer
+  - consumes room tags and markers
+  - provides debug probes and early NPC-facing selection helpers
+- **Gideon**: runtime crowd orchestration layer
+  - lives on top of generated space rather than replacing `Ginny` or `Mason`
+  - owns admission flow, runtime NPC spawning/orchestration, POI-driven runtime decisions, and crowd-state coordination
 - **Butch**: decoration/dressing pass
   - currently optional and often frozen in the healthy baseline
 - **Flo**: future meta-flow layer
@@ -96,6 +104,8 @@ Design bias:
 
 - `Ginny` should own **topology**, not detailed mesh construction.
 - `Mason` should own **embodiment**, not room-selection logic.
+- `Stagehand` should own **selection/query/debug handshake**, not topology or shell construction.
+- `Gideon` should own **runtime crowd orchestration**, not room truth.
 - `Flo` should eventually own **config-to-config flow**, not local room assembly.
 - `Butch` should own **dressing**, not structural truth.
 
@@ -105,6 +115,8 @@ Architectural north star:
 
 - `Ginny` decides what exists and how it connects.
 - `Mason` decides how it gets built from primitives and rules.
+- `Stagehand` decides how generated room truth gets queried, tested, and handed to gameplay systems.
+- `Gideon` decides how spawned NPCs are admitted, coordinated, and pushed through runtime crowd behavior.
 - `Butch` decides how it gets dressed and performed.
 - `Flo` will eventually decide how distinct layout regimes connect and misbehave.
 
@@ -232,6 +244,8 @@ Code/data naming for the generation stack should stay consistent with the curren
 
 - `Ginny*` for layout/profile assets and helper types
 - `Mason*` for construction/builder assets and helper types
+- `Stagehand*` for room-query, probe, and simulation helper types
+- `Gideon*` for runtime crowd-orchestration types
 - `Butch*` for dressing-related assets and types
 
 If the repo already uses a stronger local convention in a specific folder, follow the local convention.

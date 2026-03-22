@@ -4,7 +4,8 @@ This is the sane baseline for the assembler: a deterministic, 2D, stock-room bat
 
 If you are brand new to this stack and want the practical onboarding path first, start with:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\Level-Creator-Guide-Ginny-Mason-Gideon.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
 
 ## Scope
 
@@ -179,12 +180,28 @@ If you are brand new to this stack and want the practical onboarding path first,
     - gameplay profile chooses activity
     - NPC-side selection picks room + marker
 
+- `AGideonDirector`
+  - Runtime crowd orchestrator that sits on top of generated space after `Ginny` and `Mason` have done their jobs.
+  - Current responsibilities include:
+    - sequential NPC spawning
+    - admission flow through the booth queue
+    - run-phase propagation
+    - POI-driven fear reactions
+    - hide / leave behavior
+    - per-NPC runtime state tracking
+  - `Gideon` consumes the normal room handshake rather than inventing a secret parallel reality:
+    - room tags
+    - connector semantics
+    - standard marker families plus Gideon tags
+  - Primary reference doc:
+    - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
 - `AButchDecorator`
   - Still in the codebase.
   - Not part of the healthy default assembler baseline.
   - Decoration and FX are intentionally frozen until the structural bathhouse program is stable.
 
-## Ginny vs Mason
+## Ginny vs Mason vs Gideon
 
 - `Ginny` owns topology:
   - what rooms appear
@@ -200,11 +217,21 @@ If you are brand new to this stack and want the practical onboarding path first,
   - stock openings
   - stair shell construction
   - technique selection for how a node is embodied
+- `Stagehand` owns the query/debug handshake:
+  - room marker lookup
+  - tag-aware room selection
+  - editor/runtime probes
+- `Gideon` owns runtime crowd behavior on top of generated rooms:
+  - who spawns
+  - how they enter
+  - how runtime crowd logic reacts to POIs and flow pressure
 - Current reality:
   - `Ginny` is already profile-driven.
   - `Mason` is now the named primitive-construction seam.
   - Mason now has explicit technique selection instead of inferred one-off modes.
   - Mason construction defaults can now live in reusable `UMasonConstructionProfile` assets.
+  - `Stagehand` is the handshake layer between generated room truth and gameplay consumers.
+  - `Gideon` is the runtime orchestrator that uses that handshake for live crowd behavior.
   - Future work will keep expanding `Mason` so the same system can build more than bathhouse boxes without turning `Ginny` into a geometry goblin.
 
 ## Connector Contracts

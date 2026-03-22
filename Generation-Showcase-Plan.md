@@ -4,10 +4,11 @@ This doc defines the three showcase lanes for the generation stack so we stop tr
 
 ## Purpose
 
-We now have two real reusable tech pillars and one future pillar:
+We now have two real reusable tech pillars, one live runtime layer, and one future pillar:
 
 - `Ginny`: layout / topology
 - `Mason`: construction / embodiment
+- `Gideon`: runtime crowd orchestration on top of generated space
 - `Flo`: future meta-flow between layout regimes
 
 These showcases should prove what each layer does well, where the boundaries are, and how they fit together without mutating the main bathhouse baseline every time we get a new idea at 2 a.m.
@@ -146,11 +147,41 @@ But longer term each pillar should have a deliberate "show me what this system d
 2. Promote the stair transition target into a real upstairs config.
 3. Build a single clean handoff before any moon-peak wrong-space tricks.
 
+## Showcase 4: Gideon
+
+### Status
+
+Implemented enough to deserve documentation and targeted validation.
+
+### Goal
+
+Show that generated room truth can feed a live runtime crowd layer without inventing a second map logic religion.
+
+### Recommended references
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\Stagehand-Demo-NPC-Setup.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap`
+
+### What this showcase should prove
+
+- `Gideon` can resolve the generator and admission booth
+- `Gideon` can spawn more than one NPC profile
+- NPCs can route from admission into the generated bathhouse
+- runtime crowd logic still consumes published room tags and markers instead of bespoke hacks
+
+### What this showcase should not try to prove
+
+- final social simulation
+- full werewolf gameplay loop
+- impossible-space orchestration
+
 ## Acceptance Criteria
 
 We can call the showcase plan healthy when:
 
 1. a teammate can open one map and understand what `Ginny` is proving
 2. a teammate can open one map and understand what `Mason` is proving
-3. `Flo` has a written contract before implementation starts
-4. new experiments stop landing directly in the bathhouse baseline first
+3. a teammate can open one map and understand what `Gideon` is proving
+4. `Flo` has a written contract before implementation starts
+5. new experiments stop landing directly in the bathhouse baseline first
