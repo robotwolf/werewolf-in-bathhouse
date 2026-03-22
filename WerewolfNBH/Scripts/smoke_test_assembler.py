@@ -376,6 +376,10 @@ def build_layout_signature(generator, seed: int):
     if not generator.get_editor_property("bUseIntentionalHallApproaches"):
         fail("Intentional hall approaches are not enabled on the generator baseline")
 
+    preset_name = str(generator.get_editor_property("HallwayApproachPreset"))
+    if "LIMINAL_BRANCH" not in preset_name and "CUSTOM" not in preset_name:
+        fail(f"Unexpected hallway approach preset on generator baseline: {preset_name}")
+
     min_approach_segments = generator.get_editor_property("MinHallwayApproachSegments")
     max_approach_segments = generator.get_editor_property("MaxHallwayApproachSegments")
     if min_approach_segments < 1 or max_approach_segments < min_approach_segments:
@@ -459,6 +463,10 @@ def build_layout_signature(generator, seed: int):
         fail("Generation summary missing RequiredMain line")
     if not any("RequiredBranch " in line for line in summary_lines):
         fail("Generation summary missing RequiredBranch line")
+    if not any("HallwayApproach Preset=" in line for line in summary_lines):
+        fail("Generation summary missing hallway approach preset line")
+    if not any("SpecialRoom " in line for line in summary_lines):
+        fail("Generation summary missing special room reporting")
     if not any("Transitions=" in line for line in summary_lines):
         fail("Generation summary missing Transitions line")
     if stair_rooms and not any(STAIR_TRANSITION_TARGET in line for line in summary_lines):

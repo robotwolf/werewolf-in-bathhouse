@@ -25,6 +25,15 @@ struct FRoomClassEntry
     int32 MinRoomsBetweenUses = 0;
 };
 
+UENUM(BlueprintType)
+enum class EGinnyHallwayApproachPreset : uint8
+{
+    Custom UMETA(DisplayName="Custom"),
+    SaneBathhouse UMETA(DisplayName="Sane Bathhouse"),
+    LiminalBranch UMETA(DisplayName="Liminal Branch"),
+    TuckedSpecialRoom UMETA(DisplayName="Tucked Special Room")
+};
+
 UCLASS(BlueprintType)
 class WEREWOLFNBH_API UGinnyOpeningProfile : public UDataAsset
 {
@@ -258,6 +267,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout|HallwayApproach")
     bool bUseIntentionalHallApproaches = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout|HallwayApproach", meta=(EditCondition="bUseIntentionalHallApproaches"))
+    EGinnyHallwayApproachPreset HallwayApproachPreset = EGinnyHallwayApproachPreset::Custom;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Layout|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bUseIntentionalHallApproaches"))
     int32 MinHallwayApproachSegments = 0;

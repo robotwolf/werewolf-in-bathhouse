@@ -123,6 +123,8 @@ def main() -> None:
         cdo.set_editor_property("MaxHallwayChainSegments", 3)
     if has_editor_property(cdo, "bUseIntentionalHallApproaches"):
         cdo.set_editor_property("bUseIntentionalHallApproaches", True)
+    if has_editor_property(cdo, "HallwayApproachPreset"):
+        cdo.set_editor_property("HallwayApproachPreset", unreal.GinnyHallwayApproachPreset.LIMINAL_BRANCH)
     if has_editor_property(cdo, "MinHallwayApproachSegments"):
         cdo.set_editor_property("MinHallwayApproachSegments", 1)
     if has_editor_property(cdo, "MaxHallwayApproachSegments"):

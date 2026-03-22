@@ -142,6 +142,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach")
     bool bUseIntentionalHallApproaches = false;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(EditCondition="bUseIntentionalHallApproaches"))
+    EGinnyHallwayApproachPreset HallwayApproachPreset = EGinnyHallwayApproachPreset::Custom;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|HallwayApproach", meta=(ClampMin="0", ClampMax="8", EditCondition="bUseIntentionalHallApproaches"))
     int32 MinHallwayApproachSegments = 0;
 
@@ -226,6 +229,9 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     int32 LastHallwayChainUsageCount = 0;
 
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
+    TArray<FString> LastSpecialRoomSummaryLines;
+
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
     TObjectPtr<AStagehandDemoCoordinator> SpawnedStagehandDemoCoordinator = nullptr;
 
@@ -264,6 +270,9 @@ protected:
     mutable TArray<TSubclassOf<ARoomModuleBase>> MergedAvailableRoomsCache;
     mutable TArray<FRoomClassEntry> MergedRoomClassPoolCache;
     mutable TArray<TSubclassOf<ARoomModuleBase>> MergedConnectorFallbackRoomsCache;
+    mutable TMap<TSubclassOf<ARoomModuleBase>, int32> SpecialRoomAttemptCounts;
+    mutable TMap<TSubclassOf<ARoomModuleBase>, int32> SpecialRoomPlacementCounts;
+    mutable TMap<TSubclassOf<ARoomModuleBase>, int32> SpecialRoomRejectionCounts;
 
     ARoomModuleBase* SpawnRoom(TSubclassOf<ARoomModuleBase> RoomClass, const FTransform& SpawnTransform);
     void RegisterOpenDoors(ARoomModuleBase* Room);
@@ -355,6 +364,7 @@ protected:
     bool GetConfiguredEnableHallwayChains() const;
     int32 GetConfiguredMaxHallwayChainSegments() const;
     bool GetConfiguredUseIntentionalHallApproaches() const;
+    EGinnyHallwayApproachPreset GetConfiguredHallwayApproachPreset() const;
     int32 GetConfiguredMinHallwayApproachSegments() const;
     int32 GetConfiguredMaxHallwayApproachSegments() const;
     float GetConfiguredHallwayExtraSegmentChance() const;
@@ -363,6 +373,8 @@ protected:
     float GetConfiguredStraightHallWeight() const;
     float GetConfiguredCornerHallWeight() const;
     float GetConfiguredLTurnHallWeight() const;
+    bool IsSpecialRoomClass(TSubclassOf<ARoomModuleBase> CandidateClass) const;
+    void RecordSpecialRoomAttempt(TSubclassOf<ARoomModuleBase> CandidateClass, bool bPlaced);
     FResolvedHallwayApproachPolicy GetHallwayApproachPolicyForCandidate(TSubclassOf<ARoomModuleBase> CandidateClass, EGeneratorPathContext Context, bool bAllowDefaultPolicy) const;
     int32 ResolveHallwayApproachTargetSegments(const FResolvedHallwayApproachPolicy& Policy);
     bool GetConfiguredRunButchAfterGeneration() const;

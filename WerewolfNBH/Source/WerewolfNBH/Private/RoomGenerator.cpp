@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
+#include "GameplayTagContainer.h"
 #include "GideonDirector.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.h"
@@ -22,6 +23,16 @@ namespace
         Corner,
         LTurn,
         Other
+    };
+
+    struct FHallwayApproachPresetValues
+    {
+        int32 MinSegments = 0;
+        int32 MaxSegments = 0;
+        float ExtraSegmentChance = 0.0f;
+        float StraightWeight = 1.0f;
+        float CornerWeight = 1.0f;
+        float LTurnWeight = 1.0f;
     };
 
     EHallwaySegmentKind GetHallwaySegmentKind(TSubclassOf<ARoomModuleBase> RoomClass)
@@ -181,6 +192,28 @@ namespace
             Kind == EHallwaySegmentKind::Corner ||
             Kind == EHallwaySegmentKind::LTurn;
     }
+
+    FHallwayApproachPresetValues GetHallwayApproachPresetValues(EGinnyHallwayApproachPreset Preset)
+    {
+        switch (Preset)
+        {
+        case EGinnyHallwayApproachPreset::SaneBathhouse:
+            return { 1, 2, 0.25f, 1.35f, 0.45f, 0.35f };
+        case EGinnyHallwayApproachPreset::LiminalBranch:
+            return { 2, 4, 0.60f, 0.95f, 1.00f, 1.35f };
+        case EGinnyHallwayApproachPreset::TuckedSpecialRoom:
+            return { 2, 5, 0.45f, 0.70f, 1.00f, 1.45f };
+        case EGinnyHallwayApproachPreset::Custom:
+        default:
+            return {};
+        }
+    }
+
+    FString GetHallwayApproachPresetLabel(EGinnyHallwayApproachPreset Preset)
+    {
+        const UEnum* Enum = StaticEnum<EGinnyHallwayApproachPreset>();
+        return Enum ? Enum->GetNameStringByValue(static_cast<int64>(Preset)) : TEXT("Custom");
+    }
 }
 
 ARoomGenerator::ARoomGenerator()
@@ -331,9 +364,13 @@ void ARoomGenerator::ClearGeneratedLayout()
     LastUsedIndex.Reset();
     LastValidationIssues.Reset();
     LastGenerationSummaryLines.Reset();
+    LastSpecialRoomSummaryLines.Reset();
     LastGenerationAttemptSeed = 0;
     LastHallwayChainUsageCount = 0;
     RoomSpawnIndex = 0;
+    SpecialRoomAttemptCounts.Reset();
+    SpecialRoomPlacementCounts.Reset();
+    SpecialRoomRejectionCounts.Reset();
 }
 
 bool ARoomGenerator::RunLayoutValidation(bool bLogIssues)
@@ -1807,6 +1844,7 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
             }
 
             const TSubclassOf<ARoomModuleBase> CandidateClass = Candidates[PickedIndex];
+            const bool bTrackSpecialRoom = IsSpecialRoomClass(CandidateClass);
             const FResolvedHallwayApproachPolicy ApproachPolicy = bAllowIntentionalApproach
                 ? GetHallwayApproachPolicyForCandidate(CandidateClass, Context, CandidateClasses.IsEmpty())
                 : FResolvedHallwayApproachPolicy();
@@ -1823,12 +1861,20 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
                     ParentDepth,
                     ApproachPlacedRoom))
                 {
+                    if (bTrackSpecialRoom)
+                    {
+                        RecordSpecialRoomAttempt(CandidateClass, true);
+                    }
                     OutPlacedRoom = ApproachPlacedRoom;
                     return true;
                 }
 
                 if (ApproachPolicy.bRequireOverrideSatisfaction || ApproachPolicy.bRequireApproachBeforePlacement)
                 {
+                    if (bTrackSpecialRoom)
+                    {
+                        RecordSpecialRoomAttempt(CandidateClass, false);
+                    }
                     Candidates.RemoveAt(PickedIndex);
                     continue;
                 }
@@ -1836,10 +1882,18 @@ bool ARoomGenerator::TryPlaceFromConnectorList(
 
             if (TryPlaceRoomForDoor(TargetConnector, CandidateClass, AssignedRole, ParentRoom, ProposedDepth))
             {
+                if (bTrackSpecialRoom)
+                {
+                    RecordSpecialRoomAttempt(CandidateClass, true);
+                }
                 OutPlacedRoom = SpawnedRooms.Last();
                 return true;
             }
 
+            if (bTrackSpecialRoom)
+            {
+                RecordSpecialRoomAttempt(CandidateClass, false);
+            }
             Candidates.RemoveAt(PickedIndex);
         }
 
@@ -2085,6 +2139,7 @@ int32 ARoomGenerator::ChooseWeightedCandidateIndex(const TArray<TSubclassOf<ARoo
 void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
 {
     LastGenerationSummaryLines.Reset();
+    LastSpecialRoomSummaryLines.Reset();
 
     auto GetRoomLabel = [](const ARoomModuleBase* Room) -> FString
     {
@@ -2150,6 +2205,17 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
         SpawnedRooms.Num(),
         LastHallwayChainUsageCount));
 
+    const EGinnyHallwayApproachPreset ApproachPreset = GetConfiguredHallwayApproachPreset();
+    LastGenerationSummaryLines.Add(FString::Printf(
+        TEXT("HallwayApproach Preset=%s Min=%d Max=%d Extra=%.2f Weights[S=%.2f C=%.2f L=%.2f]"),
+        *GetHallwayApproachPresetLabel(ApproachPreset),
+        GetConfiguredMinHallwayApproachSegments(),
+        GetConfiguredMaxHallwayApproachSegments(),
+        GetConfiguredHallwayExtraSegmentChance(),
+        GetConfiguredStraightHallWeight(),
+        GetConfiguredCornerHallWeight(),
+        GetConfiguredLTurnHallWeight()));
+
     TArray<FString> MainPathLabels;
     for (const ARoomModuleBase* Room : GeneratedMainPathRooms)
     {
@@ -2200,11 +2266,31 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
 
     TMap<FString, int32> OptionalCounts;
     TArray<FString> TransitionLabels;
+    TSet<TSubclassOf<ARoomModuleBase>> SpecialClasses;
+    for (const TSubclassOf<ARoomModuleBase>& RoomClass : GetConfiguredAvailableRooms())
+    {
+        if (IsSpecialRoomClass(RoomClass))
+        {
+            SpecialClasses.Add(RoomClass);
+        }
+    }
+    for (const FRoomClassEntry& Entry : GetConfiguredRoomClassPool())
+    {
+        if (IsSpecialRoomClass(Entry.RoomClass))
+        {
+            SpecialClasses.Add(Entry.RoomClass);
+        }
+    }
     for (const ARoomModuleBase* Room : SpawnedRooms)
     {
         if (!Room)
         {
             continue;
+        }
+
+        if (IsSpecialRoomClass(Room->GetClass()))
+        {
+            SpecialClasses.Add(Room->GetClass());
         }
 
         if (!ProgramClasses.Contains(Room->GetClass()))
@@ -2236,6 +2322,33 @@ void ARoomGenerator::BuildGenerationSummary(bool bSucceeded, int32 AttemptSeed)
     LastGenerationSummaryLines.Add(FString::Printf(
         TEXT("Transitions=%s"),
         TransitionLabels.IsEmpty() ? TEXT("None") : *FString::Join(TransitionLabels, TEXT(", "))));
+
+    TArray<TSubclassOf<ARoomModuleBase>> SortedSpecialClasses = SpecialClasses.Array();
+    SortedSpecialClasses.Sort([&](const TSubclassOf<ARoomModuleBase>& A, const TSubclassOf<ARoomModuleBase>& B)
+    {
+        return GetClassLabel(A) < GetClassLabel(B);
+    });
+    for (const TSubclassOf<ARoomModuleBase>& SpecialClass : SortedSpecialClasses)
+    {
+        const FString SpecialLabel = GetClassLabel(SpecialClass);
+        const int32 AttemptCount = SpecialRoomAttemptCounts.FindRef(SpecialClass);
+        const int32 PlacementCount = SpecialRoomPlacementCounts.FindRef(SpecialClass);
+        const int32 RejectionCount = SpecialRoomRejectionCounts.FindRef(SpecialClass);
+        const FString SummaryLine = FString::Printf(
+            TEXT("SpecialRoom %s Attempted=%d Placed=%d Rejected=%d"),
+            *SpecialLabel,
+            AttemptCount,
+            PlacementCount,
+            RejectionCount);
+        LastSpecialRoomSummaryLines.Add(SummaryLine);
+        LastGenerationSummaryLines.Add(SummaryLine);
+    }
+    if (LastSpecialRoomSummaryLines.IsEmpty())
+    {
+        const FString SummaryLine = TEXT("SpecialRoom None");
+        LastSpecialRoomSummaryLines.Add(SummaryLine);
+        LastGenerationSummaryLines.Add(SummaryLine);
+    }
 
     LastGenerationSummaryLines.Add(FString::Printf(
         TEXT("ValidationIssues=%s"),
@@ -2452,18 +2565,41 @@ bool ARoomGenerator::GetConfiguredUseIntentionalHallApproaches() const
     return LayoutProfile ? LayoutProfile->bUseIntentionalHallApproaches : bUseIntentionalHallApproaches;
 }
 
+EGinnyHallwayApproachPreset ARoomGenerator::GetConfiguredHallwayApproachPreset() const
+{
+    return LayoutProfile ? LayoutProfile->HallwayApproachPreset : HallwayApproachPreset;
+}
+
 int32 ARoomGenerator::GetConfiguredMinHallwayApproachSegments() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).MinSegments;
+    }
+
     return LayoutProfile ? LayoutProfile->MinHallwayApproachSegments : MinHallwayApproachSegments;
 }
 
 int32 ARoomGenerator::GetConfiguredMaxHallwayApproachSegments() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).MaxSegments;
+    }
+
     return LayoutProfile ? LayoutProfile->MaxHallwayApproachSegments : MaxHallwayApproachSegments;
 }
 
 float ARoomGenerator::GetConfiguredHallwayExtraSegmentChance() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).ExtraSegmentChance;
+    }
+
     return LayoutProfile ? LayoutProfile->HallwayExtraSegmentChance : HallwayExtraSegmentChance;
 }
 
@@ -2479,17 +2615,64 @@ bool ARoomGenerator::GetConfiguredAllowIntentionalApproachesOnBranches() const
 
 float ARoomGenerator::GetConfiguredStraightHallWeight() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).StraightWeight;
+    }
+
     return LayoutProfile ? LayoutProfile->StraightHallWeight : StraightHallWeight;
 }
 
 float ARoomGenerator::GetConfiguredCornerHallWeight() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).CornerWeight;
+    }
+
     return LayoutProfile ? LayoutProfile->CornerHallWeight : CornerHallWeight;
 }
 
 float ARoomGenerator::GetConfiguredLTurnHallWeight() const
 {
+    const EGinnyHallwayApproachPreset Preset = GetConfiguredHallwayApproachPreset();
+    if (Preset != EGinnyHallwayApproachPreset::Custom)
+    {
+        return GetHallwayApproachPresetValues(Preset).LTurnWeight;
+    }
+
     return LayoutProfile ? LayoutProfile->LTurnHallWeight : LTurnHallWeight;
+}
+
+bool ARoomGenerator::IsSpecialRoomClass(TSubclassOf<ARoomModuleBase> CandidateClass) const
+{
+    const ARoomModuleBase* CandidateCDO = CandidateClass ? CandidateClass->GetDefaultObject<ARoomModuleBase>() : nullptr;
+    if (!CandidateCDO)
+    {
+        return false;
+    }
+
+    return CandidateCDO->GetResolvedRoomTags().HasTagExact(FGameplayTag::RequestGameplayTag(TEXT("Room.Category.Special"), false));
+}
+
+void ARoomGenerator::RecordSpecialRoomAttempt(TSubclassOf<ARoomModuleBase> CandidateClass, bool bPlaced)
+{
+    if (!IsSpecialRoomClass(CandidateClass))
+    {
+        return;
+    }
+
+    SpecialRoomAttemptCounts.FindOrAdd(CandidateClass)++;
+    if (bPlaced)
+    {
+        SpecialRoomPlacementCounts.FindOrAdd(CandidateClass)++;
+    }
+    else
+    {
+        SpecialRoomRejectionCounts.FindOrAdd(CandidateClass)++;
+    }
 }
 
 FResolvedHallwayApproachPolicy ARoomGenerator::GetHallwayApproachPolicyForCandidate(TSubclassOf<ARoomModuleBase> CandidateClass, EGeneratorPathContext Context, bool bAllowDefaultPolicy) const

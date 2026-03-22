@@ -172,6 +172,7 @@ The clean mental model is:
     - room budget / attempts
     - vertical enablement
     - optional landmark content such as the stair
+    - hallway approach preset selection for faster tuning
 
 - `UMasonConstructionProfile`
   - Data asset that defines reusable construction defaults for `Mason`.
@@ -252,6 +253,7 @@ The clean mental model is:
   - Uses deterministic retries via `MaxLayoutAttempts`.
   - Performs final semantic validation before accepting a layout.
   - Stores a generation-complete report in `LastGenerationSummaryLines`.
+  - Stores special-room report lines in `LastSpecialRoomSummaryLines`.
   - Resolves layout policy from `LayoutProfile` first, then falls back to legacy generator properties.
   - Supports:
     - layout-level intentional hallway approaches for optional destination rooms
@@ -607,6 +609,11 @@ Important:
 ### Hallway approaches
 
 - Layout-level hallway approach settings now live on `UGinnyLayoutProfile` and `ARoomGenerator`:
+  - `HallwayApproachPreset`
+    - `Custom`
+    - `SaneBathhouse`
+    - `LiminalBranch`
+    - `TuckedSpecialRoom`
   - `bUseIntentionalHallApproaches`
   - `MinHallwayApproachSegments`
   - `MaxHallwayApproachSegments`
@@ -615,6 +622,15 @@ Important:
   - `CornerHallWeight`
   - `LTurnHallWeight`
 - Those defaults apply to optional destination-room placement, not to hallway modules themselves.
+- Presets are the fast lane:
+  - `Custom`
+    - use the raw knobs exactly as authored
+  - `SaneBathhouse`
+    - short, mostly-straight approaches
+  - `LiminalBranch`
+    - longer and stranger branch approaches
+  - `TuckedSpecialRoom`
+    - stronger bendy lead-ins for special optional rooms
 - `UGinnyRoomProfile` can now override that policy per room:
   - `bOverrideHallwayApproachPolicy`
   - `MinRequiredApproachSegments`
@@ -651,6 +667,8 @@ If all attempts fail:
   - required main/branch rooms met or missing
   - optional room choices
   - hallway-chain usage count
+  - hallway-approach preset and resolved values
+  - special-room attempt / placed / rejected counts
   - transition rooms and their target config ids
   - validation issues
 

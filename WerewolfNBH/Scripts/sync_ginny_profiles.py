@@ -586,6 +586,7 @@ def sync_layout_profile():
         "bEnableHallwayChains",
         "MaxHallwayChainSegments",
         "bUseIntentionalHallApproaches",
+        "HallwayApproachPreset",
         "MinHallwayApproachSegments",
         "MaxHallwayApproachSegments",
         "HallwayExtraSegmentChance",

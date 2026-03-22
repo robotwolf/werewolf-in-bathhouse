@@ -230,6 +230,7 @@ It contains:
 - required branches
 - optional room pool
 - fallback hallway pool
+- hallway approach preset
 - intentional hallway approach defaults
 - room budget
 - generation attempts
@@ -294,6 +295,26 @@ Each connector can express:
 - clearance class
 - optional contract tag
 - optional opening profile override
+
+## Hallway Presets
+
+If you want to change hallway mood without hand-tuning every knob like a Victorian boiler:
+
+- `Custom`
+  - use the raw min/max/weight settings exactly
+- `SaneBathhouse`
+  - short and mostly straight
+- `LiminalBranch`
+  - longer and stranger on branches
+- `TuckedSpecialRoom`
+  - stronger bendy lead-ins for special optional destinations
+
+The preset lives on:
+
+- `UGinnyLayoutProfile`
+- `ARoomGenerator`
+
+Room-level override settings still win when a special room insists on being approached like a bad decision.
 
 Examples of passage kinds:
 
