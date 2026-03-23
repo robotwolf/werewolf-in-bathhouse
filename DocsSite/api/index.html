@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API Reference | Werewolf Bathhouse Docs</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">
+        <strong>API Reference</strong>
+        <span>Subsystem cheat sheet</span>
+      </div>
+      <nav class="nav">
+        <a data-nav href="../index.html">Overview</a>
+        <a data-nav href="../how-to/index.html">How-To</a>
+        <a data-nav href="./index.html">API</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Subsystem Map</div>
+        <h1>Who Owns Which Mess</h1>
+        <p class="lede">Use this page when you need to know which subsystem should change and which one should be left alone with its coffee.</p>
+      </div>
+    </section>
+
+    <section class="section" id="ginny">
+      <div class="card">
+        <h2>Ginny</h2>
+        <p>Owns layout, room selection, hall approaches, required-path logic, and high-level generator policy.</p>
+        <p><strong>Does not own:</strong> final shell art, runtime NPC orchestration, or pretending a room’s visual trickery changes topology.</p>
+        <p><strong>Likely touchpoints:</strong> <code>ARoomGenerator</code>, <code>UGinnyLayoutProfile</code>, <code>UGinnyRoomProfile</code></p>
+      </div>
+    </section>
+
+    <section class="section" id="mason">
+      <div class="card">
+        <h2>Mason</h2>
+        <p>Owns stock and parametric construction. He builds shells when invited and can stay attached but idle for hero authored rooms.</p>
+        <p><strong>Does not own:</strong> marker semantics, runtime crowd behavior, or your lovingly hand-built entry facade.</p>
+        <p><strong>Likely touchpoints:</strong> <code>UMasonBuilderComponent</code>, <code>UMasonConstructionProfile</code>, room stock/parametric settings</p>
+      </div>
+    </section>
+
+    <section class="section" id="stagehand">
+      <div class="card">
+        <h2>Stagehand</h2>
+        <p>Owns room truth publication and editor/runtime query seams: room signage, debug visualizers, connector semantics, marker selection helpers.</p>
+        <p><strong>Does not own:</strong> layout policy or Gideon’s runtime crowd decisions.</p>
+        <p><strong>Likely touchpoints:</strong> <code>ARoomModuleBase</code>, <code>URoomSignageComponent</code>, <code>UStagehandDebugVisualizerComponent</code>, <code>URoomGameplayMarkerLibrary</code></p>
+      </div>
+    </section>
+
+    <section class="section" id="gideon">
+      <div class="card">
+        <h2>Gideon</h2>
+        <p>Owns runtime orchestration on top of generated space: arrivals, admission, POIs, crowd behavior, and related live management logic.</p>
+        <p><strong>Does not own:</strong> room placement or connector truth. He consumes published room truth like a civilized runtime layer.</p>
+        <p><strong>Likely touchpoints:</strong> <code>AGideonDirector</code>, <code>GideonAdmissionBooth</code>, runtime marker tags and queue markers</p>
+        <p><a href="../../WerewolfNBH/Docs/GideonRuntime.md">Open Gideon runtime doc</a></p>
+      </div>
+    </section>
+
+    <section class="section" id="butch">
+      <div class="card">
+        <h2>Butch</h2>
+        <p>Owns dressing and decorative pass behavior. He makes the place look inhabited instead of merely legal.</p>
+      </div>
+    </section>
+
+    <section class="section" id="flo">
+      <div class="card">
+        <h2>Flo</h2>
+        <p>Future configuration and flow orchestration layer. Useful to remember, not yet the boss of this page’s immediate problems.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="callout warning">
+        Contained exterior pattern reminder: “outside by presentation, normal room by systems truth.”
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell">
+    Short reference on purpose. When you need the sermon, jump out to the Markdown docs.
+  </footer>
+  <script src="../assets/app.js"></script>
+</body>
+</html>

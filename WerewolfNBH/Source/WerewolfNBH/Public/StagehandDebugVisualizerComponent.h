@@ -7,7 +7,7 @@
 
 class UStaticMesh;
 class UStaticMeshComponent;
-class UTextRenderComponent;
+class UStagehandBillboardLabelComponent;
 class UMaterialInterface;
 
 USTRUCT()
@@ -19,7 +19,7 @@ struct FStagehandDebugMarkerVisual
     TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
 
     UPROPERTY()
-    TObjectPtr<UTextRenderComponent> Label = nullptr;
+    TObjectPtr<UStagehandBillboardLabelComponent> Label = nullptr;
 
     UPROPERTY()
     ERoomGameplayMarkerFamily Family = ERoomGameplayMarkerFamily::Custom;
@@ -46,7 +46,7 @@ public:
     bool bShowMarkerLabels = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
-    bool bShowMarkerTags = true;
+    bool bShowMarkerTags = false;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
     bool bShowNPCMarkers = true;
@@ -87,11 +87,11 @@ private:
     FRotator GetMarkerRotationForFamily(ERoomGameplayMarkerFamily Family) const;
     FString BuildMarkerLabel(const FRoomGameplayMarker& Marker) const;
     FString BuildConnectorLabel(const UPrototypeRoomConnectorComponent* Connector) const;
-    UTextRenderComponent* CreateLabelComponent(const FString& NameSuffix, const FTransform& WorldTransform, const FString& Text, const FLinearColor& Color);
+    UStagehandBillboardLabelComponent* CreateLabelComponent(const FString& NameSuffix, const FVector& WorldLocation, const FString& Text, const FLinearColor& Color, float CardWidth = 84.0f);
     UStaticMeshComponent* CreateMarkerMeshComponent(const FString& NameSuffix, const FTransform& WorldTransform, ERoomGameplayMarkerFamily Family);
 
     UPROPERTY()
-    TArray<TObjectPtr<UTextRenderComponent>> ConnectorLabels;
+    TArray<TObjectPtr<UStagehandBillboardLabelComponent>> ConnectorLabels;
 
     UPROPERTY()
     TArray<FStagehandDebugMarkerVisual> MarkerVisuals;

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How-To | Werewolf Bathhouse Docs</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">
+        <strong>How-To</strong>
+        <span>Task guides for room assembly</span>
+      </div>
+      <nav class="nav">
+        <a data-nav href="../index.html">Overview</a>
+        <a data-nav href="./index.html">How-To</a>
+        <a data-nav href="../api/index.html">API</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Workflow Guides</div>
+        <h1>Do The Thing Without Guessing</h1>
+        <p class="lede">These are the quick routes: make a room, wire it honestly, mark it for gameplay, and test it without summoning a second crisis.</p>
+      </div>
+    </section>
+
+    <section class="section" id="make-room">
+      <h2>Make A Room</h2>
+      <div class="split">
+        <div class="card">
+          <h3>1. Start From A Room Blueprint</h3>
+          <p>Use an existing room as your base. Keep the bounds, connectors, Stagehand markers, and authored content root intact even if Mason is disabled.</p>
+        </div>
+        <div class="card">
+          <h3>2. Decide Who Builds It</h3>
+          <p>If it is a hero room, disable <code>StockAssemblySettings.bEnabled</code> and <code>ParametricSettings.bEnabled</code>. Mason stays attached, but stops building walls over your sky.</p>
+        </div>
+        <div class="card">
+          <h3>3. Keep Truth Honest</h3>
+          <p>Your room can lie visually, but not topologically. Bounds, connectors, room tags, activity tags, and marker families still have to tell the truth.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Add Connectors And Openings</h2>
+      <div class="card">
+        <p>Place connectors where a traversal contract is actually true. Do not let a fake facade trick you into putting the hall connector where the hallway is not.</p>
+        <p><a href="../api/index.html#stagehand">See Stagehand connector/reference details</a></p>
+        <p><a href="../../ROOM_ASSEMBLER_USAGE_GUIDE.md">Open deep guide</a></p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Add Stagehand Markers</h2>
+      <div class="split">
+        <div class="card">
+          <h3>Marker Families</h3>
+          <p><code>NPC_*</code>, <code>Task_*</code>, <code>Clue_*</code>, <code>MissionSocket_*</code>, and <code>FX_*</code> are the standard families. Use them on real affordance locations, not vibes.</p>
+        </div>
+        <div class="card">
+          <h3>Billboard Debug</h3>
+          <p>The new billboard labels are meant to help you read these markers in-editor without zooming into the plaster like a detective with a magnifying glass.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contained-exterior">
+      <h2>Make A Contained Exterior Room</h2>`r`n      <p><a href="./contained-exterior.html">Open dedicated contained exterior page</a></p>
+      <div class="split">
+        <div class="card">
+          <h3>Visual Stack</h3>
+          <p>Use authored facade geometry, pavement, signage, local lighting, and a local sky shell. Keep it local; do not solve this with global atmosphere theatrics.</p>
+        </div>
+        <div class="card">
+          <h3>Hero Example</h3>
+          <p>Current live proving ground:</p>
+          <div class="path">E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\Rooms\BP_Room_EntryFacade_UserRemix.uasset</div>
+        </div>
+        <div class="card">
+          <h3>Rule Of Thumb</h3>
+          <p>Outside by presentation. Normal room by systems truth. That sentence should be tattooed on the inside of this pattern’s forehead.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Test In GeneratorTest</h2>
+      <div class="card">
+        <p>Use <span class="path">E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap</span> for the fast sanity cycle.</p>
+        <ul>
+          <li>Place the room directly for composition tests.</li>
+          <li>Then wire it into the generator/layout path for topology and marker truth tests.</li>
+          <li>PIE should hide debug billboards by default.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell">
+    Want the long version? Follow through to the Markdown docs once the quick route gets you pointed in the right direction.
+  </footer>
+  <script src="../assets/app.js"></script>
+</body>
+</html>
+

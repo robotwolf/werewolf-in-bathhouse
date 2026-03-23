@@ -6,7 +6,7 @@
 
 class UBillboardComponent;
 class UPointLightComponent;
-class UTextRenderComponent;
+class UStagehandBillboardLabelComponent;
 
 UCLASS(ClassGroup=(Stagehand), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
 class WEREWOLFNBH_API URoomSignageComponent : public USceneComponent
@@ -23,10 +23,10 @@ public:
     TObjectPtr<UBillboardComponent> MarkerBillboard;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Signage")
-    TObjectPtr<UTextRenderComponent> InteriorLabel;
+    TObjectPtr<UStagehandBillboardLabelComponent> InteriorLabel;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Signage")
-    TObjectPtr<UTextRenderComponent> ExteriorRoofLabel;
+    TObjectPtr<UStagehandBillboardLabelComponent> ExteriorRoofLabel;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Signage")
     TObjectPtr<UPointLightComponent> MarkerLight;

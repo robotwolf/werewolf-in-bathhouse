@@ -5,6 +5,7 @@
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/SkeletalMesh.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
@@ -126,7 +127,8 @@ namespace
 
 AStagehandDemoNPCCharacter::AStagehandDemoNPCCharacter()
 {
-    PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = true;
+    PrimaryActorTick.bStartWithTickEnabled = true;
 
     AIControllerClass = AStagehandDemoAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -187,6 +189,30 @@ void AStagehandDemoNPCCharacter::BeginPlay()
     {
         StartBehaviorLoop();
     }
+}
+
+void AStagehandDemoNPCCharacter::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (!bUseWorldDebugString || !GetWorld())
+    {
+        return;
+    }
+
+    const FColor DebugColor = NPCProfile
+        ? NPCProfile->DebugColor.ToFColor(true)
+        : FColor::White;
+
+    DrawDebugString(
+        GetWorld(),
+        GetActorLocation() + DebugTextWorldOffset,
+        BuildDebugDisplayString(),
+        nullptr,
+        DebugColor,
+        0.0f,
+        true,
+        DebugTextFontScale);
 }
 
 void AStagehandDemoNPCCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -1135,6 +1161,35 @@ FText AStagehandDemoNPCCharacter::BuildActionLabelText(EStagehandDemoActionState
     return FText::FromString(ToActionLabel(ActionState));
 }
 
+FString AStagehandDemoNPCCharacter::BuildDebugDisplayString() const
+{
+    const FString HeaderLine = CurrentPresentation.HeaderText.IsEmpty()
+        ? GetProfileDisplayName(NPCProfile)
+        : CurrentPresentation.HeaderText.ToString();
+    const FString StateLine = CurrentPresentation.StateText.IsEmpty()
+        ? ToActionLabel(CurrentActionState)
+        : CurrentPresentation.StateText.ToString();
+    const FString DetailLine = CurrentPresentation.DetailText.IsEmpty()
+        ? TEXT("-")
+        : CurrentPresentation.DetailText.ToString();
+    const FString StatusLine = CurrentPresentation.StatusText.IsEmpty()
+        ? TEXT("-")
+        : CurrentPresentation.StatusText.ToString();
+    const FString DestinationName = CurrentMoveDestination.IsNearlyZero()
+        ? TEXT("NoDestination")
+        : CurrentMoveDestination.ToCompactString();
+
+    return FString::Printf(
+        TEXT("%s\n%s\n%s\n%s | Move %s | Loop %d | Retry %d"),
+        *HeaderLine,
+        *StateLine,
+        *DetailLine,
+        *StatusLine,
+        *DestinationName,
+        CompletedLoops,
+        ConsecutiveRetryCount);
+}
+
 void AStagehandDemoNPCCharacter::ScheduleBehavior(float DelaySeconds)
 {
     GetWorldTimerManager().ClearTimer(BehaviorTimerHandle);
@@ -1183,32 +1238,38 @@ void AStagehandDemoNPCCharacter::UpdateDebugText()
 
     if (DebugText)
     {
-        const FColor DebugColor = NPCProfile
-            ? NPCProfile->DebugColor.ToFColor(true)
-            : FColor::White;
-        DebugText->SetTextRenderColor(DebugColor);
-        if (CurrentActionState == EStagehandDemoActionState::Socialize || CurrentActionState == EStagehandDemoActionState::InspectClue)
+        DebugText->SetVisibility(bUseLegacyBillboardDebug && !bUseWorldDebugString);
+        DebugText->SetHiddenInGame(!bUseLegacyBillboardDebug || bUseWorldDebugString);
+
+        if (bUseLegacyBillboardDebug && !bUseWorldDebugString)
         {
-            DebugText->SetConversationDisplay(
-                CurrentPresentation.HeaderText,
-                CurrentPresentation.StatusText,
-                CurrentPresentation.DetailText);
-        }
-        else
-        {
-            const FString StatusLine = CurrentPresentation.StatusText.IsEmpty()
-                ? TEXT("-")
-                : CurrentPresentation.StatusText.ToString();
-            DebugText->SetDisplayLines(
-                CurrentPresentation.HeaderText,
-                CurrentPresentation.StateText,
-                CurrentPresentation.DetailText,
-                FText::FromString(FString::Printf(
-                    TEXT("%s | Move %s | Loop %d | Retry %d"),
-                    *StatusLine,
-                    *DestinationName,
-                    CompletedLoops,
-                    ConsecutiveRetryCount)));
+            const FColor DebugColor = NPCProfile
+                ? NPCProfile->DebugColor.ToFColor(true)
+                : FColor::White;
+            DebugText->SetTextRenderColor(DebugColor);
+            if (CurrentActionState == EStagehandDemoActionState::Socialize || CurrentActionState == EStagehandDemoActionState::InspectClue)
+            {
+                DebugText->SetConversationDisplay(
+                    CurrentPresentation.HeaderText,
+                    CurrentPresentation.StatusText,
+                    CurrentPresentation.DetailText);
+            }
+            else
+            {
+                const FString StatusLine = CurrentPresentation.StatusText.IsEmpty()
+                    ? TEXT("-")
+                    : CurrentPresentation.StatusText.ToString();
+                DebugText->SetDisplayLines(
+                    CurrentPresentation.HeaderText,
+                    CurrentPresentation.StateText,
+                    CurrentPresentation.DetailText,
+                    FText::FromString(FString::Printf(
+                        TEXT("%s | Move %s | Loop %d | Retry %d"),
+                        *StatusLine,
+                        *DestinationName,
+                        CompletedLoops,
+                        ConsecutiveRetryCount)));
+            }
         }
     }
 

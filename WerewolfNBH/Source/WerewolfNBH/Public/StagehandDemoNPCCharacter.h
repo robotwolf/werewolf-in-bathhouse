@@ -83,6 +83,7 @@ public:
 
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+    virtual void Tick(float DeltaSeconds) override;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
     TObjectPtr<ARoomGenerator> TargetGenerator = nullptr;
@@ -134,6 +135,18 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
     bool bLogStateChanges = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    bool bUseWorldDebugString = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    bool bUseLegacyBillboardDebug = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    FVector DebugTextWorldOffset = FVector(0.0f, 0.0f, 130.0f);
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug", meta=(ClampMin="0.5"))
+    float DebugTextFontScale = 1.1f;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
     TObjectPtr<UWerewolfStateBillboardComponent> DebugText;
@@ -267,6 +280,7 @@ protected:
     bool HasClueContext() const;
     FText BuildPlaceholderDialogueText() const;
     FText BuildActionLabelText(EStagehandDemoActionState ActionState) const;
+    FString BuildDebugDisplayString() const;
     void ScheduleBehavior(float DelaySeconds);
     void SetLoopState(EStagehandDemoLoopState NewState, const FString& DebugReason);
     void UpdateDebugText();

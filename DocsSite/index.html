@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Werewolf Bathhouse Docs</title>
+  <link rel="stylesheet" href="./assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">
+        <strong>Werewolf Bathhouse Docs</strong>
+        <span>How-To + API front door</span>
+      </div>
+      <nav class="nav">
+        <a data-nav href="./index.html">Overview</a>
+        <a data-nav href="./how-to/index.html">How-To</a>
+        <a data-nav href="./api/index.html">API</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Architecture Map</div>
+        <h1>Who Does What Around Here?</h1>
+        <p class="lede">
+          This local site is the fast entry point for the room assembly stack: how to make rooms,
+          how to test them, and which foreman is responsible when the bathhouse starts lying to you.
+        </p>
+        <div class="hero-actions">
+          <a class="button" href="./how-to/index.html">Open How-To</a>
+          <a class="button alt" href="./api/index.html">Open API Reference</a>
+        </div>
+        <div class="chip-row">
+          <span class="chip">Ginny = Layout</span>
+          <span class="chip">Mason = Construction</span>
+          <span class="chip">Stagehand = Room Truth + Debug</span>
+          <span class="chip">Gideon = Runtime Orchestration</span>
+          <span class="chip">Butch = Dressing</span>
+          <span class="chip">Flo = Future Flow Control</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>The Handoff Chain</h2>
+      <div class="split">
+        <div class="card">
+          <h3>Ginny</h3>
+          <p>Chooses what rooms exist, how they connect, how long approaches get, and which special rooms are allowed to haunt the layout.</p>
+        </div>
+        <div class="card">
+          <h3>Mason</h3>
+          <p>Builds stock or parametric shells when a room wants them. For hero authored rooms, he can remain attached and politely do nothing.</p>
+        </div>
+        <div class="card">
+          <h3>Stagehand</h3>
+          <p>Publishes room truth: connectors, markers, labels, debug helpers, and the seam gameplay uses instead of geometry archaeology.</p>
+        </div>
+        <div class="card">
+          <h3>Gideon</h3>
+          <p>Consumes the generated world at runtime: arrival, admission, POIs, crowd behavior, and other management-adjacent crimes.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Start Here</h2>
+      <div class="grid cards">
+        <article class="card">
+          <h3>Make A Room</h3>
+          <p>Build a room blueprint, wire connectors, add Stagehand markers, and decide whether Mason should build it or sit quietly in the corner.</p>
+          <a href="./how-to/index.html#make-room">Go to guide</a>
+        </article>
+        <article class="card">
+          <h3>Contained Exterior</h3>
+          <p>Use the entry facade pattern to make “outside while technically inside” without teaching the whole engine astronomy.</p>
+          <a href="./how-to/contained-exterior.html">Go to guide</a>
+        </article>
+        <article class="card">
+          <h3>API Reference</h3>
+          <p>See the main classes, what they own, what they do not own, and which ones to blame first.</p>
+          <a href="./api/index.html">Open API reference</a>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Deep Source Docs</h2>
+      <div class="split">
+        <div class="card">
+          <h3>Core Guides</h3>
+          <ul class="list-clean">
+            <li><a href="../ROOM_ASSEMBLER_USAGE_GUIDE.md">ROOM_ASSEMBLER_USAGE_GUIDE.md</a></li>
+            <li><a href="../Level-Creator-Guide-Ginny-Mason-Gideon.md">Level-Creator-Guide-Ginny-Mason-Gideon.md</a></li>
+            <li><a href="../Room-Construction-Gameplay-Handshake.md">Room-Construction-Gameplay-Handshake.md</a></li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Runtime + Planning</h3>
+          <ul class="list-clean">
+            <li><a href="../WerewolfNBH/Docs/GideonRuntime.md">WerewolfNBH/Docs/GideonRuntime.md</a></li>
+            <li><a href="../Generation-Showcase-Plan.md">Generation-Showcase-Plan.md</a></li>
+            <li><a href="../Cool-Shit-To-Do-List.md">Cool-Shit-To-Do-List.md</a></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="callout">
+        Primary proving ground for contained-exterior iteration:
+        <div class="path">E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\Rooms\BP_Room_EntryFacade_UserRemix.uasset</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell">
+    Buildless local docs. Open directly in a browser and carry on with your architectural nonsense.
+  </footer>
+  <script src="./assets/app.js"></script>
+</body>
+</html>

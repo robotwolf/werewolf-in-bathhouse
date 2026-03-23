@@ -4,7 +4,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
-#include "Math/RotationMatrix.h"
+#include "StagehandBillboardLabelComponent.h"
 
 URoomSignageComponent::URoomSignageComponent()
 {
@@ -41,21 +41,26 @@ void URoomSignageComponent::UpdateFromRoom(const FText& DisplayText, const FVect
         CachedBoundsCenter.X + ExteriorRoofLabelOffset.X,
         CachedBoundsCenter.Y + ExteriorRoofLabelOffset.Y,
         CachedBoundsCenter.Z + CachedBoundsExtent.Z + ExteriorRoofLabelOffset.Z);
+    const FVector InteriorWorldLocation = GetComponentTransform().TransformPosition(InteriorLocation);
+    const FVector RoofWorldLocation = GetComponentTransform().TransformPosition(RoofLocation);
 
     MarkerBillboard->SetRelativeLocation(InteriorLocation);
-    InteriorLabel->SetRelativeLocation(InteriorLocation);
     MarkerLight->SetRelativeLocation(InteriorLocation);
-    ExteriorRoofLabel->SetRelativeLocation(RoofLocation);
-
-    InteriorLabel->SetText(DisplayText);
-    ExteriorRoofLabel->SetText(DisplayText);
-    InteriorLabel->SetWorldSize(LabelWorldSize);
-    ExteriorRoofLabel->SetWorldSize(LabelWorldSize);
-    InteriorLabel->SetTextRenderColor(LabelColor);
-    ExteriorRoofLabel->SetTextRenderColor(LabelColor);
     MarkerLight->SetIntensity(MarkerLightIntensity);
     MarkerLight->SetAttenuationRadius(MarkerLightRadius);
     MarkerLight->SetLightColor(MarkerLightColor);
+
+    InteriorLabel->LabelWorldSize = LabelWorldSize * 0.45f;
+    InteriorLabel->CardWidth = FMath::Max(64.0f, LabelWorldSize * 2.2f);
+    InteriorLabel->CardHeight = FMath::Max(18.0f, LabelWorldSize * 0.55f);
+    InteriorLabel->TextColor = LabelColor;
+    InteriorLabel->UpdateLabel(InteriorWorldLocation, DisplayText.ToString(), FLinearColor(0.18f, 0.46f, 0.95f, 1.0f));
+
+    ExteriorRoofLabel->LabelWorldSize = LabelWorldSize * 0.42f;
+    ExteriorRoofLabel->CardWidth = FMath::Max(64.0f, LabelWorldSize * 2.4f);
+    ExteriorRoofLabel->CardHeight = FMath::Max(18.0f, LabelWorldSize * 0.55f);
+    ExteriorRoofLabel->TextColor = LabelColor;
+    ExteriorRoofLabel->UpdateLabel(RoofWorldLocation, DisplayText.ToString(), FLinearColor(0.14f, 0.22f, 0.52f, 1.0f));
 
     ApplyVisibility();
     UpdateBillboarding();
@@ -72,11 +77,11 @@ void URoomSignageComponent::ApplyVisibility()
     MarkerBillboard->SetVisibility(bShowMarkerBillboard);
     MarkerBillboard->SetHiddenInGame(bHideHelpersInGame || !bShowMarkerBillboard);
 
-    InteriorLabel->SetVisibility(bShowInteriorLabel);
-    InteriorLabel->SetHiddenInGame(bHideHelpersInGame || !bShowInteriorLabel);
+    InteriorLabel->bHideHelpersInGame = bHideHelpersInGame;
+    InteriorLabel->SetLabelVisible(bShowInteriorLabel);
 
-    ExteriorRoofLabel->SetVisibility(bShowExteriorRoofLabel);
-    ExteriorRoofLabel->SetHiddenInGame(bHideHelpersInGame || !bShowExteriorRoofLabel);
+    ExteriorRoofLabel->bHideHelpersInGame = bHideHelpersInGame;
+    ExteriorRoofLabel->SetLabelVisible(bShowExteriorRoofLabel);
 
     MarkerLight->SetVisibility(bShowMarkerLight);
     MarkerLight->SetHiddenInGame(bHideHelpersInGame || !bShowMarkerLight);
@@ -90,33 +95,10 @@ void URoomSignageComponent::UpdateBillboarding()
         return;
     }
 
-    if (!bBillboardLabelsToView || !GetWorld() || GetWorld()->ViewLocationsRenderedLastFrame.IsEmpty())
-    {
-        return;
-    }
-
-    const FVector ViewLocation = GetWorld()->ViewLocationsRenderedLastFrame[0];
-
-    auto FaceView = [ViewLocation](UTextRenderComponent* Label)
-    {
-        if (!Label || !Label->IsVisible())
-        {
-            return;
-        }
-
-        FVector ToView = ViewLocation - Label->GetComponentLocation();
-        ToView.Z = 0.0f;
-        if (ToView.IsNearlyZero())
-        {
-            return;
-        }
-
-        const FRotator FacingRotation = FRotationMatrix::MakeFromX(ToView).Rotator();
-        Label->SetWorldRotation(FRotator(0.0f, FacingRotation.Yaw, 0.0f));
-    };
-
-    FaceView(InteriorLabel);
-    FaceView(ExteriorRoofLabel);
+    InteriorLabel->bBillboardToView = bBillboardLabelsToView;
+    ExteriorRoofLabel->bBillboardToView = bBillboardLabelsToView;
+    InteriorLabel->UpdateBillboarding();
+    ExteriorRoofLabel->UpdateBillboarding();
 }
 
 void URoomSignageComponent::EnsureHelperComponents()
@@ -125,6 +107,21 @@ void URoomSignageComponent::EnsureHelperComponents()
     if (!Owner || IsTemplate())
     {
         return;
+    }
+
+    TInlineComponentArray<UTextRenderComponent*> LegacyTextComponents(Owner);
+    for (UTextRenderComponent* LegacyLabel : LegacyTextComponents)
+    {
+        if (!LegacyLabel || LegacyLabel->GetAttachParent() != this)
+        {
+            continue;
+        }
+
+        const FName LegacyName = LegacyLabel->GetFName();
+        if (LegacyName == TEXT("InteriorLabel") || LegacyName == TEXT("ExteriorRoofLabel"))
+        {
+            LegacyLabel->DestroyComponent();
+        }
     }
 
     if (!MarkerBillboard)
@@ -138,7 +135,7 @@ void URoomSignageComponent::EnsureHelperComponents()
 
     if (!InteriorLabel)
     {
-        InteriorLabel = NewObject<UTextRenderComponent>(Owner, TEXT("InteriorLabel"));
+        InteriorLabel = NewObject<UStagehandBillboardLabelComponent>(Owner, TEXT("InteriorBillboardLabel"));
         InteriorLabel->SetupAttachment(this);
         InteriorLabel->CreationMethod = EComponentCreationMethod::Instance;
         Owner->AddInstanceComponent(InteriorLabel);
@@ -147,7 +144,7 @@ void URoomSignageComponent::EnsureHelperComponents()
 
     if (!ExteriorRoofLabel)
     {
-        ExteriorRoofLabel = NewObject<UTextRenderComponent>(Owner, TEXT("ExteriorRoofLabel"));
+        ExteriorRoofLabel = NewObject<UStagehandBillboardLabelComponent>(Owner, TEXT("ExteriorRoofBillboardLabel"));
         ExteriorRoofLabel->SetupAttachment(this);
         ExteriorRoofLabel->CreationMethod = EComponentCreationMethod::Instance;
         Owner->AddInstanceComponent(ExteriorRoofLabel);
@@ -166,13 +163,8 @@ void URoomSignageComponent::EnsureHelperComponents()
     MarkerBillboard->SetHiddenInGame(bHideHelpersInGame);
     MarkerBillboard->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    InteriorLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    InteriorLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    InteriorLabel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    ExteriorRoofLabel->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    ExteriorRoofLabel->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    ExteriorRoofLabel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    InteriorLabel->bHideHelpersInGame = bHideHelpersInGame;
+    ExteriorRoofLabel->bHideHelpersInGame = bHideHelpersInGame;
 
     MarkerLight->SetMobility(EComponentMobility::Movable);
     MarkerLight->SetCastShadows(false);

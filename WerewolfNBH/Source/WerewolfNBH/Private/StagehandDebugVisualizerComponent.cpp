@@ -6,8 +6,8 @@
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
-#include "Math/RotationMatrix.h"
 #include "PrototypeRoomConnectorComponent.h"
+#include "StagehandBillboardLabelComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -95,6 +95,34 @@ namespace
             return TEXT("Any");
         }
     }
+
+    FString CompactConnectorName(const UPrototypeRoomConnectorComponent* Connector)
+    {
+        if (!Connector)
+        {
+            return TEXT("Conn");
+        }
+
+        FString Label = Connector->SocketID.IsNone() ? Connector->GetName() : Connector->SocketID.ToString();
+        Label.RemoveFromEnd(TEXT("_GEN_VARIABLE"));
+        Label.ReplaceInline(TEXT("Connector"), TEXT("Conn"));
+        Label.ReplaceInline(TEXT("InteriorDoor"), TEXT("Door"));
+        Label.ReplaceInline(TEXT("OpenThreshold"), TEXT("Thresh"));
+        Label.ReplaceInline(TEXT("_"), TEXT(" "));
+        return Label;
+    }
+
+    FString CompactMarkerName(const FRoomGameplayMarker& Marker)
+    {
+        FString Label = Marker.MarkerName.ToString();
+        Label.RemoveFromStart(TEXT("NPC_"));
+        Label.RemoveFromStart(TEXT("Task_"));
+        Label.RemoveFromStart(TEXT("Clue_"));
+        Label.RemoveFromStart(TEXT("MissionSocket_"));
+        Label.RemoveFromStart(TEXT("FX_"));
+        Label.ReplaceInline(TEXT("_"), TEXT(" "));
+        return Label;
+    }
 }
 
 UStagehandDebugVisualizerComponent::UStagehandDebugVisualizerComponent()
@@ -131,7 +159,26 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
 {
     ClearHelpers();
 
-    const ARoomModuleBase* Room = Cast<ARoomModuleBase>(GetOwner());
+    AActor* Owner = GetOwner();
+    if (Owner)
+    {
+        TInlineComponentArray<UTextRenderComponent*> LegacyTextComponents(Owner);
+        for (UTextRenderComponent* LegacyLabel : LegacyTextComponents)
+        {
+            if (!LegacyLabel || LegacyLabel->GetAttachParent() != this)
+            {
+                continue;
+            }
+
+            const FString LegacyName = LegacyLabel->GetName();
+            if (LegacyName.StartsWith(TEXT("StagehandLabel_")))
+            {
+                LegacyLabel->DestroyComponent();
+            }
+        }
+    }
+
+    const ARoomModuleBase* Room = Cast<ARoomModuleBase>(Owner);
     if (!Room || IsTemplate())
     {
         return;
@@ -145,14 +192,13 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
             continue;
         }
 
-        const FTransform LabelTransform(
-            Connector->GetComponentRotation(),
-            Connector->GetComponentLocation() + FVector(0.0f, 0.0f, 42.0f));
-        if (UTextRenderComponent* Label = CreateLabelComponent(
+        const FVector LabelLocation = Connector->GetComponentLocation() + FVector(0.0f, 0.0f, 42.0f);
+        if (UStagehandBillboardLabelComponent* Label = CreateLabelComponent(
             FString::Printf(TEXT("Connector_%d"), ConnectorIndex++),
-            LabelTransform,
+            LabelLocation,
             BuildConnectorLabel(Connector),
-            Connector->GetDebugColor()))
+            Connector->GetDebugColor(),
+            102.0f))
         {
             ConnectorLabels.Add(Label);
         }
@@ -187,14 +233,13 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
 
         if (bShowMarkerLabels)
         {
-            const FTransform LabelTransform(
-                Marker.WorldTransform.GetRotation(),
-                Marker.WorldTransform.GetLocation() + FVector(0.0f, 0.0f, 46.0f));
-            if (UTextRenderComponent* Label = CreateLabelComponent(
+            const FVector LabelLocation = Marker.WorldTransform.GetLocation() + FVector(0.0f, 0.0f, 46.0f);
+            if (UStagehandBillboardLabelComponent* Label = CreateLabelComponent(
                 FString::Printf(TEXT("MarkerLabel_%d"), MarkerIndex),
-                LabelTransform,
+                LabelLocation,
                 BuildMarkerLabel(Marker),
-                GetFamilyColor(Family)))
+                GetFamilyColor(Family),
+                86.0f))
             {
                 if (!MarkerVisual)
                 {
@@ -217,15 +262,15 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
 void UStagehandDebugVisualizerComponent::ApplyVisibility()
 {
     const bool bLabelHiddenInGame = bHideHelpersInGame;
-    for (UTextRenderComponent* Label : ConnectorLabels)
+    for (UStagehandBillboardLabelComponent* Label : ConnectorLabels)
     {
         if (!Label)
         {
             continue;
         }
 
-        Label->SetVisibility(bShowConnectorLabels);
-        Label->SetHiddenInGame(bLabelHiddenInGame || !bShowConnectorLabels);
+        Label->bHideHelpersInGame = bLabelHiddenInGame;
+        Label->SetLabelVisible(bShowConnectorLabels);
     }
 
     for (const FStagehandDebugMarkerVisual& MarkerVisual : MarkerVisuals)
@@ -240,8 +285,8 @@ void UStagehandDebugVisualizerComponent::ApplyVisibility()
         if (MarkerVisual.Label)
         {
             const bool bShowFamily = bShowMarkerLabels && ShouldShowFamily(MarkerVisual.Family);
-            MarkerVisual.Label->SetVisibility(bShowFamily);
-            MarkerVisual.Label->SetHiddenInGame(bHideHelpersInGame || !bShowFamily);
+            MarkerVisual.Label->bHideHelpersInGame = bHideHelpersInGame;
+            MarkerVisual.Label->SetLabelVisible(bShowFamily);
         }
     }
 }
@@ -282,32 +327,21 @@ void UStagehandDebugVisualizerComponent::UpdateBillboarding()
         return;
     }
 
-    const FVector ViewLocation = GetWorld()->ViewLocationsRenderedLastFrame[0];
-    auto FaceView = [ViewLocation](UTextRenderComponent* Label)
+    for (UStagehandBillboardLabelComponent* Label : ConnectorLabels)
     {
-        if (!Label || !Label->IsVisible())
+        if (Label)
         {
-            return;
+            Label->bBillboardToView = true;
+            Label->UpdateBillboarding();
         }
-
-        FVector ToView = ViewLocation - Label->GetComponentLocation();
-        ToView.Z = 0.0f;
-        if (ToView.IsNearlyZero())
-        {
-            return;
-        }
-
-        const FRotator FacingRotation = FRotationMatrix::MakeFromX(ToView).Rotator();
-        Label->SetWorldRotation(FRotator(0.0f, FacingRotation.Yaw, 0.0f));
-    };
-
-    for (UTextRenderComponent* Label : ConnectorLabels)
-    {
-        FaceView(Label);
     }
     for (const FStagehandDebugMarkerVisual& MarkerVisual : MarkerVisuals)
     {
-        FaceView(MarkerVisual.Label);
+        if (MarkerVisual.Label)
+        {
+            MarkerVisual.Label->bBillboardToView = true;
+            MarkerVisual.Label->UpdateBillboarding();
+        }
     }
 }
 
@@ -392,7 +426,7 @@ FRotator UStagehandDebugVisualizerComponent::GetMarkerRotationForFamily(ERoomGam
 
 FString UStagehandDebugVisualizerComponent::BuildMarkerLabel(const FRoomGameplayMarker& Marker) const
 {
-    FString Label = Marker.MarkerName.ToString();
+    FString Label = CompactMarkerName(Marker);
     if (!bShowMarkerTags || Marker.RawComponentTags.IsEmpty())
     {
         return Label;
@@ -404,7 +438,7 @@ FString UStagehandDebugVisualizerComponent::BuildMarkerLabel(const FRoomGameplay
         TagStrings.Add(TagName.ToString());
     }
 
-    return FString::Printf(TEXT("%s\n%s"), *Label, *FString::Join(TagStrings, TEXT(", ")));
+    return FString::Printf(TEXT("%s\nTags: %s"), *Label, *FString::Join(TagStrings, TEXT(", ")));
 }
 
 FString UStagehandDebugVisualizerComponent::BuildConnectorLabel(const UPrototypeRoomConnectorComponent* Connector) const
@@ -414,22 +448,20 @@ FString UStagehandDebugVisualizerComponent::BuildConnectorLabel(const UPrototype
         return FString();
     }
 
-    FString Label = Connector->GetName();
-    Label.RemoveFromEnd(TEXT("_GEN_VARIABLE"));
-
     return FString::Printf(
-        TEXT("%s\n%s / %s / %s"),
-        *Label,
+        TEXT("%s\n%s - %s - %s"),
+        *CompactConnectorName(Connector),
         *ConnectorPassageLabel(Connector->PassageKind),
         *ConnectorBoundaryLabel(Connector->BoundaryKind),
         *ConnectorClearanceLabel(Connector->ClearanceClass));
 }
 
-UTextRenderComponent* UStagehandDebugVisualizerComponent::CreateLabelComponent(
+UStagehandBillboardLabelComponent* UStagehandDebugVisualizerComponent::CreateLabelComponent(
     const FString& NameSuffix,
-    const FTransform& WorldTransform,
+    const FVector& WorldLocation,
     const FString& Text,
-    const FLinearColor& Color)
+    const FLinearColor& Color,
+    float CardWidth)
 {
     AActor* Owner = GetOwner();
     if (!Owner)
@@ -437,7 +469,7 @@ UTextRenderComponent* UStagehandDebugVisualizerComponent::CreateLabelComponent(
         return nullptr;
     }
 
-    UTextRenderComponent* Label = NewObject<UTextRenderComponent>(Owner, *FString::Printf(TEXT("StagehandLabel_%s"), *NameSuffix));
+    UStagehandBillboardLabelComponent* Label = NewObject<UStagehandBillboardLabelComponent>(Owner, *FString::Printf(TEXT("StagehandBillboard_%s"), *NameSuffix));
     if (!Label)
     {
         return nullptr;
@@ -447,16 +479,12 @@ UTextRenderComponent* UStagehandDebugVisualizerComponent::CreateLabelComponent(
     Label->CreationMethod = EComponentCreationMethod::Instance;
     Owner->AddInstanceComponent(Label);
     Label->RegisterComponent();
-    Label->SetWorldTransform(WorldTransform);
-    Label->SetUsingAbsoluteRotation(true);
-    Label->SetText(FText::FromString(Text));
-    Label->SetWorldSize(LabelWorldSize);
-    Label->SetHorizontalAlignment(EHorizTextAligment::EHTA_Center);
-    Label->SetVerticalAlignment(EVerticalTextAligment::EVRTA_TextCenter);
-    Label->SetTextRenderColor(Color.ToFColor(true));
-    Label->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    Label->SetHiddenInGame(bHideHelpersInGame);
-    Label->SetIsVisualizationComponent(true);
+    Label->bHideHelpersInGame = bHideHelpersInGame;
+    Label->bBillboardToView = bBillboardLabelsToView;
+    Label->CardWidth = CardWidth;
+    Label->CardHeight = 24.0f;
+    Label->LabelWorldSize = LabelWorldSize * 0.55f;
+    Label->UpdateLabel(WorldLocation, Text, Color);
     return Label;
 }
 
