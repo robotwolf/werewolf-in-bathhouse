@@ -1,4 +1,4 @@
-#include "StagehandDebugVisualizerComponent.h"
+#include "StagingDebugVisualizerComponent.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -7,7 +7,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "PrototypeRoomConnectorComponent.h"
-#include "StagehandBillboardLabelComponent.h"
+#include "StagingBillboardLabelComponent.h"
 #include "UObject/ConstructorHelpers.h"
 
 namespace
@@ -125,7 +125,7 @@ namespace
     }
 }
 
-UStagehandDebugVisualizerComponent::UStagehandDebugVisualizerComponent()
+UStagingDebugVisualizerComponent::UStagingDebugVisualizerComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     bTickInEditor = true;
@@ -143,19 +143,19 @@ UStagehandDebugVisualizerComponent::UStagehandDebugVisualizerComponent()
     BasicShapeMaterial = BasicShapeMaterialFinder.Succeeded() ? BasicShapeMaterialFinder.Object : nullptr;
 }
 
-void UStagehandDebugVisualizerComponent::OnRegister()
+void UStagingDebugVisualizerComponent::OnRegister()
 {
     Super::OnRegister();
     RefreshVisualization();
 }
 
-void UStagehandDebugVisualizerComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UStagingDebugVisualizerComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
     UpdateBillboarding();
 }
 
-void UStagehandDebugVisualizerComponent::RefreshVisualization()
+void UStagingDebugVisualizerComponent::RefreshVisualization()
 {
     ClearHelpers();
 
@@ -171,7 +171,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
             }
 
             const FString LegacyName = LegacyLabel->GetName();
-            if (LegacyName.StartsWith(TEXT("StagehandLabel_")))
+            if (LegacyName.StartsWith(TEXT("StagingLabel_")))
             {
                 LegacyLabel->DestroyComponent();
             }
@@ -193,7 +193,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
         }
 
         const FVector LabelLocation = Connector->GetComponentLocation() + FVector(0.0f, 0.0f, 42.0f);
-        if (UStagehandBillboardLabelComponent* Label = CreateLabelComponent(
+        if (UStagingBillboardLabelComponent* Label = CreateLabelComponent(
             FString::Printf(TEXT("Connector_%d"), ConnectorIndex++),
             LabelLocation,
             BuildConnectorLabel(Connector),
@@ -213,7 +213,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
             continue;
         }
 
-        FStagehandDebugMarkerVisual* MarkerVisual = nullptr;
+        FStagingDebugMarkerVisual* MarkerVisual = nullptr;
 
         const FTransform MeshTransform(
             GetMarkerRotationForFamily(Family),
@@ -225,7 +225,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
             MeshTransform,
             Family))
         {
-            FStagehandDebugMarkerVisual& NewMarkerVisual = MarkerVisuals.AddDefaulted_GetRef();
+            FStagingDebugMarkerVisual& NewMarkerVisual = MarkerVisuals.AddDefaulted_GetRef();
             NewMarkerVisual.Mesh = MarkerMesh;
             NewMarkerVisual.Family = Family;
             MarkerVisual = &NewMarkerVisual;
@@ -234,7 +234,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
         if (bShowMarkerLabels)
         {
             const FVector LabelLocation = Marker.WorldTransform.GetLocation() + FVector(0.0f, 0.0f, 46.0f);
-            if (UStagehandBillboardLabelComponent* Label = CreateLabelComponent(
+            if (UStagingBillboardLabelComponent* Label = CreateLabelComponent(
                 FString::Printf(TEXT("MarkerLabel_%d"), MarkerIndex),
                 LabelLocation,
                 BuildMarkerLabel(Marker),
@@ -243,7 +243,7 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
             {
                 if (!MarkerVisual)
                 {
-                    FStagehandDebugMarkerVisual& NewMarkerVisual = MarkerVisuals.AddDefaulted_GetRef();
+                    FStagingDebugMarkerVisual& NewMarkerVisual = MarkerVisuals.AddDefaulted_GetRef();
                     NewMarkerVisual.Family = Family;
                     MarkerVisual = &NewMarkerVisual;
                 }
@@ -259,10 +259,10 @@ void UStagehandDebugVisualizerComponent::RefreshVisualization()
     UpdateBillboarding();
 }
 
-void UStagehandDebugVisualizerComponent::ApplyVisibility()
+void UStagingDebugVisualizerComponent::ApplyVisibility()
 {
     const bool bLabelHiddenInGame = bHideHelpersInGame;
-    for (UStagehandBillboardLabelComponent* Label : ConnectorLabels)
+    for (UStagingBillboardLabelComponent* Label : ConnectorLabels)
     {
         if (!Label)
         {
@@ -273,7 +273,7 @@ void UStagehandDebugVisualizerComponent::ApplyVisibility()
         Label->SetLabelVisible(bShowConnectorLabels);
     }
 
-    for (const FStagehandDebugMarkerVisual& MarkerVisual : MarkerVisuals)
+    for (const FStagingDebugMarkerVisual& MarkerVisual : MarkerVisuals)
     {
         if (MarkerVisual.Mesh)
         {
@@ -291,7 +291,7 @@ void UStagehandDebugVisualizerComponent::ApplyVisibility()
     }
 }
 
-void UStagehandDebugVisualizerComponent::ClearHelpers()
+void UStagingDebugVisualizerComponent::ClearHelpers()
 {
     auto DestroyHelpers = [](auto& HelperArray)
     {
@@ -306,7 +306,7 @@ void UStagehandDebugVisualizerComponent::ClearHelpers()
     };
 
     DestroyHelpers(ConnectorLabels);
-    for (FStagehandDebugMarkerVisual& MarkerVisual : MarkerVisuals)
+    for (FStagingDebugMarkerVisual& MarkerVisual : MarkerVisuals)
     {
         if (MarkerVisual.Label)
         {
@@ -320,14 +320,14 @@ void UStagehandDebugVisualizerComponent::ClearHelpers()
     MarkerVisuals.Reset();
 }
 
-void UStagehandDebugVisualizerComponent::UpdateBillboarding()
+void UStagingDebugVisualizerComponent::UpdateBillboarding()
 {
     if (!bBillboardLabelsToView || !GetWorld() || GetWorld()->ViewLocationsRenderedLastFrame.IsEmpty())
     {
         return;
     }
 
-    for (UStagehandBillboardLabelComponent* Label : ConnectorLabels)
+    for (UStagingBillboardLabelComponent* Label : ConnectorLabels)
     {
         if (Label)
         {
@@ -335,7 +335,7 @@ void UStagehandDebugVisualizerComponent::UpdateBillboarding()
             Label->UpdateBillboarding();
         }
     }
-    for (const FStagehandDebugMarkerVisual& MarkerVisual : MarkerVisuals)
+    for (const FStagingDebugMarkerVisual& MarkerVisual : MarkerVisuals)
     {
         if (MarkerVisual.Label)
         {
@@ -345,7 +345,7 @@ void UStagehandDebugVisualizerComponent::UpdateBillboarding()
     }
 }
 
-bool UStagehandDebugVisualizerComponent::ShouldShowFamily(ERoomGameplayMarkerFamily Family) const
+bool UStagingDebugVisualizerComponent::ShouldShowFamily(ERoomGameplayMarkerFamily Family) const
 {
     switch (Family)
     {
@@ -365,7 +365,7 @@ bool UStagehandDebugVisualizerComponent::ShouldShowFamily(ERoomGameplayMarkerFam
     }
 }
 
-FLinearColor UStagehandDebugVisualizerComponent::GetFamilyColor(ERoomGameplayMarkerFamily Family) const
+FLinearColor UStagingDebugVisualizerComponent::GetFamilyColor(ERoomGameplayMarkerFamily Family) const
 {
     switch (Family)
     {
@@ -385,7 +385,7 @@ FLinearColor UStagehandDebugVisualizerComponent::GetFamilyColor(ERoomGameplayMar
     }
 }
 
-UStaticMesh* UStagehandDebugVisualizerComponent::GetMeshForFamily(ERoomGameplayMarkerFamily Family) const
+UStaticMesh* UStagingDebugVisualizerComponent::GetMeshForFamily(ERoomGameplayMarkerFamily Family) const
 {
     switch (Family)
     {
@@ -404,7 +404,7 @@ UStaticMesh* UStagehandDebugVisualizerComponent::GetMeshForFamily(ERoomGameplayM
     }
 }
 
-FRotator UStagehandDebugVisualizerComponent::GetMarkerRotationForFamily(ERoomGameplayMarkerFamily Family) const
+FRotator UStagingDebugVisualizerComponent::GetMarkerRotationForFamily(ERoomGameplayMarkerFamily Family) const
 {
     switch (Family)
     {
@@ -424,7 +424,7 @@ FRotator UStagehandDebugVisualizerComponent::GetMarkerRotationForFamily(ERoomGam
     }
 }
 
-FString UStagehandDebugVisualizerComponent::BuildMarkerLabel(const FRoomGameplayMarker& Marker) const
+FString UStagingDebugVisualizerComponent::BuildMarkerLabel(const FRoomGameplayMarker& Marker) const
 {
     FString Label = CompactMarkerName(Marker);
     if (!bShowMarkerTags || Marker.RawComponentTags.IsEmpty())
@@ -441,7 +441,7 @@ FString UStagehandDebugVisualizerComponent::BuildMarkerLabel(const FRoomGameplay
     return FString::Printf(TEXT("%s\nTags: %s"), *Label, *FString::Join(TagStrings, TEXT(", ")));
 }
 
-FString UStagehandDebugVisualizerComponent::BuildConnectorLabel(const UPrototypeRoomConnectorComponent* Connector) const
+FString UStagingDebugVisualizerComponent::BuildConnectorLabel(const UPrototypeRoomConnectorComponent* Connector) const
 {
     if (!Connector)
     {
@@ -456,7 +456,7 @@ FString UStagehandDebugVisualizerComponent::BuildConnectorLabel(const UPrototype
         *ConnectorClearanceLabel(Connector->ClearanceClass));
 }
 
-UStagehandBillboardLabelComponent* UStagehandDebugVisualizerComponent::CreateLabelComponent(
+UStagingBillboardLabelComponent* UStagingDebugVisualizerComponent::CreateLabelComponent(
     const FString& NameSuffix,
     const FVector& WorldLocation,
     const FString& Text,
@@ -469,7 +469,7 @@ UStagehandBillboardLabelComponent* UStagehandDebugVisualizerComponent::CreateLab
         return nullptr;
     }
 
-    UStagehandBillboardLabelComponent* Label = NewObject<UStagehandBillboardLabelComponent>(Owner, *FString::Printf(TEXT("StagehandBillboard_%s"), *NameSuffix));
+    UStagingBillboardLabelComponent* Label = NewObject<UStagingBillboardLabelComponent>(Owner, *FString::Printf(TEXT("StagingBillboard_%s"), *NameSuffix));
     if (!Label)
     {
         return nullptr;
@@ -488,7 +488,7 @@ UStagehandBillboardLabelComponent* UStagehandDebugVisualizerComponent::CreateLab
     return Label;
 }
 
-UStaticMeshComponent* UStagehandDebugVisualizerComponent::CreateMarkerMeshComponent(
+UStaticMeshComponent* UStagingDebugVisualizerComponent::CreateMarkerMeshComponent(
     const FString& NameSuffix,
     const FTransform& WorldTransform,
     ERoomGameplayMarkerFamily Family)
@@ -499,7 +499,7 @@ UStaticMeshComponent* UStagehandDebugVisualizerComponent::CreateMarkerMeshCompon
         return nullptr;
     }
 
-    UStaticMeshComponent* Mesh = NewObject<UStaticMeshComponent>(Owner, *FString::Printf(TEXT("StagehandMarker_%s"), *NameSuffix));
+    UStaticMeshComponent* Mesh = NewObject<UStaticMeshComponent>(Owner, *FString::Printf(TEXT("StagingMarker_%s"), *NameSuffix));
     if (!Mesh)
     {
         return nullptr;

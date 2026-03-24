@@ -126,9 +126,10 @@ private:
         const FString ScriptsDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectDir(), TEXT("Scripts")));
         const TArray<FString> ScriptNames =
         {
-            TEXT("sync_stagehand_conversation_topics.py"),
+            TEXT("sync_staging_asset_names.py"),
+            TEXT("sync_staging_conversation_topics.py"),
             TEXT("sync_room_gameplay_markers.py"),
-            TEXT("sync_stagehand_npc_profiles.py"),
+            TEXT("sync_staging_npc_profiles.py"),
         };
 
         for (const FString& ScriptName : ScriptNames)

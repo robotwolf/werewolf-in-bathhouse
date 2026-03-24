@@ -52,7 +52,8 @@ $generatorConfigScript = Join-Path $scriptDir "configure_assembler_blueprints.py
 $containedExteriorRoomScript = Join-Path $scriptDir "sync_contained_exterior_room.py"
 $profileSyncScript = Join-Path $scriptDir "sync_ginny_profiles.py"
 $gameplayMarkerSyncScript = Join-Path $scriptDir "sync_room_gameplay_markers.py"
-$npcProfileSyncScript = Join-Path $scriptDir "sync_stagehand_npc_profiles.py"
+$stagingAssetNameSyncScript = Join-Path $scriptDir "sync_staging_asset_names.py"
+$npcProfileSyncScript = Join-Path $scriptDir "sync_staging_npc_profiles.py"
 $syncGeneratorScript = Join-Path $scriptDir "sync_generator_instances.py"
 $smokeTestScript = Join-Path $scriptDir "smoke_test_assembler.py"
 
@@ -66,7 +67,8 @@ Throw-IfMissing $generatorConfigScript "generator config script"
 Throw-IfMissing $containedExteriorRoomScript "contained exterior room sync script"
 Throw-IfMissing $profileSyncScript "Ginny profile sync script"
 Throw-IfMissing $gameplayMarkerSyncScript "room gameplay marker sync script"
-Throw-IfMissing $npcProfileSyncScript "Stagehand NPC profile sync script"
+Throw-IfMissing $stagingAssetNameSyncScript "Staging asset naming sync script"
+Throw-IfMissing $npcProfileSyncScript "Staging NPC profile sync script"
 Throw-IfMissing $syncGeneratorScript "generator instance sync script"
 if ($RunStandardizeLTurn) {
     Throw-IfMissing $standardizeLTurnScript "L-turn standardization script"
@@ -178,11 +180,20 @@ if (-not $SkipGeneratorConfig) {
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,
         "-run=pythonscript",
+        "-script=$stagingAssetNameSyncScript",
+        "-unattended",
+        "-nop4",
+        "-nosourcecontrol"
+    ) -StepName "Staging Asset Name Sync"
+
+    Invoke-External -Exe $editorCmd -ArgumentList @(
+        $uproject,
+        "-run=pythonscript",
         "-script=$npcProfileSyncScript",
         "-unattended",
         "-nop4",
         "-nosourcecontrol"
-    ) -StepName "Stagehand NPC Profile Sync"
+    ) -StepName "Staging NPC Profile Sync"
 
     Invoke-External -Exe $editorCmd -ArgumentList @(
         $uproject,

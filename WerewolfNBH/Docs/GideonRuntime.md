@@ -28,11 +28,11 @@ Runtime:
 
 NPC integration:
 
-- `Source/WerewolfNBH/Public/StagehandDemoNPCCharacter.h`
-- `Source/WerewolfNBH/Private/StagehandDemoNPCCharacter.cpp`
-- `Source/WerewolfNBH/Public/StagehandSimulationData.h`
-- `Source/WerewolfNBH/Public/StagehandSimulationLibrary.h`
-- `Source/WerewolfNBH/Private/StagehandSimulationLibrary.cpp`
+- `Source/WerewolfNBH/Public/StagingDemoNPCCharacter.h`
+- `Source/WerewolfNBH/Private/StagingDemoNPCCharacter.cpp`
+- `Source/WerewolfNBH/Public/StagingSimulationData.h`
+- `Source/WerewolfNBH/Public/StagingSimulationLibrary.h`
+- `Source/WerewolfNBH/Private/StagingSimulationLibrary.cpp`
 
 Generator hookup:
 
@@ -47,18 +47,18 @@ Editor startup sync:
 Sync scripts:
 
 - `Scripts/sync_room_gameplay_markers.py`
-- `Scripts/sync_stagehand_conversation_topics.py`
-- `Scripts/sync_stagehand_npc_profiles.py`
+- `Scripts/sync_staging_conversation_topics.py`
+- `Scripts/sync_staging_npc_profiles.py`
 
 ## Startup Behavior
 
-The editor module now runs the three Stagehand/Gideon sync scripts automatically on editor startup.
+The editor module now runs the three Staging/Gideon sync scripts automatically on editor startup.
 
 Current startup order:
 
-1. `sync_stagehand_conversation_topics.py`
+1. `sync_staging_conversation_topics.py`
 2. `sync_room_gameplay_markers.py`
-3. `sync_stagehand_npc_profiles.py`
+3. `sync_staging_npc_profiles.py`
 
 This is editor-startup only. It is not intended to run during commandlets.
 
@@ -78,7 +78,7 @@ Current intended flow:
 6. Gideon loads the default profile roster if no explicit `NPCProfiles` array is set.
 7. NPCs spawn one at a time.
 8. NPCs queue at the admission booth.
-9. NPCs are admitted and switch into the Stagehand roaming loop.
+9. NPCs are admitted and switch into the Staging roaming loop.
 
 If only one NPC spawns, check whether Gideon is falling back to a single `DefaultNPCProfile` instead of a populated `NPCProfiles` array.
 
@@ -86,7 +86,7 @@ If only one NPC spawns, check whether Gideon is falling back to a single `Defaul
 
 ### Character Defaults
 
-The default spawned mesh for `AStagehandDemoNPCCharacter` is now:
+The default spawned mesh for `AStagingDemoNPCCharacter` is now:
 
 - `SKM_Manny_Simple`
 
@@ -150,3 +150,4 @@ When validating Gideon:
 - the booth interaction is still a basic gameplay gate stub
 - there is no parking lot / vehicle arrival implementation yet
 - there is no dedicated Manny animation blueprint pass yet
+

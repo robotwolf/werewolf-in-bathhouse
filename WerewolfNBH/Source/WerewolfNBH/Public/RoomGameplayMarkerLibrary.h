@@ -14,7 +14,7 @@ class WEREWOLFNBH_API URoomGameplayMarkerLibrary : public UBlueprintFunctionLibr
     GENERATED_BODY()
 
 public:
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,RequiredActivityTags,BlockedActivityTags"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,RequiredActivityTags,BlockedActivityTags"))
     static TArray<ARoomModuleBase*> GetCandidateRoomsForGameplayMarkers(
         const TArray<ARoomModuleBase*>& Rooms,
         ERoomGameplayMarkerFamily MarkerFamily,
@@ -25,7 +25,7 @@ public:
         bool bRequireAllRequiredRoomTags = true,
         bool bRequireAllRequiredActivityTags = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(AutoCreateRefTerm="RequiredTags,BlockedTags"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(AutoCreateRefTerm="RequiredTags,BlockedTags"))
     static TArray<FRoomGameplayMarker> GetFilteredGameplayMarkersFromRoom(
         const ARoomModuleBase* Room,
         ERoomGameplayMarkerFamily MarkerFamily,
@@ -33,7 +33,7 @@ public:
         const FGameplayTagContainer& BlockedTags,
         bool bRequireAllRequiredTags = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(AutoCreateRefTerm="RequiredTags,BlockedTags"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(AutoCreateRefTerm="RequiredTags,BlockedTags"))
     static bool PickGameplayMarkerFromRoom(
         const ARoomModuleBase* Room,
         ERoomGameplayMarkerFamily MarkerFamily,
@@ -43,7 +43,7 @@ public:
         FRoomGameplayMarker& OutMarker,
         bool bRequireAllRequiredTags = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,RequiredActivityTags,BlockedActivityTags,RequiredMarkerTags,BlockedMarkerTags"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,RequiredActivityTags,BlockedActivityTags,RequiredMarkerTags,BlockedMarkerTags"))
     static bool PickGameplayMarkerAcrossRooms(
         const TArray<ARoomModuleBase*>& Rooms,
         ERoomGameplayMarkerFamily MarkerFamily,
@@ -60,7 +60,7 @@ public:
         bool bRequireAllRequiredActivityTags = true,
         bool bRequireAllRequiredMarkerTags = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,PreferredRoomTags,RequiredActivityTags,BlockedActivityTags,PreferredActivityTags,RequiredMarkerTags,BlockedMarkerTags,PreferredMarkerTags"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(AutoCreateRefTerm="RequiredRoomTags,BlockedRoomTags,PreferredRoomTags,RequiredActivityTags,BlockedActivityTags,PreferredActivityTags,RequiredMarkerTags,BlockedMarkerTags,PreferredMarkerTags"))
     static bool PickBestGameplayMarkerAcrossRooms(
         const TArray<ARoomModuleBase*>& Rooms,
         ERoomGameplayMarkerFamily MarkerFamily,
@@ -84,7 +84,7 @@ public:
         bool bRequireAllRequiredActivityTags = true,
         bool bRequireAllRequiredMarkerTags = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Gameplay", meta=(WorldContext="WorldContextObject"))
+    UFUNCTION(BlueprintCallable, Category="Staging|Gameplay", meta=(WorldContext="WorldContextObject"))
     static void DrawDebugGameplayMarker(
         const UObject* WorldContextObject,
         const FRoomGameplayMarker& Marker,

@@ -1,4 +1,4 @@
-#include "StagehandDemoCoordinator.h"
+#include "StagingDemoCoordinator.h"
 
 #include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
@@ -6,34 +6,34 @@
 #include "GameFramework/Actor.h"
 #include "NavigationSystem.h"
 #include "RoomGenerator.h"
-#include "StagehandDemoNPCCharacter.h"
+#include "StagingDemoNPCCharacter.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogStagehandDemoCoordinator, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogStagingDemoCoordinator, Log, All);
 
 namespace
 {
-    UStagehandNPCProfile* ResolveDefaultDemoProfile()
+    UStagingNPCProfile* ResolveDefaultDemoProfile()
     {
         static const TCHAR* DefaultProfilePath = TEXT("/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_FirstTimer.DA_NPCProfile_FirstTimer");
-        return LoadObject<UStagehandNPCProfile>(nullptr, DefaultProfilePath);
+        return LoadObject<UStagingNPCProfile>(nullptr, DefaultProfilePath);
     }
 }
 
-AStagehandDemoCoordinator::AStagehandDemoCoordinator()
+AStagingDemoCoordinator::AStagingDemoCoordinator()
 {
     PrimaryActorTick.bCanEverTick = false;
 
     SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
     SetRootComponent(SceneRoot);
 
-    DemoNPCClass = AStagehandDemoNPCCharacter::StaticClass();
+    DemoNPCClass = AStagingDemoNPCCharacter::StaticClass();
 
     NPCProfile = ResolveDefaultDemoProfile();
 }
 
-void AStagehandDemoCoordinator::BeginPlay()
+void AStagingDemoCoordinator::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -43,13 +43,13 @@ void AStagehandDemoCoordinator::BeginPlay()
     }
 }
 
-void AStagehandDemoCoordinator::StartDemo()
+void AStagingDemoCoordinator::StartDemo()
 {
     GetWorldTimerManager().ClearTimer(DemoPollTimerHandle);
     PollForLayoutAndSpawnNPC();
 }
 
-void AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC()
+void AStagingDemoCoordinator::PollForLayoutAndSpawnNPC()
 {
     if (SpawnedDemoNPCs.Num() >= ResolveTargetNPCCount())
     {
@@ -63,11 +63,11 @@ void AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC()
 
     if (!TargetGenerator)
     {
-        UE_LOG(LogStagehandDemoCoordinator, Warning, TEXT("%s could not find a RoomGenerator."), *GetName());
+        UE_LOG(LogStagingDemoCoordinator, Warning, TEXT("%s could not find a RoomGenerator."), *GetName());
         GetWorldTimerManager().SetTimer(
             DemoPollTimerHandle,
             this,
-            &AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC,
+            &AStagingDemoCoordinator::PollForLayoutAndSpawnNPC,
             LayoutPollInterval,
             false);
         return;
@@ -85,7 +85,7 @@ void AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC()
         GetWorldTimerManager().SetTimer(
             DemoPollTimerHandle,
             this,
-            &AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC,
+            &AStagingDemoCoordinator::PollForLayoutAndSpawnNPC,
             LayoutPollInterval,
             false);
         return;
@@ -94,7 +94,7 @@ void AStagehandDemoCoordinator::PollForLayoutAndSpawnNPC()
     SpawnDemoNPCs();
 }
 
-TArray<ARoomModuleBase*> AStagehandDemoCoordinator::GatherGeneratorRooms() const
+TArray<ARoomModuleBase*> AStagingDemoCoordinator::GatherGeneratorRooms() const
 {
     TArray<ARoomModuleBase*> Rooms;
     if (!TargetGenerator)
@@ -113,7 +113,7 @@ TArray<ARoomModuleBase*> AStagehandDemoCoordinator::GatherGeneratorRooms() const
     return Rooms;
 }
 
-ARoomGenerator* AStagehandDemoCoordinator::FindGeneratorInWorld() const
+ARoomGenerator* AStagingDemoCoordinator::FindGeneratorInWorld() const
 {
     if (!GetWorld())
     {
@@ -131,7 +131,7 @@ ARoomGenerator* AStagehandDemoCoordinator::FindGeneratorInWorld() const
     return nullptr;
 }
 
-bool AStagehandDemoCoordinator::SpawnDemoNPCs()
+bool AStagingDemoCoordinator::SpawnDemoNPCs()
 {
     if (!GetWorld() || !DemoNPCClass)
     {
@@ -154,23 +154,23 @@ bool AStagehandDemoCoordinator::SpawnDemoNPCs()
     return bSpawnedAny;
 }
 
-bool AStagehandDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomModuleBase*>& Rooms)
+bool AStagingDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomModuleBase*>& Rooms)
 {
     if (!GetWorld() || !DemoNPCClass)
     {
         return false;
     }
 
-    UStagehandNPCProfile* ProfileForNPC = ResolveProfileForIndex(NPCIndex);
+    UStagingNPCProfile* ProfileForNPC = ResolveProfileForIndex(NPCIndex);
     if (!ProfileForNPC)
     {
-        UE_LOG(LogStagehandDemoCoordinator, Warning, TEXT("%s could not resolve a Stagehand demo profile for NPC index %d."), *GetName(), NPCIndex);
+        UE_LOG(LogStagingDemoCoordinator, Warning, TEXT("%s could not resolve a Staging demo profile for NPC index %d."), *GetName(), NPCIndex);
         return false;
     }
 
     const int32 TargetCount = ResolveTargetNPCCount();
     const FTransform SpawnTransform = BuildInitialSpawnTransform(Rooms, NPCIndex, TargetCount);
-    AStagehandDemoNPCCharacter* DemoNPC = GetWorld()->SpawnActorDeferred<AStagehandDemoNPCCharacter>(
+    AStagingDemoNPCCharacter* DemoNPC = GetWorld()->SpawnActorDeferred<AStagingDemoNPCCharacter>(
         DemoNPCClass,
         SpawnTransform,
         this,
@@ -179,7 +179,7 @@ bool AStagehandDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomM
 
     if (!DemoNPC)
     {
-        UE_LOG(LogStagehandDemoCoordinator, Warning, TEXT("%s failed to spawn Stagehand demo NPC."), *GetName());
+        UE_LOG(LogStagingDemoCoordinator, Warning, TEXT("%s failed to spawn Staging demo NPC."), *GetName());
         return false;
     }
 
@@ -199,7 +199,7 @@ bool AStagehandDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomM
     DemoNPC->StartBehaviorLoop();
 
     UE_LOG(
-        LogStagehandDemoCoordinator,
+        LogStagingDemoCoordinator,
         Log,
         TEXT("%s spawned %s for marker-loop demo slot %d."),
         *GetName(),
@@ -208,7 +208,7 @@ bool AStagehandDemoCoordinator::SpawnDemoNPC(int32 NPCIndex, const TArray<ARoomM
     return true;
 }
 
-FTransform AStagehandDemoCoordinator::BuildInitialSpawnTransform(const TArray<ARoomModuleBase*>& Rooms, int32 NPCIndex, int32 TotalNPCs) const
+FTransform AStagingDemoCoordinator::BuildInitialSpawnTransform(const TArray<ARoomModuleBase*>& Rooms, int32 NPCIndex, int32 TotalNPCs) const
 {
     FVector SpawnLocation = TargetGenerator
         ? TargetGenerator->GetActorLocation() + FVector(0.0f, 0.0f, 120.0f + SpawnHeightOffset)
@@ -245,7 +245,7 @@ FTransform AStagehandDemoCoordinator::BuildInitialSpawnTransform(const TArray<AR
     return SpawnTransform;
 }
 
-UStagehandNPCProfile* AStagehandDemoCoordinator::ResolveProfileForIndex(int32 NPCIndex)
+UStagingNPCProfile* AStagingDemoCoordinator::ResolveProfileForIndex(int32 NPCIndex)
 {
     if (NPCProfiles.IsValidIndex(NPCIndex) && NPCProfiles[NPCIndex])
     {
@@ -260,7 +260,7 @@ UStagehandNPCProfile* AStagehandDemoCoordinator::ResolveProfileForIndex(int32 NP
     return ResolveDefaultDemoProfile();
 }
 
-int32 AStagehandDemoCoordinator::ResolveTargetNPCCount() const
+int32 AStagingDemoCoordinator::ResolveTargetNPCCount() const
 {
     const int32 RequestedCount = FMath::Max(1, NumDemoNPCs);
     const int32 ProfileCount = NPCProfiles.Num();

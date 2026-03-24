@@ -1,4 +1,4 @@
-#include "StagehandBillboardLabelComponent.h"
+#include "StagingBillboardLabelComponent.h"
 
 #include "Components/StaticMeshComponent.h"
 #include "Components/TextRenderComponent.h"
@@ -9,7 +9,7 @@
 #include "Math/RotationMatrix.h"
 #include "UObject/ConstructorHelpers.h"
 
-UStagehandBillboardLabelComponent::UStagehandBillboardLabelComponent()
+UStagingBillboardLabelComponent::UStagingBillboardLabelComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     bTickInEditor = true;
@@ -47,7 +47,7 @@ UStagehandBillboardLabelComponent::UStagehandBillboardLabelComponent()
     }
 }
 
-void UStagehandBillboardLabelComponent::OnRegister()
+void UStagingBillboardLabelComponent::OnRegister()
 {
     Super::OnRegister();
 
@@ -65,13 +65,13 @@ void UStagehandBillboardLabelComponent::OnRegister()
     UpdateBillboarding();
 }
 
-void UStagehandBillboardLabelComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UStagingBillboardLabelComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
     UpdateBillboarding();
 }
 
-void UStagehandBillboardLabelComponent::UpdateLabel(const FVector& WorldLocation, const FString& Text, const FLinearColor& InAccentColor)
+void UStagingBillboardLabelComponent::UpdateLabel(const FVector& WorldLocation, const FString& Text, const FLinearColor& InAccentColor)
 {
     SetWorldLocation(WorldLocation);
     AccentColor = InAccentColor;
@@ -85,13 +85,13 @@ void UStagehandBillboardLabelComponent::UpdateLabel(const FVector& WorldLocation
     UpdateBillboarding();
 }
 
-void UStagehandBillboardLabelComponent::SetLabelVisible(bool bInVisible)
+void UStagingBillboardLabelComponent::SetLabelVisible(bool bInVisible)
 {
     SetVisibility(bInVisible, true);
     ApplyVisibility();
 }
 
-void UStagehandBillboardLabelComponent::ApplyVisibility()
+void UStagingBillboardLabelComponent::ApplyVisibility()
 {
     const bool bLabelVisible = IsVisible();
 
@@ -108,7 +108,7 @@ void UStagehandBillboardLabelComponent::ApplyVisibility()
     }
 }
 
-void UStagehandBillboardLabelComponent::UpdateBillboarding()
+void UStagingBillboardLabelComponent::UpdateBillboarding()
 {
     if (!bBillboardToView || !GetWorld() || GetWorld()->ViewLocationsRenderedLastFrame.IsEmpty())
     {
@@ -126,7 +126,7 @@ void UStagehandBillboardLabelComponent::UpdateBillboarding()
     SetWorldRotation(FRotator(0.0f, FacingRotation.Yaw, 0.0f));
 }
 
-void UStagehandBillboardLabelComponent::UpdateVisualStyle()
+void UStagingBillboardLabelComponent::UpdateVisualStyle()
 {
     if (BackplateMesh)
     {

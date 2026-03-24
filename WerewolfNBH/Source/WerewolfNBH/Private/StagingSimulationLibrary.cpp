@@ -1,21 +1,21 @@
-#include "StagehandSimulationLibrary.h"
+#include "StagingSimulationLibrary.h"
 
-#include "StagehandSimulationData.h"
+#include "StagingSimulationData.h"
 #include "RoomGameplayMarkerLibrary.h"
 #include "WerewolfGameplayTagLibrary.h"
 
 namespace
 {
-    struct FStagehandConversationTopicCandidate
+    struct FStagingConversationTopicCandidate
     {
-        const UStagehandConversationTopic* Topic = nullptr;
+        const UStagingConversationTopic* Topic = nullptr;
         float Weight = 0.0f;
         int32 SourceIndex = INDEX_NONE;
     };
 
     void GatherPhaseActivityModifiers(
-        const UStagehandNPCProfile* NPCProfile,
-        EStagehandRunPhase Phase,
+        const UStagingNPCProfile* NPCProfile,
+        EStagingRunPhase Phase,
         FGameplayTagContainer& OutAddedActivityTags,
         FGameplayTagContainer& OutBlockedActivityTags)
     {
@@ -27,7 +27,7 @@ namespace
             return;
         }
 
-        for (const FStagehandPhaseActivityModifier& Modifier : NPCProfile->PhaseOverrides)
+        for (const FStagingPhaseActivityModifier& Modifier : NPCProfile->PhaseOverrides)
         {
             if (Modifier.Phase != Phase)
             {
@@ -40,7 +40,7 @@ namespace
     }
 
     float GetWerewolfActivityBonus(
-        const UStagehandNPCProfile* NPCProfile,
+        const UStagingNPCProfile* NPCProfile,
         const FGameplayTag& ActivityTag,
         bool bIsWerewolf)
     {
@@ -57,7 +57,7 @@ namespace
         return HashCombineFast(BaseSeed, ActivityTag.IsValid() ? GetTypeHash(ActivityTag) : GetTypeHash(FallbackIndex));
     }
 
-    void AppendProfileConversationTags(const UStagehandNPCProfile* Profile, FGameplayTagContainer& OutTags)
+    void AppendProfileConversationTags(const UStagingNPCProfile* Profile, FGameplayTagContainer& OutTags)
     {
         if (!Profile)
         {
@@ -76,31 +76,31 @@ namespace
         return UWerewolfGameplayTagLibrary::MakeGameplayTagFromName(FName(TagName), false);
     }
 
-    void AppendConversationKindTag(EStagehandConversationLineKind LineKind, FGameplayTagContainer& OutTags)
+    void AppendConversationKindTag(EStagingConversationLineKind LineKind, FGameplayTagContainer& OutTags)
     {
         switch (LineKind)
         {
-        case EStagehandConversationLineKind::Clue:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Conversation.Clue")); Tag.IsValid())
+        case EStagingConversationLineKind::Clue:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Conversation.Clue")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandConversationLineKind::Idle:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Conversation.Idle")); Tag.IsValid())
+        case EStagingConversationLineKind::Idle:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Conversation.Idle")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandConversationLineKind::Werewolf:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Conversation.Werewolf")); Tag.IsValid())
+        case EStagingConversationLineKind::Werewolf:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Conversation.Werewolf")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandConversationLineKind::Social:
+        case EStagingConversationLineKind::Social:
         default:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Conversation.Social")); Tag.IsValid())
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Conversation.Social")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
@@ -108,37 +108,37 @@ namespace
         }
     }
 
-    void AppendPhaseTag(EStagehandRunPhase Phase, FGameplayTagContainer& OutTags)
+    void AppendPhaseTag(EStagingRunPhase Phase, FGameplayTagContainer& OutTags)
     {
         switch (Phase)
         {
-        case EStagehandRunPhase::FirstSigns:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Phase.FirstSigns")); Tag.IsValid())
+        case EStagingRunPhase::FirstSigns:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Phase.FirstSigns")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandRunPhase::Moonrise:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Phase.Moonrise")); Tag.IsValid())
+        case EStagingRunPhase::Moonrise:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Phase.Moonrise")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandRunPhase::Hunt:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Phase.Hunt")); Tag.IsValid())
+        case EStagingRunPhase::Hunt:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Phase.Hunt")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandRunPhase::Resolution:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Phase.Resolution")); Tag.IsValid())
+        case EStagingRunPhase::Resolution:
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Phase.Resolution")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
             break;
-        case EStagehandRunPhase::OpeningHours:
+        case EStagingRunPhase::OpeningHours:
         default:
-            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Stagehand.Phase.OpeningHours")); Tag.IsValid())
+            if (const FGameplayTag Tag = MakeLooseConversationTag(TEXT("Staging.Phase.OpeningHours")); Tag.IsValid())
             {
                 OutTags.AddTag(Tag);
             }
@@ -147,7 +147,7 @@ namespace
     }
 
     bool TopicMatchesConversationContext(
-        const UStagehandConversationTopic* Topic,
+        const UStagingConversationTopic* Topic,
         const FGameplayTagContainer& SpeakerTags,
         const FGameplayTagContainer& RoomContextTags,
         const FGameplayTagContainer& PhaseTags,
@@ -192,13 +192,13 @@ namespace
     }
 
     float ScoreConversationTopic(
-        const UStagehandConversationTopic* Topic,
+        const UStagingConversationTopic* Topic,
         float TopicWeight,
         const FGameplayTagContainer& SpeakerTags,
         const FGameplayTagContainer& OtherTags,
         const FGameplayTagContainer& ContextTags,
         const FGameplayTagContainer& ModeTags,
-        EStagehandConversationLineKind LineKind)
+        EStagingConversationLineKind LineKind)
     {
         float Score = FMath::Max(0.0f, TopicWeight);
 
@@ -227,12 +227,12 @@ namespace
             Score += 0.60f;
         }
 
-        if (LineKind == EStagehandConversationLineKind::Clue && Topic->TopicTags.HasTag(MakeLooseConversationTag(TEXT("Conversation.Topic.Secret"))))
+        if (LineKind == EStagingConversationLineKind::Clue && Topic->TopicTags.HasTag(MakeLooseConversationTag(TEXT("Conversation.Topic.Secret"))))
         {
             Score += 0.75f;
         }
 
-        if (LineKind == EStagehandConversationLineKind::Werewolf && Topic->bWerewolfOnly)
+        if (LineKind == EStagingConversationLineKind::Werewolf && Topic->bWerewolfOnly)
         {
             Score += 0.75f;
         }
@@ -240,25 +240,25 @@ namespace
         return Score;
     }
 
-    FText BuildFallbackConversationLineText(EStagehandConversationLineKind LineKind)
+    FText BuildFallbackConversationLineText(EStagingConversationLineKind LineKind)
     {
         switch (LineKind)
         {
-        case EStagehandConversationLineKind::Clue:
+        case EStagingConversationLineKind::Clue:
             return FText::FromString(TEXT("clue placeholder text"));
-        case EStagehandConversationLineKind::Idle:
+        case EStagingConversationLineKind::Idle:
             return FText::FromString(TEXT("..."));
-        case EStagehandConversationLineKind::Werewolf:
+        case EStagingConversationLineKind::Werewolf:
             return FText::FromString(TEXT("grr... placeholder werewolf line"));
-        case EStagehandConversationLineKind::Social:
+        case EStagingConversationLineKind::Social:
         default:
             return FText::FromString(TEXT("Bla bla blah? Bla ba Bla Bla!"));
         }
     }
 
     FText PickConversationResponseText(
-        const UStagehandConversationTopic* Topic,
-        EStagehandConversationLineKind LineKind,
+        const UStagingConversationTopic* Topic,
+        EStagingConversationLineKind LineKind,
         bool bIsWerewolf,
         int32 SelectionSeed,
         int32& OutResponseIndex,
@@ -281,18 +281,18 @@ namespace
 
         switch (LineKind)
         {
-        case EStagehandConversationLineKind::Clue:
+        case EStagingConversationLineKind::Clue:
             PrimaryPool = &Topic->PressuredResponses;
             SecondaryPool = &Topic->NeutralResponses;
             TertiaryPool = bIsWerewolf ? &Topic->WerewolfResponses : nullptr;
             break;
-        case EStagehandConversationLineKind::Werewolf:
+        case EStagingConversationLineKind::Werewolf:
             PrimaryPool = &Topic->WerewolfResponses;
             SecondaryPool = &Topic->PressuredResponses;
             TertiaryPool = &Topic->NeutralResponses;
             break;
-        case EStagehandConversationLineKind::Idle:
-        case EStagehandConversationLineKind::Social:
+        case EStagingConversationLineKind::Idle:
+        case EStagingConversationLineKind::Social:
         default:
             PrimaryPool = &Topic->NeutralResponses;
             SecondaryPool = &Topic->PressuredResponses;
@@ -329,12 +329,12 @@ namespace
     }
 }
 
-TArray<FStagehandActivityPreference> UStagehandSimulationLibrary::GetApplicableActivitiesForPhase(
-    const UStagehandNPCProfile* NPCProfile,
-    EStagehandRunPhase Phase,
+TArray<FStagingActivityPreference> UStagingSimulationLibrary::GetApplicableActivitiesForPhase(
+    const UStagingNPCProfile* NPCProfile,
+    EStagingRunPhase Phase,
     bool bIsWerewolf)
 {
-    TArray<FStagehandActivityPreference> Activities;
+    TArray<FStagingActivityPreference> Activities;
     if (!NPCProfile)
     {
         return Activities;
@@ -344,7 +344,7 @@ TArray<FStagehandActivityPreference> UStagehandSimulationLibrary::GetApplicableA
     FGameplayTagContainer BlockedActivityTags;
     GatherPhaseActivityModifiers(NPCProfile, Phase, AddedActivityTags, BlockedActivityTags);
 
-    for (const FStagehandActivityPreference& Activity : NPCProfile->BaselineActivities)
+    for (const FStagingActivityPreference& Activity : NPCProfile->BaselineActivities)
     {
         if (Activity.bWerewolfOnly && !bIsWerewolf)
         {
@@ -356,7 +356,7 @@ TArray<FStagehandActivityPreference> UStagehandSimulationLibrary::GetApplicableA
             continue;
         }
 
-        FStagehandActivityPreference& Copy = Activities.Add_GetRef(Activity);
+        FStagingActivityPreference& Copy = Activities.Add_GetRef(Activity);
         if (Activity.ActivityTag.IsValid() && AddedActivityTags.HasTag(Activity.ActivityTag))
         {
             Copy.Weight += 1.0f;
@@ -368,15 +368,15 @@ TArray<FStagehandActivityPreference> UStagehandSimulationLibrary::GetApplicableA
     return Activities;
 }
 
-FStagehandNPCMarkerSelection UStagehandSimulationLibrary::PickMarkerForNPCProfile(
-    const UStagehandNPCProfile* NPCProfile,
+FStagingNPCMarkerSelection UStagingSimulationLibrary::PickMarkerForNPCProfile(
+    const UStagingNPCProfile* NPCProfile,
     const TArray<ARoomModuleBase*>& Rooms,
-    EStagehandRunPhase Phase,
+    EStagingRunPhase Phase,
     bool bIsWerewolf,
     int32 SelectionSeed)
 {
-    FStagehandNPCMarkerSelection Result;
-    Result.NPCProfile = const_cast<UStagehandNPCProfile*>(NPCProfile);
+    FStagingNPCMarkerSelection Result;
+    Result.NPCProfile = const_cast<UStagingNPCProfile*>(NPCProfile);
     Result.Phase = Phase;
     Result.bIsWerewolfContext = bIsWerewolf;
 
@@ -392,7 +392,7 @@ FStagehandNPCMarkerSelection UStagehandSimulationLibrary::PickMarkerForNPCProfil
         return Result;
     }
 
-    const TArray<FStagehandActivityPreference> Activities = GetApplicableActivitiesForPhase(NPCProfile, Phase, bIsWerewolf);
+    const TArray<FStagingActivityPreference> Activities = GetApplicableActivitiesForPhase(NPCProfile, Phase, bIsWerewolf);
     if (Activities.IsEmpty())
     {
         Result.Notes = TEXT("No applicable activities for this NPC and phase.");
@@ -400,13 +400,13 @@ FStagehandNPCMarkerSelection UStagehandSimulationLibrary::PickMarkerForNPCProfil
     }
 
     float BestScore = -1.0f;
-    const FStagehandActivityPreference* BestActivity = nullptr;
+    const FStagingActivityPreference* BestActivity = nullptr;
     ARoomModuleBase* BestRoom = nullptr;
     FRoomGameplayMarker BestMarker;
 
     for (int32 ActivityIndex = 0; ActivityIndex < Activities.Num(); ++ActivityIndex)
     {
-        const FStagehandActivityPreference& Activity = Activities[ActivityIndex];
+        const FStagingActivityPreference& Activity = Activities[ActivityIndex];
 
         FGameplayTagContainer PreferredRoomTags = NPCProfile->PreferredRoomTags;
         PreferredRoomTags.AppendTags(Activity.PreferredRoomTags);
@@ -484,19 +484,19 @@ FStagehandNPCMarkerSelection UStagehandSimulationLibrary::PickMarkerForNPCProfil
     return Result;
 }
 
-FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversationLineForNPCProfile(
-    const UStagehandNPCProfile* SpeakerProfile,
-    EStagehandRunPhase Phase,
+FStagingConversationLineSelection UStagingSimulationLibrary::PickConversationLineForNPCProfile(
+    const UStagingNPCProfile* SpeakerProfile,
+    EStagingRunPhase Phase,
     bool bIsWerewolf,
     int32 SelectionSeed,
-    EStagehandConversationLineKind LineKind,
+    EStagingConversationLineKind LineKind,
     const FGameplayTagContainer& ContextTags,
-    const UStagehandNPCProfile* OtherProfile)
+    const UStagingNPCProfile* OtherProfile)
 {
-    FStagehandConversationLineSelection Result;
+    FStagingConversationLineSelection Result;
     Result.LineKind = LineKind;
-    Result.SpeakerProfile = const_cast<UStagehandNPCProfile*>(SpeakerProfile);
-    Result.OtherProfile = const_cast<UStagehandNPCProfile*>(OtherProfile);
+    Result.SpeakerProfile = const_cast<UStagingNPCProfile*>(SpeakerProfile);
+    Result.OtherProfile = const_cast<UStagingNPCProfile*>(OtherProfile);
 
     if (!SpeakerProfile)
     {
@@ -524,13 +524,13 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
     ScoringContextTags.AppendTags(ModeTags);
     ScoringContextTags.AppendTags(OtherTags);
 
-    TArray<FStagehandConversationTopicCandidate> Candidates;
+    TArray<FStagingConversationTopicCandidate> Candidates;
     Candidates.Reserve(SpeakerProfile->ConversationTopics.Num());
 
     for (int32 TopicIndex = 0; TopicIndex < SpeakerProfile->ConversationTopics.Num(); ++TopicIndex)
     {
-        const FStagehandConversationTopicWeight& TopicWeight = SpeakerProfile->ConversationTopics[TopicIndex];
-        const UStagehandConversationTopic* Topic = TopicWeight.Topic;
+        const FStagingConversationTopicWeight& TopicWeight = SpeakerProfile->ConversationTopics[TopicIndex];
+        const UStagingConversationTopic* Topic = TopicWeight.Topic;
         if (!Topic || TopicWeight.Weight <= 0.0f)
         {
             continue;
@@ -541,7 +541,7 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
             continue;
         }
 
-        FStagehandConversationTopicCandidate& Candidate = Candidates.Add_GetRef(FStagehandConversationTopicCandidate());
+        FStagingConversationTopicCandidate& Candidate = Candidates.Add_GetRef(FStagingConversationTopicCandidate());
         Candidate.Topic = Topic;
         Candidate.SourceIndex = TopicIndex;
         Candidate.Weight = ScoreConversationTopic(
@@ -563,7 +563,7 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
     }
 
     float TotalWeight = 0.0f;
-    for (const FStagehandConversationTopicCandidate& Candidate : Candidates)
+    for (const FStagingConversationTopicCandidate& Candidate : Candidates)
     {
         TotalWeight += FMath::Max(0.01f, Candidate.Weight);
     }
@@ -571,9 +571,9 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
     FRandomStream SelectionRandom(HashCombineFast(SelectionSeed, GetTypeHash(static_cast<int32>(LineKind))));
     const float SelectionRoll = SelectionRandom.FRandRange(0.0f, TotalWeight);
 
-    const FStagehandConversationTopicCandidate* SelectedCandidate = &Candidates[0];
+    const FStagingConversationTopicCandidate* SelectedCandidate = &Candidates[0];
     float RunningWeight = 0.0f;
-    for (const FStagehandConversationTopicCandidate& Candidate : Candidates)
+    for (const FStagingConversationTopicCandidate& Candidate : Candidates)
     {
         RunningWeight += FMath::Max(0.01f, Candidate.Weight);
         if (SelectionRoll <= RunningWeight)
@@ -584,7 +584,7 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
     }
 
     Result.bFoundSelection = true;
-    Result.Topic = const_cast<UStagehandConversationTopic*>(SelectedCandidate->Topic);
+    Result.Topic = const_cast<UStagingConversationTopic*>(SelectedCandidate->Topic);
     Result.TopicPrompt = SelectedCandidate->Topic ? SelectedCandidate->Topic->TopicPrompt : FText::GetEmpty();
     Result.Score = SelectedCandidate->Weight;
 
@@ -619,10 +619,10 @@ FStagehandConversationLineSelection UStagehandSimulationLibrary::PickConversatio
     return Result;
 }
 
-FText UStagehandSimulationLibrary::BuildPlaceholderConversationLine(
-    EStagehandConversationLineKind LineKind,
-    const UStagehandNPCProfile* SpeakerProfile,
-    const UStagehandNPCProfile* OtherProfile)
+FText UStagingSimulationLibrary::BuildPlaceholderConversationLine(
+    EStagingConversationLineKind LineKind,
+    const UStagingNPCProfile* SpeakerProfile,
+    const UStagingNPCProfile* OtherProfile)
 {
     const FString SpeakerName = SpeakerProfile
         ? (SpeakerProfile->DisplayName.IsEmpty() ? SpeakerProfile->GetName() : SpeakerProfile->DisplayName.ToString())
@@ -633,13 +633,13 @@ FText UStagehandSimulationLibrary::BuildPlaceholderConversationLine(
 
     switch (LineKind)
     {
-    case EStagehandConversationLineKind::Clue:
+    case EStagingConversationLineKind::Clue:
         return FText::FromString(FString::Printf(TEXT("%s: clue placeholder text"), *SpeakerName));
-    case EStagehandConversationLineKind::Idle:
+    case EStagingConversationLineKind::Idle:
         return FText::FromString(FString::Printf(TEXT("%s: ..."), *SpeakerName));
-    case EStagehandConversationLineKind::Werewolf:
+    case EStagingConversationLineKind::Werewolf:
         return FText::FromString(FString::Printf(TEXT("%s: grr... placeholder werewolf line"), *SpeakerName));
-    case EStagehandConversationLineKind::Social:
+    case EStagingConversationLineKind::Social:
     default:
         return FText::FromString(FString::Printf(TEXT("%s and %s: Bla bla blah? Bla ba Bla Bla!"), *SpeakerName, *OtherName));
     }

@@ -26,15 +26,15 @@
       <div class="hero-card">
         <div class="eyebrow">Subsystem Map</div>
         <h1>Who Owns Which Mess</h1>
-        <p class="lede">Use this page when you need to know which subsystem should change and which one should be left alone with its coffee.</p>
+        <p class="lede">Use this page when you need to know which subsystem should change, which one should stay untouched, and which one should stop trying to solve everyone elseâ€™s problems.</p>
       </div>
     </section>
 
     <section class="section" id="ginny">
       <div class="card">
         <h2>Ginny</h2>
-        <p>Owns layout, room selection, hall approaches, required-path logic, and high-level generator policy.</p>
-        <p><strong>Does not own:</strong> final shell art, runtime NPC orchestration, or pretending a room’s visual trickery changes topology.</p>
+        <p><strong>Owns:</strong> layout, room selection, required-path logic, hall approaches, adjacency policy, and generator summaries.</p>
+        <p><strong>Does not own:</strong> final shell art, query helpers, or runtime crowd orchestration.</p>
         <p><strong>Likely touchpoints:</strong> <code>ARoomGenerator</code>, <code>UGinnyLayoutProfile</code>, <code>UGinnyRoomProfile</code></p>
       </div>
     </section>
@@ -42,27 +42,29 @@
     <section class="section" id="mason">
       <div class="card">
         <h2>Mason</h2>
-        <p>Owns stock and parametric construction. He builds shells when invited and can stay attached but idle for hero authored rooms.</p>
-        <p><strong>Does not own:</strong> marker semantics, runtime crowd behavior, or your lovingly hand-built entry facade.</p>
+        <p><strong>Owns:</strong> stock and parametric construction, openings, shell generation, and technique-specific embodiment.</p>
+        <p><strong>Does not own:</strong> room selection, mission semantics, or your lovingly hand-built entry facade.</p>
         <p><strong>Likely touchpoints:</strong> <code>UMasonBuilderComponent</code>, <code>UMasonConstructionProfile</code>, room stock/parametric settings</p>
       </div>
     </section>
 
-    <section class="section" id="stagehand">
+    <section class="section" id="staging">
       <div class="card">
-        <h2>Stagehand</h2>
-        <p>Owns room truth publication and editor/runtime query seams: room signage, debug visualizers, connector semantics, marker selection helpers.</p>
-        <p><strong>Does not own:</strong> layout policy or Gideon’s runtime crowd decisions.</p>
-        <p><strong>Likely touchpoints:</strong> <code>ARoomModuleBase</code>, <code>URoomSignageComponent</code>, <code>UStagehandDebugVisualizerComponent</code>, <code>URoomGameplayMarkerLibrary</code></p>
+        <h2>Staging</h2>
+        <p><strong>Definition:</strong> the semantic query and handoff layer that exposes constructed space as usable room truth for tools, gameplay, and runtime orchestration.</p>
+        <p><strong>Migration note:</strong> older commits and redirect-backed assets may still call this layer <code>Stagehand</code>.</p>
+        <p><strong>Owns:</strong> marker lookup, connector lookup, room filtering, query helpers, probes, signage/debug helpers, and the seam runtime systems use instead of geometry archaeology.</p>
+        <p><strong>Does not own:</strong> topology policy, shell construction, or Gideonâ€™s live crowd decisions.</p>
+        <p><strong>Likely touchpoints:</strong> <code>ARoomModuleBase</code>, <code>URoomGameplayMarkerLibrary</code>, <code>URoomSignageComponent</code>, <code>UStagingDebugVisualizerComponent</code>, <code>UStagingSimulationLibrary</code></p>
       </div>
     </section>
 
     <section class="section" id="gideon">
       <div class="card">
         <h2>Gideon</h2>
-        <p>Owns runtime orchestration on top of generated space: arrivals, admission, POIs, crowd behavior, and related live management logic.</p>
-        <p><strong>Does not own:</strong> room placement or connector truth. He consumes published room truth like a civilized runtime layer.</p>
-        <p><strong>Likely touchpoints:</strong> <code>AGideonDirector</code>, <code>GideonAdmissionBooth</code>, runtime marker tags and queue markers</p>
+        <p><strong>Owns:</strong> runtime orchestration on top of generated space: arrivals, admission, POIs, crowd flow, runtime fear/state, and management logic.</p>
+        <p><strong>Does not own:</strong> room placement or room truth. He consumes published room truth like a civilized runtime layer.</p>
+        <p><strong>Likely touchpoints:</strong> <code>AGideonDirector</code>, <code>AGideonAdmissionBooth</code>, <code>FGideonNPCRuntimeState</code>, queue markers, and entry-threshold tags.</p>
         <p><a href="../../WerewolfNBH/Docs/GideonRuntime.md">Open Gideon runtime doc</a></p>
       </div>
     </section>
@@ -70,20 +72,22 @@
     <section class="section" id="butch">
       <div class="card">
         <h2>Butch</h2>
-        <p>Owns dressing and decorative pass behavior. He makes the place look inhabited instead of merely legal.</p>
+        <p><strong>Owns:</strong> dressing and decorative pass behavior.</p>
+        <p><strong>Does not own:</strong> structural truth, gameplay markers, or pretending a chair is a mission socket because it felt dramatic.</p>
       </div>
     </section>
 
     <section class="section" id="flo">
       <div class="card">
         <h2>Flo</h2>
-        <p>Future configuration and flow orchestration layer. Useful to remember, not yet the boss of this page’s immediate problems.</p>
+        <p><strong>Owns:</strong> future configuration-flow orchestration between larger layout regimes.</p>
+        <p><strong>Current status:</strong> still prophecy, not yet payroll.</p>
       </div>
     </section>
 
     <section class="section">
       <div class="callout warning">
-        Contained exterior pattern reminder: “outside by presentation, normal room by systems truth.”
+        Contained exterior pattern reminder: outside by presentation, normal room by systems truth.
       </div>
     </section>
   </main>

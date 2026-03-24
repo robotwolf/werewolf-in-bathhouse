@@ -7,7 +7,7 @@ SCRIPT_DIR = os.path.dirname(__file__)
 if SCRIPT_DIR not in sys.path:
     sys.path.append(SCRIPT_DIR)
 
-from sync_stagehand_conversation_topics import sync_stagehand_conversation_topics
+from sync_staging_conversation_topics import sync_staging_conversation_topics
 
 
 NPC_DATA_ROOT = "/Game/WerewolfBH/Data/NPC"
@@ -59,9 +59,9 @@ NPC_DEFINITIONS = [
             {"tag": "NPC.Activity.WerewolfOverride", "preferred_rooms": ["Room.System.HighRisk", "Room.Function.Maintenance"], "blocked_rooms": [], "weight": 1.7, "werewolf_only": True},
         ],
         "phase_overrides": [
-            {"phase": unreal.StagehandRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.1, "suspicion": 0.1},
-            {"phase": unreal.StagehandRunPhase.MOONRISE, "added": ["NPC.Activity.Hide", "NPC.Activity.WerewolfOverride"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.25, "suspicion": 0.2},
-            {"phase": unreal.StagehandRunPhase.HUNT, "added": ["NPC.Activity.WerewolfOverride"], "blocked": ["NPC.Activity.Relax"], "mood": ["NPC.Mood.Panicked"], "stress": 0.35, "suspicion": 0.35},
+            {"phase": unreal.StagingRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.1, "suspicion": 0.1},
+            {"phase": unreal.StagingRunPhase.MOONRISE, "added": ["NPC.Activity.Hide", "NPC.Activity.WerewolfOverride"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.25, "suspicion": 0.2},
+            {"phase": unreal.StagingRunPhase.HUNT, "added": ["NPC.Activity.WerewolfOverride"], "blocked": ["NPC.Activity.Relax"], "mood": ["NPC.Mood.Panicked"], "stress": 0.35, "suspicion": 0.35},
         ],
     },
     {
@@ -98,8 +98,8 @@ NPC_DEFINITIONS = [
             {"tag": "NPC.Activity.Gossip", "preferred_rooms": ["Room.Function.Entry", "Room.Function.Changing"], "blocked_rooms": ["Room.System.HighRisk"], "weight": 0.8, "requires_partner": True},
         ],
         "phase_overrides": [
-            {"phase": unreal.StagehandRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Stressed"], "stress": 0.1, "suspicion": 0.05},
-            {"phase": unreal.StagehandRunPhase.MOONRISE, "added": ["NPC.Activity.Hide"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Panicked"], "stress": 0.2, "suspicion": 0.1},
+            {"phase": unreal.StagingRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Stressed"], "stress": 0.1, "suspicion": 0.05},
+            {"phase": unreal.StagingRunPhase.MOONRISE, "added": ["NPC.Activity.Hide"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Panicked"], "stress": 0.2, "suspicion": 0.1},
         ],
     },
     {
@@ -136,8 +136,8 @@ NPC_DEFINITIONS = [
             {"tag": "NPC.Activity.Gossip", "preferred_rooms": ["Room.Function.Changing", "Room.Function.Social"], "blocked_rooms": [], "weight": 0.9, "requires_partner": True},
         ],
         "phase_overrides": [
-            {"phase": unreal.StagehandRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.05, "suspicion": 0.05},
-            {"phase": unreal.StagehandRunPhase.MOONRISE, "added": ["NPC.Activity.Observe"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.14, "suspicion": 0.08},
+            {"phase": unreal.StagingRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.05, "suspicion": 0.05},
+            {"phase": unreal.StagingRunPhase.MOONRISE, "added": ["NPC.Activity.Observe"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.14, "suspicion": 0.08},
         ],
     },
     {
@@ -174,8 +174,8 @@ NPC_DEFINITIONS = [
             {"tag": "NPC.Activity.Wait", "preferred_rooms": ["Room.Function.Entry"], "blocked_rooms": [], "weight": 0.9},
         ],
         "phase_overrides": [
-            {"phase": unreal.StagehandRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Clean"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.08, "suspicion": 0.04},
-            {"phase": unreal.StagehandRunPhase.MOONRISE, "added": ["NPC.Activity.Observe", "NPC.Activity.Clean"], "blocked": ["NPC.Activity.Wait"], "mood": ["NPC.Mood.Stressed"], "stress": 0.16, "suspicion": 0.1},
+            {"phase": unreal.StagingRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Clean"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.08, "suspicion": 0.04},
+            {"phase": unreal.StagingRunPhase.MOONRISE, "added": ["NPC.Activity.Observe", "NPC.Activity.Clean"], "blocked": ["NPC.Activity.Wait"], "mood": ["NPC.Mood.Stressed"], "stress": 0.16, "suspicion": 0.1},
         ],
     },
     {
@@ -214,15 +214,15 @@ NPC_DEFINITIONS = [
             {"tag": "NPC.Activity.Hide", "preferred_rooms": ["Room.System.HighRisk"], "blocked_rooms": [], "weight": 0.8},
         ],
         "phase_overrides": [
-            {"phase": unreal.StagehandRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.05, "suspicion": 0.05},
-            {"phase": unreal.StagehandRunPhase.MOONRISE, "added": ["NPC.Activity.Hide", "NPC.Activity.Observe"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.16, "suspicion": 0.12},
+            {"phase": unreal.StagingRunPhase.FIRST_SIGNS, "added": ["NPC.Activity.Observe"], "blocked": [], "mood": ["NPC.Mood.Wary"], "stress": 0.05, "suspicion": 0.05},
+            {"phase": unreal.StagingRunPhase.MOONRISE, "added": ["NPC.Activity.Hide", "NPC.Activity.Observe"], "blocked": ["NPC.Activity.Gossip"], "mood": ["NPC.Mood.Stressed"], "stress": 0.16, "suspicion": 0.12},
         ],
     },
 ]
 
 
 def log(message: str) -> None:
-    unreal.log(f"[sync_stagehand_npc_profiles] {message}")
+    unreal.log(f"[sync_staging_npc_profiles] {message}")
 
 
 def ensure_folder(path: str) -> None:
@@ -281,7 +281,7 @@ def set_optional_editor_property(asset, property_name: str, value) -> bool:
 
 
 def build_activity_preference(definition):
-    preference = unreal.StagehandActivityPreference()
+    preference = unreal.StagingActivityPreference()
     preference.set_editor_property("ActivityTag", make_tag(definition["tag"]))
     preference.set_editor_property("PreferredRoomTags", make_tag_container(definition.get("preferred_rooms", [])))
     preference.set_editor_property("BlockedRoomTags", make_tag_container(definition.get("blocked_rooms", [])))
@@ -292,7 +292,7 @@ def build_activity_preference(definition):
 
 
 def build_phase_override(definition):
-    override = unreal.StagehandPhaseActivityModifier()
+    override = unreal.StagingPhaseActivityModifier()
     override.set_editor_property("Phase", definition["phase"])
     override.set_editor_property("AddedActivityTags", make_tag_container(definition.get("added", [])))
     override.set_editor_property("BlockedActivityTags", make_tag_container(definition.get("blocked", [])))
@@ -308,14 +308,14 @@ def build_conversation_topic_weight(definition, topic_assets):
     if not topic_asset:
         return None
 
-    weight = unreal.StagehandConversationTopicWeight()
+    weight = unreal.StagingConversationTopicWeight()
     weight.set_editor_property("Topic", topic_asset)
     weight.set_editor_property("Weight", definition.get("weight", 1.0))
     return weight
 
 
 def sync_profile(definition, topic_assets):
-    profile = create_data_asset(definition["asset_name"], NPC_PROFILE_PATH, unreal.StagehandNPCProfile)
+    profile = create_data_asset(definition["asset_name"], NPC_PROFILE_PATH, unreal.StagingNPCProfile)
     profile.set_editor_property("NPCId", definition["npc_id"])
     profile.set_editor_property("DisplayName", make_text(definition["display_name"]))
     profile.set_editor_property("PublicSummary", make_text(definition["summary"]))
@@ -371,7 +371,7 @@ def main():
     ensure_folder(NPC_DATA_ROOT)
     ensure_folder(NPC_PROFILE_PATH)
 
-    topic_assets = sync_stagehand_conversation_topics()
+    topic_assets = sync_staging_conversation_topics()
 
     for definition in NPC_DEFINITIONS:
         sync_profile(definition, topic_assets)
@@ -387,9 +387,9 @@ def main():
             f"extra={extra_ids if extra_ids else '[]'}"
         )
     else:
-        log(f"Verified coverage for {len(EXPECTED_NPC_PROFILE_IDS)} Stagehand NPC profile types.")
+        log(f"Verified coverage for {len(EXPECTED_NPC_PROFILE_IDS)} Staging NPC profile types.")
 
-    log(f"Synchronized {len(NPC_DEFINITIONS)} Stagehand NPC profiles.")
+    log(f"Synchronized {len(NPC_DEFINITIONS)} Staging NPC profiles.")
 
 
 if __name__ == "__main__":

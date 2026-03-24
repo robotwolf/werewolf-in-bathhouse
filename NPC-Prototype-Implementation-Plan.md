@@ -60,7 +60,7 @@ This document is grounded in the current repo state in `E:\Documents\Projects\we
 
 ### NPC profile data
 
-- Best insertion point: new `UStagehandNPCProfile` data asset class.
+- Best insertion point: new `UStagingNPCProfile` data asset class.
 - Why here:
   - it matches the existing `UGinny*Profile` pattern
   - it keeps per-NPC variation out of room or generator classes
@@ -87,14 +87,14 @@ This document is grounded in the current repo state in `E:\Documents\Projects\we
 
 ### Conversation topic data
 
-- Best insertion point: new `UStagehandConversationTopic` data asset class.
+- Best insertion point: new `UStagingConversationTopic` data asset class.
 - Why here:
   - topic filtering wants tags, not giant branching graphs
   - topic selection can be driven by room tags, phase tags, suspicion, and stress without narrative lock-in
 
 ### Run and phase manager
 
-- Best insertion point: future `BP_RunManager` backed by `UStagehandRunDirectorProfile`.
+- Best insertion point: future `BP_RunManager` backed by `UStagingRunDirectorProfile`.
 - Why here:
   - the room generator already owns layout truth
   - the run manager should own phase/escalation truth and werewolf assignment
@@ -113,7 +113,7 @@ This document is grounded in the current repo state in `E:\Documents\Projects\we
 ## Recommended Priority Order
 
 1. Build `BP_RunManager` that owns run seed, werewolf assignment, and phase transitions.
-2. Create `DA_NPCProfile_*` assets using `UStagehandNPCProfile`.
+2. Create `DA_NPCProfile_*` assets using `UStagingNPCProfile`.
 3. Add `NPC_*`, `Task_*`, `Clue_*`, and `MissionSocket_*` markers to the core room Blueprints and tag them.
 4. Build one shared `ST_NPC_Base` with a tiny leaf set:
    - `Idle`
@@ -177,3 +177,4 @@ If you want the first playable NPC behavior without overengineering:
 5. Add one Moonrise phase modifier that swaps the profile toward `Hide`, `Observe`, or `WerewolfOverride`
 
 That is enough to prove the design direction without building the world's saddest enterprise social sim.
+

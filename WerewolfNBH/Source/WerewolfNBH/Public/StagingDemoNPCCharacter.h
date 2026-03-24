@@ -5,18 +5,18 @@
 #include "GideonRuntimeTypes.h"
 #include "GameFramework/Character.h"
 #include "Navigation/PathFollowingComponent.h"
-#include "StagehandSimulationData.h"
-#include "StagehandSimulationLibrary.h"
-#include "StagehandDemoNPCCharacter.generated.h"
+#include "StagingSimulationData.h"
+#include "StagingSimulationLibrary.h"
+#include "StagingDemoNPCCharacter.generated.h"
 
 class ARoomGenerator;
-class AStagehandDemoAIController;
+class AStagingDemoAIController;
 class UArrowComponent;
-class UStagehandNPCProfile;
+class UStagingNPCProfile;
 class UWerewolfStateBillboardComponent;
 
 UENUM(BlueprintType)
-enum class EStagehandDemoLoopState : uint8
+enum class EStagingDemoLoopState : uint8
 {
     WaitForLayout,
     SelectMarker,
@@ -26,7 +26,7 @@ enum class EStagehandDemoLoopState : uint8
 };
 
 UENUM(BlueprintType)
-enum class EStagehandDemoActionState : uint8
+enum class EStagingDemoActionState : uint8
 {
     None,
     Transit,
@@ -38,147 +38,147 @@ enum class EStagehandDemoActionState : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandDemoPresentationPayload
+struct FStagingDemoPresentationPayload
 {
     GENERATED_BODY()
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
-    EStagehandDemoActionState ActionState = EStagehandDemoActionState::None;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
+    EStagingDemoActionState ActionState = EStagingDemoActionState::None;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FText HeaderText;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FText StateText;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FText DetailText;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FText StatusText;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FName RoomName = NAME_None;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FName MarkerName = NAME_None;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     FName SocialPartnerName = NAME_None;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     bool bHasConversationPartner = false;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
     bool bHasClueContext = false;
 };
 
 UCLASS(Blueprintable)
-class WEREWOLFNBH_API AStagehandDemoNPCCharacter : public ACharacter
+class WEREWOLFNBH_API AStagingDemoNPCCharacter : public ACharacter
 {
     GENERATED_BODY()
 
 public:
-    AStagehandDemoNPCCharacter();
+    AStagingDemoNPCCharacter();
 
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
     TObjectPtr<ARoomGenerator> TargetGenerator = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
-    TObjectPtr<UStagehandNPCProfile> NPCProfile = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
+    TObjectPtr<UStagingNPCProfile> NPCProfile = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
-    EStagehandRunPhase Phase = EStagehandRunPhase::OpeningHours;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
+    EStagingRunPhase Phase = EStagingRunPhase::OpeningHours;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
     bool bTreatAsWerewolf = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
     int32 SelectionSeed = 1337;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
     bool bAutoStartOnBeginPlay = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Timing", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Timing", meta=(ClampMin="0.1"))
     float LayoutPollInterval = 0.5f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Timing", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Timing", meta=(ClampMin="0.1"))
     float RetryDelay = 1.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Timing", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Timing", meta=(ClampMin="0.1"))
     float PauseDurationMin = 1.5f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Timing", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Timing", meta=(ClampMin="0.1"))
     float PauseDurationMax = 3.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Movement", meta=(ClampMin="10.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Movement", meta=(ClampMin="10.0"))
     float AcceptanceRadius = 75.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Selection", meta=(ClampMin="1", ClampMax="12"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Selection", meta=(ClampMin="1", ClampMax="12"))
     int32 MaxSelectionAttempts = 5;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Action", meta=(ClampMin="0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Action", meta=(ClampMin="0.0"))
     float SocialPartnerSearchRadius = 650.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     bool bDrawDebugMarker = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug", meta=(ClampMin="0.1"))
     float DebugMarkerDuration = 4.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug", meta=(ClampMin="1.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug", meta=(ClampMin="1.0"))
     float DebugMarkerRadius = 20.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     bool bLogStateChanges = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     bool bUseWorldDebugString = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     bool bUseLegacyBillboardDebug = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     FVector DebugTextWorldOffset = FVector(0.0f, 0.0f, 130.0f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo|Debug", meta=(ClampMin="0.5"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug", meta=(ClampMin="0.5"))
     float DebugTextFontScale = 1.1f;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Demo|Debug")
     TObjectPtr<UWerewolfStateBillboardComponent> DebugText;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Demo|Debug")
     TObjectPtr<UArrowComponent> TargetArrow;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
-    EStagehandDemoLoopState LoopState = EStagehandDemoLoopState::WaitForLayout;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
+    EStagingDemoLoopState LoopState = EStagingDemoLoopState::WaitForLayout;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
-    FStagehandNPCMarkerSelection CurrentSelection;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
+    FStagingNPCMarkerSelection CurrentSelection;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
-    FStagehandNPCMarkerSelection LastSelection;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
+    FStagingNPCMarkerSelection LastSelection;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
     FVector CurrentMoveDestination = FVector::ZeroVector;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Action")
-    EStagehandDemoActionState CurrentActionState = EStagehandDemoActionState::None;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Action")
+    EStagingDemoActionState CurrentActionState = EStagingDemoActionState::None;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Presentation")
-    FStagehandDemoPresentationPayload CurrentPresentation;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Presentation")
+    FStagingDemoPresentationPayload CurrentPresentation;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
     int32 CompletedLoops = 0;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Debug")
     int32 ConsecutiveRetryCount = 0;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo|Debug")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo|Debug")
     FString LastFailureReason;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
@@ -199,20 +199,20 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
     int32 GideonQueueSlotIndex = INDEX_NONE;
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
+    UFUNCTION(BlueprintCallable, Category="Staging|Demo")
     void StartBehaviorLoop();
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
+    UFUNCTION(BlueprintCallable, Category="Staging|Demo")
     void StopBehaviorLoop();
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
+    UFUNCTION(BlueprintCallable, Category="Staging|Demo")
     bool SelectNextMarker();
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
     void ConfigureForGideon(
         ARoomGenerator* InTargetGenerator,
-        UStagehandNPCProfile* InNPCProfile,
-        EStagehandRunPhase InPhase,
+        UStagingNPCProfile* InNPCProfile,
+        EStagingRunPhase InPhase,
         bool bInTreatAsWerewolf,
         int32 InSelectionSeed);
 
@@ -235,7 +235,7 @@ public:
     void ResumeRoamingFromGideon();
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
-    void SetRunPhaseState(EStagehandRunPhase NewPhase);
+    void SetRunPhaseState(EStagingRunPhase NewPhase);
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
     void SetRetreatRoom(ARoomModuleBase* RetreatRoom);
@@ -263,7 +263,7 @@ public:
 
 protected:
     TArray<ARoomModuleBase*> GatherGeneratorRooms() const;
-    AStagehandDemoAIController* ResolveDemoController(bool bSpawnIfMissing);
+    AStagingDemoAIController* ResolveDemoController(bool bSpawnIfMissing);
     void BindToDemoController();
     void EvaluateBehavior();
     void MoveToCurrentSelection();
@@ -273,23 +273,23 @@ protected:
     void HandleGideonMoveCompleted(EPathFollowingResult::Type ResultCode);
     FVector ResolveHideDestination(ARoomModuleBase* HideRoom, FRoomGameplayMarker* OutMarker = nullptr) const;
     ARoomModuleBase* FindNearestGeneratedRoom() const;
-    void UpdateActionState(EStagehandDemoActionState NewActionState, const FString& DebugReason);
+    void UpdateActionState(EStagingDemoActionState NewActionState, const FString& DebugReason);
     void RefreshPresentationPayload(const FString& DebugReason = FString());
-    EStagehandDemoActionState ResolveActionStateForCurrentSelection() const;
-    AStagehandDemoNPCCharacter* FindConversationPartner() const;
+    EStagingDemoActionState ResolveActionStateForCurrentSelection() const;
+    AStagingDemoNPCCharacter* FindConversationPartner() const;
     bool HasClueContext() const;
     FText BuildPlaceholderDialogueText() const;
-    FText BuildActionLabelText(EStagehandDemoActionState ActionState) const;
+    FText BuildActionLabelText(EStagingDemoActionState ActionState) const;
     FString BuildDebugDisplayString() const;
     void ScheduleBehavior(float DelaySeconds);
-    void SetLoopState(EStagehandDemoLoopState NewState, const FString& DebugReason);
+    void SetLoopState(EStagingDemoLoopState NewState, const FString& DebugReason);
     void UpdateDebugText();
-    bool IsSelectionNearCurrentLocation(const FStagehandNPCMarkerSelection& Selection) const;
-    bool MatchesLastSelection(const FStagehandNPCMarkerSelection& Selection) const;
-    bool HasUsableSelection(const FStagehandNPCMarkerSelection& Selection) const;
+    bool IsSelectionNearCurrentLocation(const FStagingNPCMarkerSelection& Selection) const;
+    bool MatchesLastSelection(const FStagingNPCMarkerSelection& Selection) const;
+    bool HasUsableSelection(const FStagingNPCMarkerSelection& Selection) const;
 
     FTimerHandle BehaviorTimerHandle;
-    TWeakObjectPtr<AStagehandDemoAIController> CachedDemoController;
+    TWeakObjectPtr<AStagingDemoAIController> CachedDemoController;
     FString GideonStatusReason;
     bool bDestroyOnGideonMoveArrival = false;
 };

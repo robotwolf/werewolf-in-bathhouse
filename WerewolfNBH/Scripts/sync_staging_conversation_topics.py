@@ -14,7 +14,7 @@ NPC_TOPIC_PATH = f"{NPC_DATA_ROOT}/Topics"
 
 TOPIC_DEFINITIONS = [
     {
-        "asset_name": "DA_StagehandTopic_IdleSmallTalk",
+        "asset_name": "DA_StagingTopic_IdleSmallTalk",
         "topic_id": "IdleSmallTalk",
         "prompt": "Placeholder idle chatter.",
         "topic_tags": ["Conversation.Topic.Idle", "Conversation.Topic.SmallTalk"],
@@ -39,7 +39,7 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_CluePlaceholder",
+        "asset_name": "DA_StagingTopic_CluePlaceholder",
         "topic_id": "CluePlaceholder",
         "prompt": "Clue placeholder text.",
         "topic_tags": ["Conversation.Topic.Clue", "Conversation.Topic.Investigation"],
@@ -63,7 +63,7 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_SocialBanter",
+        "asset_name": "DA_StagingTopic_SocialBanter",
         "topic_id": "SocialBanter",
         "prompt": "Basic social banter.",
         "topic_tags": ["Conversation.Topic.Social", "Conversation.Topic.Gossip"],
@@ -87,7 +87,7 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_AlibiPlaceholder",
+        "asset_name": "DA_StagingTopic_AlibiPlaceholder",
         "topic_id": "AlibiPlaceholder",
         "prompt": "Where were you?",
         "topic_tags": ["Conversation.Topic.Alibi"],
@@ -110,7 +110,7 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_SecretPlaceholder",
+        "asset_name": "DA_StagingTopic_SecretPlaceholder",
         "topic_id": "SecretPlaceholder",
         "prompt": "Keep it quiet.",
         "topic_tags": ["Conversation.Topic.Secret", "Conversation.Topic.Private"],
@@ -133,14 +133,14 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_MoonrisePlaceholder",
+        "asset_name": "DA_StagingTopic_MoonrisePlaceholder",
         "topic_id": "MoonrisePlaceholder",
         "prompt": "The moon is doing that thing again.",
         "topic_tags": ["Conversation.Topic.Moonrise", "Conversation.Topic.Werewolf"],
         "allowed_room_tags": ["Room.System.HighRisk", "Room.Function.Relaxation"],
         "allowed_phase_tags": [
-            "Stagehand.Phase.Moonrise",
-            "Stagehand.Phase.Hunt",
+            "Staging.Phase.Moonrise",
+            "Staging.Phase.Hunt",
         ],
         "required_speaker_tags": [],
         "blocked_speaker_tags": [],
@@ -159,7 +159,7 @@ TOPIC_DEFINITIONS = [
         ],
     },
     {
-        "asset_name": "DA_StagehandTopic_TaskPlaceholder",
+        "asset_name": "DA_StagingTopic_TaskPlaceholder",
         "topic_id": "TaskPlaceholder",
         "prompt": "Still on task.",
         "topic_tags": ["Conversation.Topic.Task", "Conversation.Topic.Work"],
@@ -185,7 +185,7 @@ TOPIC_DEFINITIONS = [
 
 
 def log(message: str) -> None:
-    unreal.log(f"[sync_stagehand_conversation_topics] {message}")
+    unreal.log(f"[sync_staging_conversation_topics] {message}")
 
 
 def ensure_folder(path: str) -> None:
@@ -236,7 +236,7 @@ def make_text(value: str):
 
 
 def sync_topic(definition):
-    topic = create_data_asset(definition["asset_name"], NPC_TOPIC_PATH, unreal.StagehandConversationTopic)
+    topic = create_data_asset(definition["asset_name"], NPC_TOPIC_PATH, unreal.StagingConversationTopic)
     topic.set_editor_property("TopicId", definition["topic_id"])
     topic.set_editor_property("TopicPrompt", make_text(definition["prompt"]))
     topic.set_editor_property("TopicTags", make_tag_container(definition.get("topic_tags", [])))
@@ -254,11 +254,11 @@ def sync_topic(definition):
     topic.set_editor_property("PressuredResponses", [make_text(line) for line in definition.get("pressured_responses", [])])
     topic.set_editor_property("WerewolfResponses", [make_text(line) for line in definition.get("werewolf_responses", [])])
     save_asset(topic)
-    log(f"Synchronized Stagehand topic {definition['asset_name']}.")
+    log(f"Synchronized Staging topic {definition['asset_name']}.")
     return topic
 
 
-def sync_stagehand_conversation_topics():
+def sync_staging_conversation_topics():
     ensure_folder(NPC_DATA_ROOT)
     ensure_folder(NPC_TOPIC_PATH)
 
@@ -266,12 +266,12 @@ def sync_stagehand_conversation_topics():
     for definition in TOPIC_DEFINITIONS:
         topic_assets[definition["topic_id"]] = sync_topic(definition)
 
-    log(f"Synchronized {len(TOPIC_DEFINITIONS)} Stagehand conversation topics.")
+    log(f"Synchronized {len(TOPIC_DEFINITIONS)} Staging conversation topics.")
     return topic_assets
 
 
 def main():
-    sync_stagehand_conversation_topics()
+    sync_staging_conversation_topics()
 
 
 if __name__ == "__main__":

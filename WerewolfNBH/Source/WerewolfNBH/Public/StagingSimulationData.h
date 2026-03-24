@@ -3,12 +3,12 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "GameplayTagContainer.h"
-#include "StagehandSimulationData.generated.h"
+#include "StagingSimulationData.generated.h"
 
-class UStagehandConversationTopic;
+class UStagingConversationTopic;
 
 UENUM(BlueprintType)
-enum class EStagehandRunPhase : uint8
+enum class EStagingRunPhase : uint8
 {
     OpeningHours,
     FirstSigns,
@@ -18,7 +18,7 @@ enum class EStagehandRunPhase : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandActivityPreference
+struct FStagingActivityPreference
 {
     GENERATED_BODY()
 
@@ -42,24 +42,24 @@ struct FStagehandActivityPreference
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandConversationTopicWeight
+struct FStagingConversationTopicWeight
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Conversation")
-    TObjectPtr<UStagehandConversationTopic> Topic = nullptr;
+    TObjectPtr<UStagingConversationTopic> Topic = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Conversation", meta=(ClampMin="0.0"))
     float Weight = 1.0f;
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandPhaseActivityModifier
+struct FStagingPhaseActivityModifier
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Phase")
-    EStagehandRunPhase Phase = EStagehandRunPhase::OpeningHours;
+    EStagingRunPhase Phase = EStagingRunPhase::OpeningHours;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Phase")
     FGameplayTagContainer AddedActivityTags;
@@ -78,12 +78,12 @@ struct FStagehandPhaseActivityModifier
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandPhaseDefinition
+struct FStagingPhaseDefinition
 {
     GENERATED_BODY()
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Phase")
-    EStagehandRunPhase Phase = EStagehandRunPhase::OpeningHours;
+    EStagingRunPhase Phase = EStagingRunPhase::OpeningHours;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Phase")
     FGameplayTag PhaseTag;
@@ -99,7 +99,7 @@ struct FStagehandPhaseDefinition
 };
 
 UCLASS(BlueprintType)
-class WEREWOLFNBH_API UStagehandNPCProfile : public UDataAsset
+class WEREWOLFNBH_API UStagingNPCProfile : public UDataAsset
 {
     GENERATED_BODY()
 
@@ -129,13 +129,13 @@ public:
     FGameplayTagContainer AvoidedRoomTags;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Behavior")
-    TArray<FStagehandActivityPreference> BaselineActivities;
+    TArray<FStagingActivityPreference> BaselineActivities;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Behavior")
-    TArray<FStagehandPhaseActivityModifier> PhaseOverrides;
+    TArray<FStagingPhaseActivityModifier> PhaseOverrides;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Conversation")
-    TArray<FStagehandConversationTopicWeight> ConversationTopics;
+    TArray<FStagingConversationTopicWeight> ConversationTopics;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Werewolf")
     bool bCanBeWerewolf = true;
@@ -172,7 +172,7 @@ public:
 };
 
 UCLASS(BlueprintType)
-class WEREWOLFNBH_API UStagehandConversationTopic : public UDataAsset
+class WEREWOLFNBH_API UStagingConversationTopic : public UDataAsset
 {
     GENERATED_BODY()
 
@@ -227,13 +227,13 @@ public:
 };
 
 UCLASS(BlueprintType)
-class WEREWOLFNBH_API UStagehandRunDirectorProfile : public UDataAsset
+class WEREWOLFNBH_API UStagingRunDirectorProfile : public UDataAsset
 {
     GENERATED_BODY()
 
 public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Run")
-    TArray<FStagehandPhaseDefinition> PhaseDefinitions;
+    TArray<FStagingPhaseDefinition> PhaseDefinitions;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Run")
     FGameplayTagContainer SharedEscalationTags;

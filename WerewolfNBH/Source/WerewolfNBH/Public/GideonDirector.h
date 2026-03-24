@@ -3,16 +3,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "GideonRuntimeTypes.h"
-#include "StagehandSimulationData.h"
+#include "StagingSimulationData.h"
 #include "TimerManager.h"
 #include "GideonDirector.generated.h"
 
 class AGideonAdmissionBooth;
 class ARoomGenerator;
 class ARoomModuleBase;
-class AStagehandDemoNPCCharacter;
+class AStagingDemoNPCCharacter;
 class USceneComponent;
-class UStagehandNPCProfile;
+class UStagingNPCProfile;
 
 UCLASS(Blueprintable)
 class WEREWOLFNBH_API AGideonDirector : public AActor
@@ -84,7 +84,7 @@ public:
     int32 DesiredNPCCount = 0;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Director")
-    TSubclassOf<AStagehandDemoNPCCharacter> NPCClass;
+    TSubclassOf<AStagingDemoNPCCharacter> NPCClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Director")
     TObjectPtr<ARoomGenerator> TargetGenerator = nullptr;
@@ -93,13 +93,13 @@ public:
     TObjectPtr<AGideonAdmissionBooth> AdmissionBooth = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Director")
-    TArray<TObjectPtr<UStagehandNPCProfile>> NPCProfiles;
+    TArray<TObjectPtr<UStagingNPCProfile>> NPCProfiles;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Director")
-    TObjectPtr<UStagehandNPCProfile> DefaultNPCProfile = nullptr;
+    TObjectPtr<UStagingNPCProfile> DefaultNPCProfile = nullptr;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Director")
-    EStagehandRunPhase CurrentRunPhase = EStagehandRunPhase::OpeningHours;
+    EStagingRunPhase CurrentRunPhase = EStagingRunPhase::OpeningHours;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Director")
     TArray<FGideonNPCRuntimeState> RuntimeNPCs;
@@ -111,7 +111,7 @@ public:
     void CreatePOI(const FGideonPOISpec& Spec);
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Director")
-    void SetRunPhase(EStagehandRunPhase NewPhase);
+    void SetRunPhase(EStagingRunPhase NewPhase);
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Director")
     void SetPlayerAdmissionRequired(bool bRequired);
@@ -141,7 +141,7 @@ protected:
 
     struct FGideonDirectorNPCRecord
     {
-        TWeakObjectPtr<AStagehandDemoNPCCharacter> NPC;
+        TWeakObjectPtr<AStagingDemoNPCCharacter> NPC;
         float HideHoldSeconds = 0.0f;
         float SpawnHoldSeconds = 0.0f;
     };
@@ -155,8 +155,8 @@ protected:
     void PruneDeadRecords();
     void PopulatePreExistingNPCs();
     bool TrySpawnNextNPC();
-    bool SpawnNPCForProfile(UStagehandNPCProfile* Profile, int32 SpawnIndex);
-    UStagehandNPCProfile* ResolveProfileForSpawn(int32 SpawnIndex) const;
+    bool SpawnNPCForProfile(UStagingNPCProfile* Profile, int32 SpawnIndex);
+    UStagingNPCProfile* ResolveProfileForSpawn(int32 SpawnIndex) const;
     int32 GetDesiredNPCSpawnCount() const;
     float GetNextSpawnDelay() const;
     AGideonAdmissionBooth* ResolveAdmissionBooth();
@@ -167,16 +167,16 @@ protected:
     ARoomModuleBase* FindExitRoom() const;
     FVector GetSpawnLocationForNPC(int32 SpawnIndex) const;
     FVector GetQueueLocationForNPC(int32 QueueIndex) const;
-    EGideonTowelTier ResolveTowelTierForNPC(const UStagehandNPCProfile* Profile, const FVector& SpawnLocation) const;
-    float ResolveFearGainForNPC(const AStagehandDemoNPCCharacter* NPC, const UStagehandNPCProfile* Profile, const FGideonPOISpec& Spec) const;
-    float ResolveFearDecayForNPC(const UStagehandNPCProfile* Profile) const;
-    float ResolveFearToleranceForNPC(const UStagehandNPCProfile* Profile) const;
-    void ApplyPhasePulseToNPC(AStagehandDemoNPCCharacter* NPC);
-    void ApplyPOIToNPC(AStagehandDemoNPCCharacter* NPC, const FGideonPOISpec& Spec, ARoomModuleBase* TargetRoom);
-    void DriveNPCBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, float DeltaSeconds);
-    void StartHideBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* HideRoom);
-    void StartLeaveBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* ExitRoom);
-    void StartRoamingBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record);
+    EGideonTowelTier ResolveTowelTierForNPC(const UStagingNPCProfile* Profile, const FVector& SpawnLocation) const;
+    float ResolveFearGainForNPC(const AStagingDemoNPCCharacter* NPC, const UStagingNPCProfile* Profile, const FGideonPOISpec& Spec) const;
+    float ResolveFearDecayForNPC(const UStagingNPCProfile* Profile) const;
+    float ResolveFearToleranceForNPC(const UStagingNPCProfile* Profile) const;
+    void ApplyPhasePulseToNPC(AStagingDemoNPCCharacter* NPC);
+    void ApplyPOIToNPC(AStagingDemoNPCCharacter* NPC, const FGideonPOISpec& Spec, ARoomModuleBase* TargetRoom);
+    void DriveNPCBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, float DeltaSeconds);
+    void StartHideBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* HideRoom);
+    void StartLeaveBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* ExitRoom);
+    void StartRoamingBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record);
     int32 GetRoomDistance(const ARoomModuleBase* StartRoom, const ARoomModuleBase* GoalRoom) const;
     void BuildRoomDistanceMap(const ARoomModuleBase* StartRoom, TMap<const ARoomModuleBase*, int32>& OutDistances) const;
     bool IsEntryLikeRoom(const ARoomModuleBase* Room) const;

@@ -1,6 +1,6 @@
-#include "StagehandDemoNPCCharacter.h"
+#include "StagingDemoNPCCharacter.h"
 
-#include "StagehandDemoAIController.h"
+#include "StagingDemoAIController.h"
 #include "Animation/AnimInstance.h"
 #include "Components/ArrowComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -19,45 +19,45 @@
 #include "WerewolfStateBillboardComponent.h"
 #include <initializer_list>
 
-DEFINE_LOG_CATEGORY_STATIC(LogStagehandDemoNPC, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogStagingDemoNPC, Log, All);
 
 namespace
 {
-    FString ToStateLabel(EStagehandDemoLoopState LoopState)
+    FString ToStateLabel(EStagingDemoLoopState LoopState)
     {
         switch (LoopState)
         {
-        case EStagehandDemoLoopState::WaitForLayout:
+        case EStagingDemoLoopState::WaitForLayout:
             return TEXT("WaitForLayout");
-        case EStagehandDemoLoopState::SelectMarker:
+        case EStagingDemoLoopState::SelectMarker:
             return TEXT("SelectMarker");
-        case EStagehandDemoLoopState::MoveToMarker:
+        case EStagingDemoLoopState::MoveToMarker:
             return TEXT("MoveToMarker");
-        case EStagehandDemoLoopState::PauseAtMarker:
+        case EStagingDemoLoopState::PauseAtMarker:
             return TEXT("PauseAtMarker");
-        case EStagehandDemoLoopState::Retry:
+        case EStagingDemoLoopState::Retry:
         default:
             return TEXT("Retry");
         }
     }
 
-    FString ToActionLabel(EStagehandDemoActionState ActionState)
+    FString ToActionLabel(EStagingDemoActionState ActionState)
     {
         switch (ActionState)
         {
-        case EStagehandDemoActionState::Transit:
+        case EStagingDemoActionState::Transit:
             return TEXT("Transit");
-        case EStagehandDemoActionState::IdleWait:
+        case EStagingDemoActionState::IdleWait:
             return TEXT("IdleWait");
-        case EStagehandDemoActionState::Observe:
+        case EStagingDemoActionState::Observe:
             return TEXT("Observe");
-        case EStagehandDemoActionState::InspectClue:
+        case EStagingDemoActionState::InspectClue:
             return TEXT("InspectClue");
-        case EStagehandDemoActionState::Socialize:
+        case EStagingDemoActionState::Socialize:
             return TEXT("Socialize");
-        case EStagehandDemoActionState::Hide:
+        case EStagingDemoActionState::Hide:
             return TEXT("Hide");
-        case EStagehandDemoActionState::None:
+        case EStagingDemoActionState::None:
         default:
             return TEXT("None");
         }
@@ -100,7 +100,7 @@ namespace
         return false;
     }
 
-    FString GetProfileDisplayName(const UStagehandNPCProfile* Profile)
+    FString GetProfileDisplayName(const UStagingNPCProfile* Profile)
     {
         if (!Profile)
         {
@@ -125,12 +125,12 @@ namespace
     }
 }
 
-AStagehandDemoNPCCharacter::AStagehandDemoNPCCharacter()
+AStagingDemoNPCCharacter::AStagingDemoNPCCharacter()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.bStartWithTickEnabled = true;
 
-    AIControllerClass = AStagehandDemoAIController::StaticClass();
+    AIControllerClass = AStagingDemoAIController::StaticClass();
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     bUseControllerRotationYaw = false;
 
@@ -178,7 +178,7 @@ AStagehandDemoNPCCharacter::AStagehandDemoNPCCharacter()
     }
 }
 
-void AStagehandDemoNPCCharacter::BeginPlay()
+void AStagingDemoNPCCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -191,7 +191,7 @@ void AStagehandDemoNPCCharacter::BeginPlay()
     }
 }
 
-void AStagehandDemoNPCCharacter::Tick(float DeltaSeconds)
+void AStagingDemoNPCCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
@@ -215,40 +215,40 @@ void AStagehandDemoNPCCharacter::Tick(float DeltaSeconds)
         DebugTextFontScale);
 }
 
-void AStagehandDemoNPCCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AStagingDemoNPCCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     GetWorldTimerManager().ClearTimer(BehaviorTimerHandle);
 
-    if (AStagehandDemoAIController* DemoController = CachedDemoController.Get())
+    if (AStagingDemoAIController* DemoController = CachedDemoController.Get())
     {
-        DemoController->OnStagehandMoveCompleted.RemoveAll(this);
+        DemoController->OnStagingMoveCompleted.RemoveAll(this);
     }
 
     Super::EndPlay(EndPlayReason);
 }
 
-void AStagehandDemoNPCCharacter::StartBehaviorLoop()
+void AStagingDemoNPCCharacter::StartBehaviorLoop()
 {
     LastFailureReason.Reset();
     GideonStatusReason.Reset();
-    CurrentSelection = FStagehandNPCMarkerSelection();
-    LastSelection = FStagehandNPCMarkerSelection();
+    CurrentSelection = FStagingNPCMarkerSelection();
+    LastSelection = FStagingNPCMarkerSelection();
     CurrentMoveDestination = FVector::ZeroVector;
-    CurrentActionState = EStagehandDemoActionState::IdleWait;
-    CurrentPresentation = FStagehandDemoPresentationPayload();
+    CurrentActionState = EStagingDemoActionState::IdleWait;
+    CurrentPresentation = FStagingDemoPresentationPayload();
     ConsecutiveRetryCount = 0;
     bDestroyOnGideonMoveArrival = false;
     GideonRuntimeMode = EGideonNPCRuntimeMode::Roaming;
-    SetLoopState(EStagehandDemoLoopState::WaitForLayout, TEXT("Starting marker-loop demo."));
+    SetLoopState(EStagingDemoLoopState::WaitForLayout, TEXT("Starting marker-loop demo."));
     ScheduleBehavior(0.05f);
 }
 
-void AStagehandDemoNPCCharacter::StopBehaviorLoop()
+void AStagingDemoNPCCharacter::StopBehaviorLoop()
 {
     GetWorldTimerManager().ClearTimer(BehaviorTimerHandle);
-    UpdateActionState(EStagehandDemoActionState::IdleWait, TEXT("Behavior loop stopped."));
+    UpdateActionState(EStagingDemoActionState::IdleWait, TEXT("Behavior loop stopped."));
 
-    if (AStagehandDemoAIController* DemoController = ResolveDemoController(false))
+    if (AStagingDemoAIController* DemoController = ResolveDemoController(false))
     {
         DemoController->StopMovement();
     }
@@ -256,10 +256,10 @@ void AStagehandDemoNPCCharacter::StopBehaviorLoop()
     UpdateDebugText();
 }
 
-void AStagehandDemoNPCCharacter::ConfigureForGideon(
+void AStagingDemoNPCCharacter::ConfigureForGideon(
     ARoomGenerator* InTargetGenerator,
-    UStagehandNPCProfile* InNPCProfile,
-    EStagehandRunPhase InPhase,
+    UStagingNPCProfile* InNPCProfile,
+    EStagingRunPhase InPhase,
     bool bInTreatAsWerewolf,
     int32 InSelectionSeed)
 {
@@ -276,7 +276,7 @@ void AStagehandDemoNPCCharacter::ConfigureForGideon(
     UpdateDebugText();
 }
 
-bool AStagehandDemoNPCCharacter::MoveToQueueLocation(const FVector& QueueLocation, int32 QueueSlotIndex)
+bool AStagingDemoNPCCharacter::MoveToQueueLocation(const FVector& QueueLocation, int32 QueueSlotIndex)
 {
     GideonQueueSlotIndex = QueueSlotIndex;
     GideonStatusReason = TEXT("Heading to the booth queue.");
@@ -284,30 +284,30 @@ bool AStagehandDemoNPCCharacter::MoveToQueueLocation(const FVector& QueueLocatio
     return RequestGideonMove(QueueLocation, EGideonNPCRuntimeMode::Queueing, GideonStatusReason);
 }
 
-void AStagehandDemoNPCCharacter::SetAwaitingAdmissionState(int32 QueueSlotIndex)
+void AStagingDemoNPCCharacter::SetAwaitingAdmissionState(int32 QueueSlotIndex)
 {
     GideonQueueSlotIndex = QueueSlotIndex;
     GideonRuntimeMode = EGideonNPCRuntimeMode::AwaitingAdmission;
     GideonStatusReason = TEXT("Waiting for admission.");
     CurrentMoveDestination = FVector::ZeroVector;
 
-    if (AStagehandDemoAIController* DemoController = ResolveDemoController(false))
+    if (AStagingDemoAIController* DemoController = ResolveDemoController(false))
     {
         DemoController->StopMovement();
     }
 
-    UpdateActionState(EStagehandDemoActionState::IdleWait, GideonStatusReason);
+    UpdateActionState(EStagingDemoActionState::IdleWait, GideonStatusReason);
     UpdateDebugText();
 }
 
-bool AStagehandDemoNPCCharacter::AdmitToBathhouse(const FVector& AdmitLocation)
+bool AStagingDemoNPCCharacter::AdmitToBathhouse(const FVector& AdmitLocation)
 {
     GideonStatusReason = TEXT("Entering the bathhouse.");
     bDestroyOnGideonMoveArrival = false;
     return RequestGideonMove(AdmitLocation, EGideonNPCRuntimeMode::Admitted, GideonStatusReason);
 }
 
-bool AStagehandDemoNPCCharacter::EnterHideState(ARoomModuleBase* HideRoom)
+bool AStagingDemoNPCCharacter::EnterHideState(ARoomModuleBase* HideRoom)
 {
     if (!HideRoom)
     {
@@ -324,7 +324,7 @@ bool AStagehandDemoNPCCharacter::EnterHideState(ARoomModuleBase* HideRoom)
 
     if (!HideMarker.MarkerName.IsNone())
     {
-        CurrentSelection = FStagehandNPCMarkerSelection();
+        CurrentSelection = FStagingNPCMarkerSelection();
         CurrentSelection.bFoundSelection = true;
         CurrentSelection.NPCProfile = NPCProfile;
         CurrentSelection.Phase = Phase;
@@ -338,14 +338,14 @@ bool AStagehandDemoNPCCharacter::EnterHideState(ARoomModuleBase* HideRoom)
     return RequestGideonMove(HideDestination, EGideonNPCRuntimeMode::Hiding, GideonStatusReason);
 }
 
-bool AStagehandDemoNPCCharacter::BeginLeavingBathhouse(const FVector& ExitLocation)
+bool AStagingDemoNPCCharacter::BeginLeavingBathhouse(const FVector& ExitLocation)
 {
     GideonStatusReason = TEXT("Leaving the bathhouse.");
     bDestroyOnGideonMoveArrival = true;
     return RequestGideonMove(ExitLocation, EGideonNPCRuntimeMode::Leaving, GideonStatusReason);
 }
 
-void AStagehandDemoNPCCharacter::ResumeRoamingFromGideon()
+void AStagingDemoNPCCharacter::ResumeRoamingFromGideon()
 {
     GideonQueueSlotIndex = INDEX_NONE;
     GideonStatusReason = TEXT("Back to the bathhouse loop.");
@@ -353,37 +353,37 @@ void AStagehandDemoNPCCharacter::ResumeRoamingFromGideon()
     StartBehaviorLoop();
 }
 
-void AStagehandDemoNPCCharacter::SetRunPhaseState(EStagehandRunPhase NewPhase)
+void AStagingDemoNPCCharacter::SetRunPhaseState(EStagingRunPhase NewPhase)
 {
     Phase = NewPhase;
     UpdateDebugText();
 }
 
-void AStagehandDemoNPCCharacter::SetRetreatRoom(ARoomModuleBase* RetreatRoom)
+void AStagingDemoNPCCharacter::SetRetreatRoom(ARoomModuleBase* RetreatRoom)
 {
     GideonRetreatRoom = RetreatRoom;
 }
 
-void AStagehandDemoNPCCharacter::SetTowelTier(EGideonTowelTier NewTowelTier)
+void AStagingDemoNPCCharacter::SetTowelTier(EGideonTowelTier NewTowelTier)
 {
     GideonTowelTier = NewTowelTier;
 }
 
-void AStagehandDemoNPCCharacter::AddFear(float FearDelta)
+void AStagingDemoNPCCharacter::AddFear(float FearDelta)
 {
     SetFear(CurrentFear + FearDelta);
 }
 
-void AStagehandDemoNPCCharacter::SetFear(float NewFear)
+void AStagingDemoNPCCharacter::SetFear(float NewFear)
 {
     CurrentFear = FMath::Max(0.0f, NewFear);
     UpdateDebugText();
 }
 
-FGideonNPCRuntimeState AStagehandDemoNPCCharacter::GetGideonRuntimeState() const
+FGideonNPCRuntimeState AStagingDemoNPCCharacter::GetGideonRuntimeState() const
 {
     FGideonNPCRuntimeState RuntimeState;
-    RuntimeState.NPC = const_cast<AStagehandDemoNPCCharacter*>(this);
+    RuntimeState.NPC = const_cast<AStagingDemoNPCCharacter*>(this);
     RuntimeState.RuntimeMode = GideonRuntimeMode;
     RuntimeState.CurrentRoom = GetCurrentResolvedRoom();
     RuntimeState.RetreatRoom = GideonRetreatRoom;
@@ -396,7 +396,7 @@ FGideonNPCRuntimeState AStagehandDemoNPCCharacter::GetGideonRuntimeState() const
     return RuntimeState;
 }
 
-ARoomModuleBase* AStagehandDemoNPCCharacter::GetCurrentResolvedRoom() const
+ARoomModuleBase* AStagingDemoNPCCharacter::GetCurrentResolvedRoom() const
 {
     if (CurrentSelection.Room)
     {
@@ -411,17 +411,17 @@ ARoomModuleBase* AStagehandDemoNPCCharacter::GetCurrentResolvedRoom() const
     return FindNearestGeneratedRoom();
 }
 
-bool AStagehandDemoNPCCharacter::CanBeForcedToLeave() const
+bool AStagingDemoNPCCharacter::CanBeForcedToLeave() const
 {
     return !NPCProfile || !NPCProfile->bStoryPinned;
 }
 
-bool AStagehandDemoNPCCharacter::IsGideonAutonomousRoaming() const
+bool AStagingDemoNPCCharacter::IsGideonAutonomousRoaming() const
 {
     return GideonRuntimeMode == EGideonNPCRuntimeMode::Roaming;
 }
 
-bool AStagehandDemoNPCCharacter::SelectNextMarker()
+bool AStagingDemoNPCCharacter::SelectNextMarker()
 {
     const TArray<ARoomModuleBase*> Rooms = GatherGeneratorRooms();
     if (Rooms.IsEmpty())
@@ -432,13 +432,13 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
         return false;
     }
 
-    FStagehandNPCMarkerSelection FirstValidSelection;
+    FStagingNPCMarkerSelection FirstValidSelection;
     const int32 AttemptCount = FMath::Clamp(MaxSelectionAttempts, 1, 12);
     const int32 LoopSeedBase = HashCombineFast(SelectionSeed, CompletedLoops * 7919 + 37);
 
     for (int32 AttemptIndex = 0; AttemptIndex < AttemptCount; ++AttemptIndex)
     {
-        const FStagehandNPCMarkerSelection CandidateSelection = UStagehandSimulationLibrary::PickMarkerForNPCProfile(
+        const FStagingNPCMarkerSelection CandidateSelection = UStagingSimulationLibrary::PickMarkerForNPCProfile(
             NPCProfile,
             Rooms,
             Phase,
@@ -480,7 +480,7 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
     {
         if (IsSelectionNearCurrentLocation(FirstValidSelection))
         {
-            CurrentSelection = FStagehandNPCMarkerSelection();
+            CurrentSelection = FStagingNPCMarkerSelection();
             CurrentMoveDestination = FVector::ZeroVector;
             LastFailureReason = TEXT("Only the previous marker was available, and we're already standing on it.");
             UpdateDebugText();
@@ -504,7 +504,7 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
         return true;
     }
 
-    CurrentSelection = FStagehandNPCMarkerSelection();
+    CurrentSelection = FStagingNPCMarkerSelection();
     CurrentMoveDestination = FVector::ZeroVector;
     LastFailureReason = NPCProfile
         ? TEXT("No matching NPC marker could be selected.")
@@ -513,7 +513,7 @@ bool AStagehandDemoNPCCharacter::SelectNextMarker()
     return false;
 }
 
-TArray<ARoomModuleBase*> AStagehandDemoNPCCharacter::GatherGeneratorRooms() const
+TArray<ARoomModuleBase*> AStagingDemoNPCCharacter::GatherGeneratorRooms() const
 {
     TArray<ARoomModuleBase*> Rooms;
     if (!TargetGenerator)
@@ -532,18 +532,18 @@ TArray<ARoomModuleBase*> AStagehandDemoNPCCharacter::GatherGeneratorRooms() cons
     return Rooms;
 }
 
-AStagehandDemoAIController* AStagehandDemoNPCCharacter::ResolveDemoController(bool bSpawnIfMissing)
+AStagingDemoAIController* AStagingDemoNPCCharacter::ResolveDemoController(bool bSpawnIfMissing)
 {
-    if (AStagehandDemoAIController* CachedController = CachedDemoController.Get())
+    if (AStagingDemoAIController* CachedController = CachedDemoController.Get())
     {
         return CachedController;
     }
 
-    AStagehandDemoAIController* DemoController = Cast<AStagehandDemoAIController>(GetController());
+    AStagingDemoAIController* DemoController = Cast<AStagingDemoAIController>(GetController());
     if (!DemoController && bSpawnIfMissing)
     {
         SpawnDefaultController();
-        DemoController = Cast<AStagehandDemoAIController>(GetController());
+        DemoController = Cast<AStagingDemoAIController>(GetController());
     }
 
     if (DemoController)
@@ -554,88 +554,88 @@ AStagehandDemoAIController* AStagehandDemoNPCCharacter::ResolveDemoController(bo
     return DemoController;
 }
 
-void AStagehandDemoNPCCharacter::BindToDemoController()
+void AStagingDemoNPCCharacter::BindToDemoController()
 {
-    if (AStagehandDemoAIController* DemoController = ResolveDemoController(true))
+    if (AStagingDemoAIController* DemoController = ResolveDemoController(true))
     {
-        DemoController->OnStagehandMoveCompleted.RemoveAll(this);
-        DemoController->OnStagehandMoveCompleted.AddUObject(this, &AStagehandDemoNPCCharacter::HandleMoveCompleted);
+        DemoController->OnStagingMoveCompleted.RemoveAll(this);
+        DemoController->OnStagingMoveCompleted.AddUObject(this, &AStagingDemoNPCCharacter::HandleMoveCompleted);
     }
 }
 
-void AStagehandDemoNPCCharacter::EvaluateBehavior()
+void AStagingDemoNPCCharacter::EvaluateBehavior()
 {
     switch (LoopState)
     {
-    case EStagehandDemoLoopState::WaitForLayout:
+    case EStagingDemoLoopState::WaitForLayout:
         if (GatherGeneratorRooms().IsEmpty())
         {
             LastFailureReason = TEXT("Waiting for Ginny to finish generating rooms.");
-            UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
+            UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
             UpdateDebugText();
             ScheduleBehavior(LayoutPollInterval);
             return;
         }
 
-        SetLoopState(EStagehandDemoLoopState::SelectMarker, TEXT("Layout is ready."));
+        SetLoopState(EStagingDemoLoopState::SelectMarker, TEXT("Layout is ready."));
         ScheduleBehavior(0.0f);
         return;
 
-    case EStagehandDemoLoopState::SelectMarker:
+    case EStagingDemoLoopState::SelectMarker:
         if (SelectNextMarker())
         {
             MoveToCurrentSelection();
             return;
         }
 
-        SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+        SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
         ScheduleBehavior(RetryDelay);
         return;
 
-    case EStagehandDemoLoopState::PauseAtMarker:
+    case EStagingDemoLoopState::PauseAtMarker:
         LastSelection = CurrentSelection;
         ConsecutiveRetryCount = 0;
         ++CompletedLoops;
         SelectionSeed = HashCombineFast(SelectionSeed, CompletedLoops * 17 + 13);
-        UpdateActionState(EStagehandDemoActionState::IdleWait, TEXT("Selecting a new marker."));
-        SetLoopState(EStagehandDemoLoopState::SelectMarker, TEXT("Selecting a new marker."));
+        UpdateActionState(EStagingDemoActionState::IdleWait, TEXT("Selecting a new marker."));
+        SetLoopState(EStagingDemoLoopState::SelectMarker, TEXT("Selecting a new marker."));
         ScheduleBehavior(0.0f);
         return;
 
-    case EStagehandDemoLoopState::Retry:
+    case EStagingDemoLoopState::Retry:
         ++ConsecutiveRetryCount;
         SelectionSeed = HashCombineFast(SelectionSeed, ConsecutiveRetryCount * 97 + 11);
-        UpdateActionState(EStagehandDemoActionState::IdleWait, TEXT("Retrying marker selection."));
-        SetLoopState(EStagehandDemoLoopState::SelectMarker, TEXT("Retrying marker selection."));
+        UpdateActionState(EStagingDemoActionState::IdleWait, TEXT("Retrying marker selection."));
+        SetLoopState(EStagingDemoLoopState::SelectMarker, TEXT("Retrying marker selection."));
         ScheduleBehavior(0.0f);
         return;
 
-    case EStagehandDemoLoopState::MoveToMarker:
+    case EStagingDemoLoopState::MoveToMarker:
     default:
         return;
     }
 }
 
-void AStagehandDemoNPCCharacter::MoveToCurrentSelection()
+void AStagingDemoNPCCharacter::MoveToCurrentSelection()
 {
     if (!HasUsableSelection(CurrentSelection))
     {
         LastFailureReason = TEXT("Move requested without a valid selection.");
-        SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+        SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
         ScheduleBehavior(RetryDelay);
         return;
     }
 
-    AStagehandDemoAIController* DemoController = ResolveDemoController(true);
+    AStagingDemoAIController* DemoController = ResolveDemoController(true);
     if (!DemoController)
     {
         LastFailureReason = TEXT("No AI controller is available for movement.");
-        SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+        SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
         ScheduleBehavior(RetryDelay);
         return;
     }
 
-    UpdateActionState(EStagehandDemoActionState::Transit, CurrentSelection.Notes);
+    UpdateActionState(EStagingDemoActionState::Transit, CurrentSelection.Notes);
     CurrentMoveDestination = CurrentSelection.Marker.WorldTransform.GetLocation();
     if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
     {
@@ -648,8 +648,8 @@ void AStagehandDemoNPCCharacter::MoveToCurrentSelection()
         else
         {
             LastFailureReason = TEXT("Target marker is off the navmesh.");
-            UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
-            SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+            UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
+            SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
             ScheduleBehavior(RetryDelay);
             return;
         }
@@ -663,8 +663,8 @@ void AStagehandDemoNPCCharacter::MoveToCurrentSelection()
     if (MoveResult == EPathFollowingRequestResult::Failed)
     {
         LastFailureReason = TEXT("Nav move request failed.");
-        UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
-        SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
+        SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
         ScheduleBehavior(RetryDelay);
         return;
     }
@@ -673,15 +673,15 @@ void AStagehandDemoNPCCharacter::MoveToCurrentSelection()
     {
         FaceCurrentMarker();
         UpdateActionState(ResolveActionStateForCurrentSelection(), TEXT("Already at marker."));
-        SetLoopState(EStagehandDemoLoopState::PauseAtMarker, TEXT("Already at marker."));
+        SetLoopState(EStagingDemoLoopState::PauseAtMarker, TEXT("Already at marker."));
         ScheduleBehavior(FMath::FRandRange(PauseDurationMin, PauseDurationMax));
         return;
     }
 
-    SetLoopState(EStagehandDemoLoopState::MoveToMarker, CurrentSelection.Notes);
+    SetLoopState(EStagingDemoLoopState::MoveToMarker, CurrentSelection.Notes);
 }
 
-void AStagehandDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type ResultCode)
+void AStagingDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type ResultCode)
 {
     if (GideonRuntimeMode != EGideonNPCRuntimeMode::Roaming &&
         GideonRuntimeMode != EGideonNPCRuntimeMode::Spawning)
@@ -690,7 +690,7 @@ void AStagehandDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPa
         return;
     }
 
-    if (LoopState != EStagehandDemoLoopState::MoveToMarker)
+    if (LoopState != EStagingDemoLoopState::MoveToMarker)
     {
         return;
     }
@@ -699,18 +699,18 @@ void AStagehandDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPa
     {
         FaceCurrentMarker();
         UpdateActionState(ResolveActionStateForCurrentSelection(), TEXT("Reached marker."));
-        SetLoopState(EStagehandDemoLoopState::PauseAtMarker, TEXT("Reached marker."));
+        SetLoopState(EStagingDemoLoopState::PauseAtMarker, TEXT("Reached marker."));
         ScheduleBehavior(FMath::FRandRange(PauseDurationMin, PauseDurationMax));
         return;
     }
 
     LastFailureReason = FString::Printf(TEXT("Move failed with path result %d."), static_cast<int32>(ResultCode));
-    UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
-    SetLoopState(EStagehandDemoLoopState::Retry, LastFailureReason);
+    UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
+    SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
     ScheduleBehavior(RetryDelay);
 }
 
-void AStagehandDemoNPCCharacter::FaceCurrentMarker()
+void AStagingDemoNPCCharacter::FaceCurrentMarker()
 {
     if (!HasUsableSelection(CurrentSelection))
     {
@@ -720,15 +720,15 @@ void AStagehandDemoNPCCharacter::FaceCurrentMarker()
     SetActorRotation(CurrentSelection.Marker.WorldTransform.GetRotation());
 }
 
-bool AStagehandDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation, EGideonNPCRuntimeMode TargetMode, const FString& DebugReason)
+bool AStagingDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation, EGideonNPCRuntimeMode TargetMode, const FString& DebugReason)
 {
     StopBehaviorLoop();
 
-    AStagehandDemoAIController* DemoController = ResolveDemoController(true);
+    AStagingDemoAIController* DemoController = ResolveDemoController(true);
     if (!DemoController)
     {
         LastFailureReason = TEXT("No AI controller is available for Gideon movement.");
-        UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
         return false;
     }
 
@@ -746,7 +746,7 @@ bool AStagehandDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation
     GideonStatusReason = DebugReason;
     CurrentMoveDestination = ProjectedDestination;
     UpdateActionState(
-        TargetMode == EGideonNPCRuntimeMode::Hiding ? EStagehandDemoActionState::Hide : EStagehandDemoActionState::Transit,
+        TargetMode == EGideonNPCRuntimeMode::Hiding ? EStagingDemoActionState::Hide : EStagingDemoActionState::Transit,
         DebugReason);
 
     const EPathFollowingRequestResult::Type MoveResult = DemoController->RequestMoveToLocation(
@@ -757,7 +757,7 @@ bool AStagehandDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation
     if (MoveResult == EPathFollowingRequestResult::Failed)
     {
         LastFailureReason = TEXT("Gideon move request failed.");
-        UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
         return false;
     }
 
@@ -769,12 +769,12 @@ bool AStagehandDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation
     return true;
 }
 
-void AStagehandDemoNPCCharacter::HandleGideonMoveCompleted(EPathFollowingResult::Type ResultCode)
+void AStagingDemoNPCCharacter::HandleGideonMoveCompleted(EPathFollowingResult::Type ResultCode)
 {
     if (ResultCode != EPathFollowingResult::Success)
     {
         LastFailureReason = FString::Printf(TEXT("Gideon move failed with path result %d."), static_cast<int32>(ResultCode));
-        UpdateActionState(EStagehandDemoActionState::IdleWait, LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
 
         if (GideonRuntimeMode == EGideonNPCRuntimeMode::Leaving && bDestroyOnGideonMoveArrival)
         {
@@ -796,7 +796,7 @@ void AStagehandDemoNPCCharacter::HandleGideonMoveCompleted(EPathFollowingResult:
         break;
 
     case EGideonNPCRuntimeMode::Hiding:
-        UpdateActionState(EStagehandDemoActionState::Hide, TEXT("Reached hide destination."));
+        UpdateActionState(EStagingDemoActionState::Hide, TEXT("Reached hide destination."));
         CurrentMoveDestination = FVector::ZeroVector;
         UpdateDebugText();
         break;
@@ -814,7 +814,7 @@ void AStagehandDemoNPCCharacter::HandleGideonMoveCompleted(EPathFollowingResult:
     }
 }
 
-FVector AStagehandDemoNPCCharacter::ResolveHideDestination(ARoomModuleBase* HideRoom, FRoomGameplayMarker* OutMarker) const
+FVector AStagingDemoNPCCharacter::ResolveHideDestination(ARoomModuleBase* HideRoom, FRoomGameplayMarker* OutMarker) const
 {
     if (OutMarker)
     {
@@ -871,7 +871,7 @@ FVector AStagehandDemoNPCCharacter::ResolveHideDestination(ARoomModuleBase* Hide
     return HideRoom->GetActorLocation();
 }
 
-ARoomModuleBase* AStagehandDemoNPCCharacter::FindNearestGeneratedRoom() const
+ARoomModuleBase* AStagingDemoNPCCharacter::FindNearestGeneratedRoom() const
 {
     const TArray<ARoomModuleBase*> Rooms = GatherGeneratorRooms();
     ARoomModuleBase* BestRoom = nullptr;
@@ -896,14 +896,14 @@ ARoomModuleBase* AStagehandDemoNPCCharacter::FindNearestGeneratedRoom() const
     return BestRoom;
 }
 
-void AStagehandDemoNPCCharacter::UpdateActionState(EStagehandDemoActionState NewActionState, const FString& DebugReason)
+void AStagingDemoNPCCharacter::UpdateActionState(EStagingDemoActionState NewActionState, const FString& DebugReason)
 {
     CurrentActionState = NewActionState;
 
     if (bLogStateChanges)
     {
         UE_LOG(
-            LogStagehandDemoNPC,
+            LogStagingDemoNPC,
             Log,
             TEXT("%s -> Action %s (%s)"),
             *GetName(),
@@ -914,7 +914,7 @@ void AStagehandDemoNPCCharacter::UpdateActionState(EStagehandDemoActionState New
     RefreshPresentationPayload(DebugReason);
 }
 
-void AStagehandDemoNPCCharacter::RefreshPresentationPayload(const FString& DebugReason)
+void AStagingDemoNPCCharacter::RefreshPresentationPayload(const FString& DebugReason)
 {
     const FString ProfileName = GetProfileDisplayName(NPCProfile);
     const FString RoomName = GetRoomDisplayName(CurrentSelection.Room);
@@ -922,7 +922,7 @@ void AStagehandDemoNPCCharacter::RefreshPresentationPayload(const FString& Debug
     const FString ActivityName = CurrentSelection.ActivityTag.IsValid()
         ? CurrentSelection.ActivityTag.ToString()
         : TEXT("NoActivity");
-    const AStagehandDemoNPCCharacter* ConversationPartner = CurrentActionState == EStagehandDemoActionState::Socialize
+    const AStagingDemoNPCCharacter* ConversationPartner = CurrentActionState == EStagingDemoActionState::Socialize
         ? FindConversationPartner()
         : nullptr;
     const bool bClueContext = HasClueContext();
@@ -953,7 +953,7 @@ void AStagehandDemoNPCCharacter::RefreshPresentationPayload(const FString& Debug
         StatusLine = TEXT("-");
     }
 
-    if (!DebugReason.IsEmpty() && CurrentActionState != EStagehandDemoActionState::Socialize && CurrentActionState != EStagehandDemoActionState::InspectClue)
+    if (!DebugReason.IsEmpty() && CurrentActionState != EStagingDemoActionState::Socialize && CurrentActionState != EStagingDemoActionState::InspectClue)
     {
         StatusLine = FString::Printf(TEXT("%s | %s"), *StatusLine, *DebugReason);
     }
@@ -978,11 +978,11 @@ void AStagehandDemoNPCCharacter::RefreshPresentationPayload(const FString& Debug
     CurrentPresentation.bHasClueContext = bClueContext;
 }
 
-EStagehandDemoActionState AStagehandDemoNPCCharacter::ResolveActionStateForCurrentSelection() const
+EStagingDemoActionState AStagingDemoNPCCharacter::ResolveActionStateForCurrentSelection() const
 {
     if (!HasUsableSelection(CurrentSelection))
     {
-        return EStagehandDemoActionState::IdleWait;
+        return EStagingDemoActionState::IdleWait;
     }
 
     const FString ActivityName = CurrentSelection.ActivityTag.ToString();
@@ -991,38 +991,38 @@ EStagehandDemoActionState AStagehandDemoNPCCharacter::ResolveActionStateForCurre
 
     if (ContainsAnyToken(ActivityName, {TEXT("Hide"), TEXT("Sneak"), TEXT("Conceal")}))
     {
-        return EStagehandDemoActionState::Hide;
+        return EStagingDemoActionState::Hide;
     }
 
     if (ContainsAnyToken(ActivityName, {TEXT("Gossip"), TEXT("Social"), TEXT("Talk"), TEXT("Conversation")}))
     {
-        return bHasConversationPartner ? EStagehandDemoActionState::Socialize : EStagehandDemoActionState::IdleWait;
+        return bHasConversationPartner ? EStagingDemoActionState::Socialize : EStagingDemoActionState::IdleWait;
     }
 
     if (ContainsAnyToken(ActivityName, {TEXT("Observe"), TEXT("Watch"), TEXT("Scan")}))
     {
-        return bClueContext ? EStagehandDemoActionState::InspectClue : EStagehandDemoActionState::Observe;
+        return bClueContext ? EStagingDemoActionState::InspectClue : EStagingDemoActionState::Observe;
     }
 
     if (ContainsAnyToken(ActivityName, {TEXT("Wait"), TEXT("Relax"), TEXT("Pause"), TEXT("Idle"), TEXT("Clean")}))
     {
-        return EStagehandDemoActionState::IdleWait;
+        return EStagingDemoActionState::IdleWait;
     }
 
     if (bClueContext)
     {
-        return EStagehandDemoActionState::InspectClue;
+        return EStagingDemoActionState::InspectClue;
     }
 
     if (bHasConversationPartner)
     {
-        return EStagehandDemoActionState::Socialize;
+        return EStagingDemoActionState::Socialize;
     }
 
-    return EStagehandDemoActionState::Observe;
+    return EStagingDemoActionState::Observe;
 }
 
-AStagehandDemoNPCCharacter* AStagehandDemoNPCCharacter::FindConversationPartner() const
+AStagingDemoNPCCharacter* AStagingDemoNPCCharacter::FindConversationPartner() const
 {
     if (!GetWorld() || !HasUsableSelection(CurrentSelection) || !CurrentSelection.Room)
     {
@@ -1031,18 +1031,18 @@ AStagehandDemoNPCCharacter* AStagehandDemoNPCCharacter::FindConversationPartner(
 
     const float SearchRadiusSquared = FMath::Square(FMath::Max(0.0f, SocialPartnerSearchRadius));
     const FVector MyLocation = GetActorLocation();
-    AStagehandDemoNPCCharacter* BestPartner = nullptr;
+    AStagingDemoNPCCharacter* BestPartner = nullptr;
     float BestDistanceSquared = TNumericLimits<float>::Max();
 
-    for (TActorIterator<AStagehandDemoNPCCharacter> It(GetWorld()); It; ++It)
+    for (TActorIterator<AStagingDemoNPCCharacter> It(GetWorld()); It; ++It)
     {
-        AStagehandDemoNPCCharacter* Other = *It;
+        AStagingDemoNPCCharacter* Other = *It;
         if (!Other || Other == this || Other->TargetGenerator != TargetGenerator)
         {
             continue;
         }
 
-        if (Other->CurrentActionState == EStagehandDemoActionState::Transit || Other->CurrentActionState == EStagehandDemoActionState::None)
+        if (Other->CurrentActionState == EStagingDemoActionState::Transit || Other->CurrentActionState == EStagingDemoActionState::None)
         {
             continue;
         }
@@ -1065,12 +1065,12 @@ AStagehandDemoNPCCharacter* AStagehandDemoNPCCharacter::FindConversationPartner(
     return BestPartner;
 }
 
-bool AStagehandDemoNPCCharacter::HasClueContext() const
+bool AStagingDemoNPCCharacter::HasClueContext() const
 {
     return CurrentSelection.Room && CurrentSelection.Room->GetClueMarkers().Num() > 0;
 }
 
-FText AStagehandDemoNPCCharacter::BuildPlaceholderDialogueText() const
+FText AStagingDemoNPCCharacter::BuildPlaceholderDialogueText() const
 {
     switch (GideonRuntimeMode)
     {
@@ -1086,10 +1086,10 @@ FText AStagehandDemoNPCCharacter::BuildPlaceholderDialogueText() const
         break;
     }
 
-    const AStagehandDemoNPCCharacter* ConversationPartner = CurrentActionState == EStagehandDemoActionState::Socialize
+    const AStagingDemoNPCCharacter* ConversationPartner = CurrentActionState == EStagingDemoActionState::Socialize
         ? FindConversationPartner()
         : nullptr;
-    const UStagehandNPCProfile* OtherProfile = ConversationPartner ? ConversationPartner->NPCProfile.Get() : nullptr;
+    const UStagingNPCProfile* OtherProfile = ConversationPartner ? ConversationPartner->NPCProfile.Get() : nullptr;
     const int32 DialogueSeed = HashCombineFast(
         SelectionSeed,
         CompletedLoops * 313 + static_cast<int32>(CurrentActionState) * 17 + ConsecutiveRetryCount);
@@ -1108,38 +1108,38 @@ FText AStagehandDemoNPCCharacter::BuildPlaceholderDialogueText() const
 
     ContextTags.AppendTags(CurrentSelection.Marker.GameplayTags);
 
-    EStagehandConversationLineKind LineKind = EStagehandConversationLineKind::Idle;
+    EStagingConversationLineKind LineKind = EStagingConversationLineKind::Idle;
 
     switch (CurrentActionState)
     {
-    case EStagehandDemoActionState::Socialize:
-        LineKind = EStagehandConversationLineKind::Social;
+    case EStagingDemoActionState::Socialize:
+        LineKind = EStagingConversationLineKind::Social;
         break;
 
-    case EStagehandDemoActionState::InspectClue:
-        LineKind = EStagehandConversationLineKind::Clue;
+    case EStagingDemoActionState::InspectClue:
+        LineKind = EStagingConversationLineKind::Clue;
         break;
 
-    case EStagehandDemoActionState::Hide:
+    case EStagingDemoActionState::Hide:
         LineKind = bTreatAsWerewolf
-            ? EStagehandConversationLineKind::Werewolf
-            : EStagehandConversationLineKind::Idle;
+            ? EStagingConversationLineKind::Werewolf
+            : EStagingConversationLineKind::Idle;
         break;
 
-    case EStagehandDemoActionState::Observe:
-    case EStagehandDemoActionState::IdleWait:
-        LineKind = EStagehandConversationLineKind::Idle;
+    case EStagingDemoActionState::Observe:
+    case EStagingDemoActionState::IdleWait:
+        LineKind = EStagingConversationLineKind::Idle;
         break;
 
-    case EStagehandDemoActionState::Transit:
+    case EStagingDemoActionState::Transit:
         return FText::FromString(TEXT("Heading over there."));
 
-    case EStagehandDemoActionState::None:
+    case EStagingDemoActionState::None:
     default:
         return FText::GetEmpty();
     }
 
-    const FStagehandConversationLineSelection LineSelection = UStagehandSimulationLibrary::PickConversationLineForNPCProfile(
+    const FStagingConversationLineSelection LineSelection = UStagingSimulationLibrary::PickConversationLineForNPCProfile(
         NPCProfile,
         Phase,
         bTreatAsWerewolf,
@@ -1153,15 +1153,15 @@ FText AStagehandDemoNPCCharacter::BuildPlaceholderDialogueText() const
         return LineSelection.LineText;
     }
 
-    return UStagehandSimulationLibrary::BuildPlaceholderConversationLine(LineKind, NPCProfile, OtherProfile);
+    return UStagingSimulationLibrary::BuildPlaceholderConversationLine(LineKind, NPCProfile, OtherProfile);
 }
 
-FText AStagehandDemoNPCCharacter::BuildActionLabelText(EStagehandDemoActionState ActionState) const
+FText AStagingDemoNPCCharacter::BuildActionLabelText(EStagingDemoActionState ActionState) const
 {
     return FText::FromString(ToActionLabel(ActionState));
 }
 
-FString AStagehandDemoNPCCharacter::BuildDebugDisplayString() const
+FString AStagingDemoNPCCharacter::BuildDebugDisplayString() const
 {
     const FString HeaderLine = CurrentPresentation.HeaderText.IsEmpty()
         ? GetProfileDisplayName(NPCProfile)
@@ -1190,14 +1190,14 @@ FString AStagehandDemoNPCCharacter::BuildDebugDisplayString() const
         ConsecutiveRetryCount);
 }
 
-void AStagehandDemoNPCCharacter::ScheduleBehavior(float DelaySeconds)
+void AStagingDemoNPCCharacter::ScheduleBehavior(float DelaySeconds)
 {
     GetWorldTimerManager().ClearTimer(BehaviorTimerHandle);
 
     if (DelaySeconds <= KINDA_SMALL_NUMBER)
     {
         FTimerDelegate NextTickDelegate;
-        NextTickDelegate.BindUObject(this, &AStagehandDemoNPCCharacter::EvaluateBehavior);
+        NextTickDelegate.BindUObject(this, &AStagingDemoNPCCharacter::EvaluateBehavior);
         GetWorldTimerManager().SetTimerForNextTick(NextTickDelegate);
         return;
     }
@@ -1205,19 +1205,19 @@ void AStagehandDemoNPCCharacter::ScheduleBehavior(float DelaySeconds)
     GetWorldTimerManager().SetTimer(
         BehaviorTimerHandle,
         this,
-        &AStagehandDemoNPCCharacter::EvaluateBehavior,
+        &AStagingDemoNPCCharacter::EvaluateBehavior,
         DelaySeconds,
         false);
 }
 
-void AStagehandDemoNPCCharacter::SetLoopState(EStagehandDemoLoopState NewState, const FString& DebugReason)
+void AStagingDemoNPCCharacter::SetLoopState(EStagingDemoLoopState NewState, const FString& DebugReason)
 {
     LoopState = NewState;
 
     if (bLogStateChanges)
     {
         UE_LOG(
-            LogStagehandDemoNPC,
+            LogStagingDemoNPC,
             Log,
             TEXT("%s -> %s (%s)"),
         *GetName(),
@@ -1228,7 +1228,7 @@ void AStagehandDemoNPCCharacter::SetLoopState(EStagehandDemoLoopState NewState, 
     UpdateDebugText();
 }
 
-void AStagehandDemoNPCCharacter::UpdateDebugText()
+void AStagingDemoNPCCharacter::UpdateDebugText()
 {
     RefreshPresentationPayload(LastFailureReason);
 
@@ -1247,7 +1247,7 @@ void AStagehandDemoNPCCharacter::UpdateDebugText()
                 ? NPCProfile->DebugColor.ToFColor(true)
                 : FColor::White;
             DebugText->SetTextRenderColor(DebugColor);
-            if (CurrentActionState == EStagehandDemoActionState::Socialize || CurrentActionState == EStagehandDemoActionState::InspectClue)
+            if (CurrentActionState == EStagingDemoActionState::Socialize || CurrentActionState == EStagingDemoActionState::InspectClue)
             {
                 DebugText->SetConversationDisplay(
                     CurrentPresentation.HeaderText,
@@ -1290,7 +1290,7 @@ void AStagehandDemoNPCCharacter::UpdateDebugText()
     }
 }
 
-bool AStagehandDemoNPCCharacter::IsSelectionNearCurrentLocation(const FStagehandNPCMarkerSelection& Selection) const
+bool AStagingDemoNPCCharacter::IsSelectionNearCurrentLocation(const FStagingNPCMarkerSelection& Selection) const
 {
     if (!HasUsableSelection(Selection))
     {
@@ -1302,14 +1302,14 @@ bool AStagehandDemoNPCCharacter::IsSelectionNearCurrentLocation(const FStagehand
     return DistanceToMarker <= FMath::Max(10.0f, AcceptanceRadius * 0.9f);
 }
 
-bool AStagehandDemoNPCCharacter::MatchesLastSelection(const FStagehandNPCMarkerSelection& Selection) const
+bool AStagingDemoNPCCharacter::MatchesLastSelection(const FStagingNPCMarkerSelection& Selection) const
 {
     return LastSelection.Room == Selection.Room &&
         LastSelection.Marker.MarkerName == Selection.Marker.MarkerName &&
         !Selection.Marker.MarkerName.IsNone();
 }
 
-bool AStagehandDemoNPCCharacter::HasUsableSelection(const FStagehandNPCMarkerSelection& Selection) const
+bool AStagingDemoNPCCharacter::HasUsableSelection(const FStagingNPCMarkerSelection& Selection) const
 {
     return Selection.bFoundSelection &&
         Selection.Room != nullptr &&

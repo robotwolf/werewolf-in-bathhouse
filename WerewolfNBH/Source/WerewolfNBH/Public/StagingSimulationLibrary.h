@@ -1,17 +1,17 @@
 #pragma once
 
-#include "StagehandSimulationData.h"
+#include "StagingSimulationData.h"
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "RoomModuleBase.h"
-#include "StagehandSimulationLibrary.generated.h"
+#include "StagingSimulationLibrary.generated.h"
 
 class ARoomModuleBase;
-class UStagehandNPCProfile;
-class UStagehandConversationTopic;
+class UStagingNPCProfile;
+class UStagingConversationTopic;
 
 USTRUCT(BlueprintType)
-struct FStagehandNPCMarkerSelection
+struct FStagingNPCMarkerSelection
 {
     GENERATED_BODY()
 
@@ -19,10 +19,10 @@ struct FStagehandNPCMarkerSelection
     bool bFoundSelection = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
-    TObjectPtr<UStagehandNPCProfile> NPCProfile = nullptr;
+    TObjectPtr<UStagingNPCProfile> NPCProfile = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
-    EStagehandRunPhase Phase = EStagehandRunPhase::OpeningHours;
+    EStagingRunPhase Phase = EStagingRunPhase::OpeningHours;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Selection")
     bool bIsWerewolfContext = false;
@@ -44,7 +44,7 @@ struct FStagehandNPCMarkerSelection
 };
 
 UENUM(BlueprintType)
-enum class EStagehandConversationLineKind : uint8
+enum class EStagingConversationLineKind : uint8
 {
     Social,
     Clue,
@@ -53,7 +53,7 @@ enum class EStagehandConversationLineKind : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FStagehandConversationLineSelection
+struct FStagingConversationLineSelection
 {
     GENERATED_BODY()
 
@@ -64,16 +64,16 @@ struct FStagehandConversationLineSelection
     bool bUsedFallbackLine = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Conversation")
-    EStagehandConversationLineKind LineKind = EStagehandConversationLineKind::Social;
+    EStagingConversationLineKind LineKind = EStagingConversationLineKind::Social;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Conversation")
-    TObjectPtr<UStagehandNPCProfile> SpeakerProfile = nullptr;
+    TObjectPtr<UStagingNPCProfile> SpeakerProfile = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Conversation")
-    TObjectPtr<UStagehandNPCProfile> OtherProfile = nullptr;
+    TObjectPtr<UStagingNPCProfile> OtherProfile = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Conversation")
-    TObjectPtr<UStagehandConversationTopic> Topic = nullptr;
+    TObjectPtr<UStagingConversationTopic> Topic = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Conversation")
     FText TopicPrompt;
@@ -92,38 +92,38 @@ struct FStagehandConversationLineSelection
 };
 
 UCLASS()
-class WEREWOLFNBH_API UStagehandSimulationLibrary : public UBlueprintFunctionLibrary
+class WEREWOLFNBH_API UStagingSimulationLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
 
 public:
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Simulation")
-    static TArray<FStagehandActivityPreference> GetApplicableActivitiesForPhase(
-        const UStagehandNPCProfile* NPCProfile,
-        EStagehandRunPhase Phase,
+    UFUNCTION(BlueprintCallable, Category="Staging|Simulation")
+    static TArray<FStagingActivityPreference> GetApplicableActivitiesForPhase(
+        const UStagingNPCProfile* NPCProfile,
+        EStagingRunPhase Phase,
         bool bIsWerewolf);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Simulation")
-    static FStagehandNPCMarkerSelection PickMarkerForNPCProfile(
-        const UStagehandNPCProfile* NPCProfile,
+    UFUNCTION(BlueprintCallable, Category="Staging|Simulation")
+    static FStagingNPCMarkerSelection PickMarkerForNPCProfile(
+        const UStagingNPCProfile* NPCProfile,
         const TArray<ARoomModuleBase*>& Rooms,
-        EStagehandRunPhase Phase,
+        EStagingRunPhase Phase,
         bool bIsWerewolf,
         int32 SelectionSeed);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Simulation", meta=(AutoCreateRefTerm="ContextTags"))
-    static FStagehandConversationLineSelection PickConversationLineForNPCProfile(
-        const UStagehandNPCProfile* SpeakerProfile,
-        EStagehandRunPhase Phase,
+    UFUNCTION(BlueprintCallable, Category="Staging|Simulation", meta=(AutoCreateRefTerm="ContextTags"))
+    static FStagingConversationLineSelection PickConversationLineForNPCProfile(
+        const UStagingNPCProfile* SpeakerProfile,
+        EStagingRunPhase Phase,
         bool bIsWerewolf,
         int32 SelectionSeed,
-        EStagehandConversationLineKind LineKind = EStagehandConversationLineKind::Social,
+        EStagingConversationLineKind LineKind = EStagingConversationLineKind::Social,
         const FGameplayTagContainer& ContextTags = FGameplayTagContainer(),
-        const UStagehandNPCProfile* OtherProfile = nullptr);
+        const UStagingNPCProfile* OtherProfile = nullptr);
 
-    UFUNCTION(BlueprintPure, Category="Stagehand|Simulation")
+    UFUNCTION(BlueprintPure, Category="Staging|Simulation")
     static FText BuildPlaceholderConversationLine(
-        EStagehandConversationLineKind LineKind,
-        const UStagehandNPCProfile* SpeakerProfile = nullptr,
-        const UStagehandNPCProfile* OtherProfile = nullptr);
+        EStagingConversationLineKind LineKind,
+        const UStagingNPCProfile* SpeakerProfile = nullptr,
+        const UStagingNPCProfile* OtherProfile = nullptr);
 };

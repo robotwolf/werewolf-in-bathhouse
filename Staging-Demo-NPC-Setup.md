@@ -1,4 +1,4 @@
-# Stagehand Demo NPC Setup
+# Staging Demo NPC Setup
 
 This is the shortest sane path from "the demo NPC moves" to "the demo NPC moves without sliding and several can exist at once."
 
@@ -6,10 +6,10 @@ This is the shortest sane path from "the demo NPC moves" to "the demo NPC moves 
 
 Runtime code:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandDemoNPCCharacter.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoNPCCharacter.cpp`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandDemoCoordinator.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagehandDemoCoordinator.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingDemoNPCCharacter.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagingDemoNPCCharacter.cpp`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingDemoCoordinator.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\StagingDemoCoordinator.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\GideonDirector.h`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\GideonDirector.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\WerewolfStateBillboardComponent.h`
@@ -31,37 +31,37 @@ The current C++ character proves movement and selection, but it should not be tr
 
 Recommended asset additions and current repo paths:
 
-1. Use or update the existing Blueprint child of `AStagehandDemoNPCCharacter`.
+1. Use or update the existing Blueprint child of `AStagingDemoNPCCharacter`.
    Current path:
-   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\BP_StagehandNPC.uasset`
+   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\BP_StagingNPC.uasset`
 
 2. Use or update the existing Anim Blueprint for the Quinn skeleton.
    Current path:
-   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\ABP_Quinn_StagehandNPC.uasset`
+   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Blueprints\NPC\ABP_Quinn_StagingNPC.uasset`
 
 3. In the Anim Blueprint:
    - compute `Speed` from `VectorLengthXY(GetVelocity())`
    - start with one simple `Idle` / `Walk` blend or state machine
    - only add turn or pause polish after the base locomotion works
 
-4. In `BP_StagehandNPC`:
+4. In `BP_StagingNPC`:
    - assign `SKM_Quinn_Simple` if needed
-   - set the mesh `Anim Class` to `ABP_Quinn_StagehandNPC`
+   - set the mesh `Anim Class` to `ABP_Quinn_StagingNPC`
    - keep the inherited C++ movement settings unless they actively fight the animation
 
 5. On the placed room generator in `GeneratorTest`:
-   - set `StagehandDemoNPCClass` to `BP_StagehandNPC`
+   - set `StagingDemoNPCClass` to `BP_StagingNPC`
 
 6. If you are editing the coordinator directly instead of the generator:
-   - set `DemoNPCClass` to `BP_StagehandNPC`
+   - set `DemoNPCClass` to `BP_StagingNPC`
 
 ## Proper Next Step: Several NPCs
 
-`AStagehandDemoCoordinator` now supports multiple NPCs directly.
+`AStagingDemoCoordinator` now supports multiple NPCs directly.
 
 Important reality check:
 
-- `StagehandDemoCoordinator` is still useful as a focused demo path.
+- `StagingDemoCoordinator` is still useful as a focused demo path.
 - `Gideon` is now the fuller runtime crowd orchestration layer for generated bathhouse runs.
 - If you are validating the real generation-to-crowd handshake, also read:
   - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
@@ -117,6 +117,7 @@ Repo-wide working guidance:
 
 If you only open three docs for this vertical slice, open these:
 
-1. `E:\Documents\Projects\werewolf-in-bathhouse\Stagehand-Demo-NPC-Setup.md`
+1. `E:\Documents\Projects\werewolf-in-bathhouse\Staging-Demo-NPC-Setup.md`
 2. `E:\Documents\Projects\werewolf-in-bathhouse\NPC-Prototype-Implementation-Plan.md`
 3. `E:\Documents\Projects\werewolf-in-bathhouse\Room-Construction-Gameplay-Handshake.md`
+

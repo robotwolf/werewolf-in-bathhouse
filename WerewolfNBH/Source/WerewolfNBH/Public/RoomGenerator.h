@@ -3,13 +3,13 @@
 #include "CoreMinimal.h"
 #include "GinnyProfiles.h"
 #include "GameFramework/Actor.h"
-#include "StagehandSimulationData.h"
+#include "StagingSimulationData.h"
 #include "RoomGenerator.generated.h"
 
 class ARoomModuleBase;
 class AGideonDirector;
-class AStagehandDemoCoordinator;
-class AStagehandDemoNPCCharacter;
+class AStagingDemoCoordinator;
+class AStagingDemoNPCCharacter;
 class AButchDecorator;
 class UGinnyLayoutProfile;
 class UPrototypeRoomConnectorComponent;
@@ -178,29 +178,29 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Generation|Decoration", meta=(EditCondition="bRunButchAfterGeneration"))
     TSubclassOf<AButchDecorator> ButchDecoratorClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo")
-    bool bAutoSpawnStagehandDemoCoordinator = true;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
+    bool bAutoSpawnStagingDemoCoordinator = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    bool bLimitStagehandDemoToGeneratorTestMap = true;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    bool bLimitStagingDemoToGeneratorTestMap = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    TSubclassOf<AStagehandDemoCoordinator> StagehandDemoCoordinatorClass;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    TSubclassOf<AStagingDemoCoordinator> StagingDemoCoordinatorClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    TSubclassOf<AStagehandDemoNPCCharacter> StagehandDemoNPCClass;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    TSubclassOf<AStagingDemoNPCCharacter> StagingDemoNPCClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    TObjectPtr<UStagehandNPCProfile> StagehandDemoProfile = nullptr;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    TObjectPtr<UStagingNPCProfile> StagingDemoProfile = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    EStagehandRunPhase StagehandDemoPhase = EStagehandRunPhase::OpeningHours;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    EStagingRunPhase StagingDemoPhase = EStagingRunPhase::OpeningHours;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    bool bTreatStagehandDemoAsWerewolf = false;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    bool bTreatStagingDemoAsWerewolf = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Demo", meta=(EditCondition="bAutoSpawnStagehandDemoCoordinator"))
-    int32 StagehandDemoSeedOffset = 101;
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
+    int32 StagingDemoSeedOffset = 101;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime")
     bool bAutoSpawnGideonDirector = true;
@@ -232,8 +232,8 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Generation")
     TArray<FString> LastSpecialRoomSummaryLines;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Demo")
-    TObjectPtr<AStagehandDemoCoordinator> SpawnedStagehandDemoCoordinator = nullptr;
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Demo")
+    TObjectPtr<AStagingDemoCoordinator> SpawnedStagingDemoCoordinator = nullptr;
 
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Gideon|Runtime")
     TObjectPtr<AGideonDirector> SpawnedGideonDirector = nullptr;
@@ -259,8 +259,8 @@ public:
     UFUNCTION(BlueprintCallable, Category="Generation")
     bool RunLayoutValidation(bool bLogIssues = true);
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
-    bool SpawnStagehandDemoCoordinator();
+    UFUNCTION(BlueprintCallable, Category="Staging|Demo")
+    bool SpawnStagingDemoCoordinator();
 
     UFUNCTION(BlueprintCallable, Category="Gideon|Runtime")
     bool SpawnGideonDirector();

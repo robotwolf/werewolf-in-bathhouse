@@ -2,7 +2,7 @@
 
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
-#include "StagehandDemoNPCCharacter.h"
+#include "StagingDemoNPCCharacter.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGideonAdmissionBooth, Log, All);
 
@@ -21,9 +21,9 @@ namespace
             return false;
         }
 
-        if (AStagehandDemoNPCCharacter* StagehandNPC = Cast<AStagehandDemoNPCCharacter>(NPC))
+        if (AStagingDemoNPCCharacter* StagingNPC = Cast<AStagingDemoNPCCharacter>(NPC))
         {
-            return StagehandNPC->MoveToQueueLocation(TargetTransform.GetLocation(), QueueIndex);
+            return StagingNPC->MoveToQueueLocation(TargetTransform.GetLocation(), QueueIndex);
         }
 
         return NPC->SetActorLocationAndRotation(
@@ -180,7 +180,7 @@ bool AGideonAdmissionBooth::AdmitNPC(AActor* NPC)
     RecentlyAdmittedNPCs.Add(NPC);
     LastAdmittedNPC = NPC;
 
-    if (!Cast<AStagehandDemoNPCCharacter>(NPC))
+    if (!Cast<AStagingDemoNPCCharacter>(NPC))
     {
         MoveNPCToTransform(NPC, GetAdmitPointTransform());
     }

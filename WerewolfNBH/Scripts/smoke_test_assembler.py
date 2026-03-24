@@ -154,39 +154,39 @@ def validate_npc_profile_marker_consumer(rooms, generator, seed):
     if not rooms:
         return
 
-    probe_class = getattr(unreal, "StagehandNPCMarkerProbe", None)
+    probe_class = getattr(unreal, "StagingNPCMarkerProbe", None)
     if not probe_class:
-        fail("Could not resolve StagehandNPCMarkerProbe class")
+        fail("Could not resolve StagingNPCMarkerProbe class")
 
     profiles = load_npc_profiles()
     for index, npc_profile in enumerate(profiles):
-        activities = unreal.StagehandSimulationLibrary.get_applicable_activities_for_phase(
+        activities = unreal.StagingSimulationLibrary.get_applicable_activities_for_phase(
             npc_profile,
-            unreal.StagehandRunPhase.OPENING_HOURS,
+            unreal.StagingRunPhase.OPENING_HOURS,
             False,
         )
         if not activities:
-            fail(f"StagehandSimulationLibrary returned no applicable activities for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingSimulationLibrary returned no applicable activities for authored NPC {npc_profile.get_name()}")
 
-        selection = unreal.StagehandSimulationLibrary.pick_marker_for_npc_profile(
+        selection = unreal.StagingSimulationLibrary.pick_marker_for_npc_profile(
             npc_profile,
             rooms,
-            unreal.StagehandRunPhase.OPENING_HOURS,
+            unreal.StagingRunPhase.OPENING_HOURS,
             False,
             seed + index,
         )
 
         if not selection.get_editor_property("bFoundSelection"):
-            fail(f"StagehandSimulationLibrary failed to find an NPC marker for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingSimulationLibrary failed to find an NPC marker for authored NPC {npc_profile.get_name()}")
 
         selected_room = selection.get_editor_property("Room")
         if not selected_room:
-            fail(f"StagehandSimulationLibrary returned no room for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingSimulationLibrary returned no room for authored NPC {npc_profile.get_name()}")
 
         marker = selection.get_editor_property("Marker")
         marker_name = marker.get_editor_property("MarkerName")
         if not marker_name:
-            fail(f"StagehandSimulationLibrary returned an empty marker for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingSimulationLibrary returned an empty marker for authored NPC {npc_profile.get_name()}")
 
         probe = unreal.EditorLevelLibrary.spawn_actor_from_class(
             probe_class,
@@ -194,20 +194,20 @@ def validate_npc_profile_marker_consumer(rooms, generator, seed):
             unreal.Rotator(0.0, 0.0, 0.0),
         )
         if not probe:
-            fail(f"Failed to spawn StagehandNPCMarkerProbe for authored NPC {npc_profile.get_name()}")
+            fail(f"Failed to spawn StagingNPCMarkerProbe for authored NPC {npc_profile.get_name()}")
 
         probe.set_editor_property("TargetGenerator", generator)
         probe.set_editor_property("NPCProfile", npc_profile)
-        probe.set_editor_property("Phase", unreal.StagehandRunPhase.OPENING_HOURS)
+        probe.set_editor_property("Phase", unreal.StagingRunPhase.OPENING_HOURS)
         probe.set_editor_property("SelectionSeed", seed + index)
         probe.set_editor_property("bDrawDebugMarker", False)
 
         if not probe.refresh_probe():
-            fail(f"StagehandNPCMarkerProbe failed to refresh for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingNPCMarkerProbe failed to refresh for authored NPC {npc_profile.get_name()}")
 
         probe_selection = probe.get_editor_property("Selection")
         if not probe_selection.get_editor_property("bFoundSelection"):
-            fail(f"StagehandNPCMarkerProbe did not record a selection for authored NPC {npc_profile.get_name()}")
+            fail(f"StagingNPCMarkerProbe did not record a selection for authored NPC {npc_profile.get_name()}")
 
         probe.destroy_actor()
 

@@ -137,8 +137,8 @@ The probe actor can read generated rooms from a `RoomGenerator`, run the same fi
 
 For the first NPC-side consumer seam, use:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandSimulationLibrary.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandNPCMarkerProbe.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingNPCMarkerProbe.h`
 
 That path lets a bathhouse NPC profile choose a plausible `NPC_*` marker from generated rooms using:
 
@@ -241,7 +241,7 @@ Current default bathhouse note:
 
 - the start room is `EntryFacadeNight`
 - it is a contained-exterior night facade
-- it still behaves like a normal room to Ginny, Stagehand, and Gideon
+- it still behaves like a normal room to Ginny, Staging, and Gideon
 
 Layout profiles live under:
 
@@ -534,7 +534,7 @@ These scripts are useful when updating baseline content:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_contained_exterior_room.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_staging_npc_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 
 Be careful with broad scripts that rebuild lots of assets.
@@ -599,3 +599,5 @@ If you are new and just need a good first room:
 7. Walk it in-editor before declaring victory
 
 That is the sane road. Follow it and the bathhouse will probably only resent you a little.
+
+

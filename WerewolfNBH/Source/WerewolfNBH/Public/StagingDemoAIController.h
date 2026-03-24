@@ -3,21 +3,21 @@
 #include "AIController.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "CoreMinimal.h"
-#include "StagehandDemoAIController.generated.h"
+#include "StagingDemoAIController.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FStagehandDemoMoveCompletedSignature, FAIRequestID, EPathFollowingResult::Type);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FStagingDemoMoveCompletedSignature, FAIRequestID, EPathFollowingResult::Type);
 
 UCLASS(Blueprintable)
-class WEREWOLFNBH_API AStagehandDemoAIController : public AAIController
+class WEREWOLFNBH_API AStagingDemoAIController : public AAIController
 {
     GENERATED_BODY()
 
 public:
-    AStagehandDemoAIController();
+    AStagingDemoAIController();
 
-    FStagehandDemoMoveCompletedSignature OnStagehandMoveCompleted;
+    FStagingDemoMoveCompletedSignature OnStagingMoveCompleted;
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Demo")
+    UFUNCTION(BlueprintCallable, Category="Staging|Demo")
     EPathFollowingRequestResult::Type RequestMoveToLocation(
         const FVector& TargetLocation,
         float AcceptanceRadius = 75.0f,

@@ -8,7 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "RoomGenerator.h"
 #include "RoomModuleBase.h"
-#include "StagehandDemoNPCCharacter.h"
+#include "StagingDemoNPCCharacter.h"
 #include "WerewolfGameplayTagLibrary.h"
 
 #include <initializer_list>
@@ -26,7 +26,7 @@ namespace
         TEXT("/Game/WerewolfBH/Data/NPC/Profiles/DA_NPCProfile_OccultScholar.DA_NPCProfile_OccultScholar"),
     };
 
-    FString GetProfileLabel(const UStagehandNPCProfile* Profile)
+    FString GetProfileLabel(const UStagingNPCProfile* Profile)
     {
         if (!Profile)
         {
@@ -63,19 +63,19 @@ namespace
         return false;
     }
 
-    float GetPhaseFearMultiplier(EStagehandRunPhase Phase)
+    float GetPhaseFearMultiplier(EStagingRunPhase Phase)
     {
         switch (Phase)
         {
-        case EStagehandRunPhase::FirstSigns:
+        case EStagingRunPhase::FirstSigns:
             return 1.05f;
-        case EStagehandRunPhase::Moonrise:
+        case EStagingRunPhase::Moonrise:
             return 1.20f;
-        case EStagehandRunPhase::Hunt:
+        case EStagingRunPhase::Hunt:
             return 1.45f;
-        case EStagehandRunPhase::Resolution:
+        case EStagingRunPhase::Resolution:
             return 0.80f;
-        case EStagehandRunPhase::OpeningHours:
+        case EStagingRunPhase::OpeningHours:
         default:
             return 1.0f;
         }
@@ -111,7 +111,7 @@ namespace
         return Matches[FMath::Clamp(PreferredIndex, 0, Matches.Num() - 1)];
     }
 
-    void LoadDefaultGideonProfiles(TArray<TObjectPtr<UStagehandNPCProfile>>& OutProfiles, TObjectPtr<UStagehandNPCProfile>& OutDefaultProfile)
+    void LoadDefaultGideonProfiles(TArray<TObjectPtr<UStagingNPCProfile>>& OutProfiles, TObjectPtr<UStagingNPCProfile>& OutDefaultProfile)
     {
         if (!OutProfiles.IsEmpty())
         {
@@ -120,7 +120,7 @@ namespace
 
         for (const TCHAR* ProfilePath : DefaultGideonProfilePaths)
         {
-            if (UStagehandNPCProfile* Profile = LoadObject<UStagehandNPCProfile>(nullptr, ProfilePath))
+            if (UStagingNPCProfile* Profile = LoadObject<UStagingNPCProfile>(nullptr, ProfilePath))
             {
                 OutProfiles.Add(Profile);
             }
@@ -217,7 +217,7 @@ void AGideonDirector::CreatePOI(const FGideonPOISpec& Spec)
         Spec.LifetimeSeconds));
 }
 
-void AGideonDirector::SetRunPhase(EStagehandRunPhase NewPhase)
+void AGideonDirector::SetRunPhase(EStagingRunPhase NewPhase)
 {
     if (CurrentRunPhase == NewPhase)
     {
@@ -359,14 +359,14 @@ void AGideonDirector::AdvanceFearAndCrowdBehavior(float DeltaSeconds)
 {
     for (FGideonDirectorNPCRecord& Record : ManagedNPCRecords)
     {
-        AStagehandDemoNPCCharacter* NPC = Record.NPC.Get();
+        AStagingDemoNPCCharacter* NPC = Record.NPC.Get();
         if (!NPC)
         {
             continue;
         }
 
         const FGideonNPCRuntimeState RuntimeState = NPC->GetGideonRuntimeState();
-        const UStagehandNPCProfile* Profile = NPC->NPCProfile.Get();
+        const UStagingNPCProfile* Profile = NPC->NPCProfile.Get();
         const float FearDecay = ResolveFearDecayForNPC(Profile);
         const float FearTolerance = ResolveFearToleranceForNPC(Profile);
         const float LeaveThreshold = FearTolerance * FMath::Max(1.0f, LeaveFearThresholdMultiplier);
@@ -456,7 +456,7 @@ void AGideonDirector::ConsumeBoothAdmissions()
     const FVector AdmitLocation = Booth->GetAdmitPointTransform().GetLocation();
     for (int32 Index = 0; Index < RecentlyAdmittedCount; ++Index)
     {
-        AStagehandDemoNPCCharacter* NPC = Cast<AStagehandDemoNPCCharacter>(Booth->GetRecentlyAdmittedNPCAtIndex(Index));
+        AStagingDemoNPCCharacter* NPC = Cast<AStagingDemoNPCCharacter>(Booth->GetRecentlyAdmittedNPCAtIndex(Index));
         if (!NPC)
         {
             continue;
@@ -484,7 +484,7 @@ void AGideonDirector::UpdateRuntimeSnapshot()
 
     for (const FGideonDirectorNPCRecord& Record : ManagedNPCRecords)
     {
-        AStagehandDemoNPCCharacter* NPC = Record.NPC.Get();
+        AStagingDemoNPCCharacter* NPC = Record.NPC.Get();
         if (!NPC)
         {
             continue;
@@ -514,9 +514,9 @@ void AGideonDirector::PopulatePreExistingNPCs()
         return;
     }
 
-    for (TActorIterator<AStagehandDemoNPCCharacter> It(World); It; ++It)
+    for (TActorIterator<AStagingDemoNPCCharacter> It(World); It; ++It)
     {
-        AStagehandDemoNPCCharacter* NPC = *It;
+        AStagingDemoNPCCharacter* NPC = *It;
         if (!NPC)
         {
             continue;
@@ -551,7 +551,7 @@ bool AGideonDirector::TrySpawnNextNPC()
         return false;
     }
 
-    UStagehandNPCProfile* Profile = ResolveProfileForSpawn(NextSpawnIndex);
+    UStagingNPCProfile* Profile = ResolveProfileForSpawn(NextSpawnIndex);
     if (!Profile)
     {
         return false;
@@ -566,7 +566,7 @@ bool AGideonDirector::TrySpawnNextNPC()
     return bSpawned;
 }
 
-bool AGideonDirector::SpawnNPCForProfile(UStagehandNPCProfile* Profile, int32 SpawnIndex)
+bool AGideonDirector::SpawnNPCForProfile(UStagingNPCProfile* Profile, int32 SpawnIndex)
 {
     if (!Profile)
     {
@@ -579,10 +579,10 @@ bool AGideonDirector::SpawnNPCForProfile(UStagehandNPCProfile* Profile, int32 Sp
         return false;
     }
 
-    TSubclassOf<AStagehandDemoNPCCharacter> SpawnClass = NPCClass;
+    TSubclassOf<AStagingDemoNPCCharacter> SpawnClass = NPCClass;
     if (!SpawnClass)
     {
-        SpawnClass = AStagehandDemoNPCCharacter::StaticClass();
+        SpawnClass = AStagingDemoNPCCharacter::StaticClass();
     }
 
     const FVector SpawnLocation = GetSpawnLocationForNPC(SpawnIndex);
@@ -592,7 +592,7 @@ bool AGideonDirector::SpawnNPCForProfile(UStagehandNPCProfile* Profile, int32 Sp
     SpawnParams.Instigator = GetInstigator();
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 
-    AStagehandDemoNPCCharacter* NPC = World->SpawnActor<AStagehandDemoNPCCharacter>(SpawnClass, SpawnLocation, SpawnRotation, SpawnParams);
+    AStagingDemoNPCCharacter* NPC = World->SpawnActor<AStagingDemoNPCCharacter>(SpawnClass, SpawnLocation, SpawnRotation, SpawnParams);
     if (!NPC)
     {
         LogDirectorMessage(FString::Printf(TEXT("Failed to spawn NPC for profile %s."), *GetProfileLabel(Profile)));
@@ -633,7 +633,7 @@ bool AGideonDirector::SpawnNPCForProfile(UStagehandNPCProfile* Profile, int32 Sp
     return true;
 }
 
-UStagehandNPCProfile* AGideonDirector::ResolveProfileForSpawn(int32 SpawnIndex) const
+UStagingNPCProfile* AGideonDirector::ResolveProfileForSpawn(int32 SpawnIndex) const
 {
     if (NPCProfiles.Num() > 0)
     {
@@ -940,7 +940,7 @@ FVector AGideonDirector::GetQueueLocationForNPC(int32 QueueIndex) const
     return GetActorLocation() + FVector(0.0f, QueueIndex * 100.0f, 90.0f);
 }
 
-EGideonTowelTier AGideonDirector::ResolveTowelTierForNPC(const UStagehandNPCProfile* Profile, const FVector& SpawnLocation) const
+EGideonTowelTier AGideonDirector::ResolveTowelTierForNPC(const UStagingNPCProfile* Profile, const FVector& SpawnLocation) const
 {
     if (bUseHeroClothForPinnedNPCs && Profile && Profile->bStoryPinned)
     {
@@ -969,7 +969,7 @@ EGideonTowelTier AGideonDirector::ResolveTowelTierForNPC(const UStagehandNPCProf
     return EGideonTowelTier::CrowdSimple;
 }
 
-float AGideonDirector::ResolveFearGainForNPC(const AStagehandDemoNPCCharacter* NPC, const UStagehandNPCProfile* Profile, const FGideonPOISpec& Spec) const
+float AGideonDirector::ResolveFearGainForNPC(const AStagingDemoNPCCharacter* NPC, const UStagingNPCProfile* Profile, const FGideonPOISpec& Spec) const
 {
     const float ProfileScalar = Profile ? FMath::Max(0.0f, Profile->FearGainScalar) : 1.0f;
     const float SuspicionScalar = Profile ? FMath::Max(0.0f, Profile->BaseSuspicionScalar) : 1.0f;
@@ -977,7 +977,7 @@ float AGideonDirector::ResolveFearGainForNPC(const AStagehandDemoNPCCharacter* N
     return FMath::Max(0.0f, Spec.FearDelta) * ProfileScalar * FMath::Max(0.5f, SuspicionScalar) * RuntimeScalar;
 }
 
-float AGideonDirector::ResolveFearDecayForNPC(const UStagehandNPCProfile* Profile) const
+float AGideonDirector::ResolveFearDecayForNPC(const UStagingNPCProfile* Profile) const
 {
     if (!Profile)
     {
@@ -987,7 +987,7 @@ float AGideonDirector::ResolveFearDecayForNPC(const UStagehandNPCProfile* Profil
     return FMath::Max(0.0f, Profile->FearDecayPerSecond);
 }
 
-float AGideonDirector::ResolveFearToleranceForNPC(const UStagehandNPCProfile* Profile) const
+float AGideonDirector::ResolveFearToleranceForNPC(const UStagingNPCProfile* Profile) const
 {
     if (!Profile)
     {
@@ -997,7 +997,7 @@ float AGideonDirector::ResolveFearToleranceForNPC(const UStagehandNPCProfile* Pr
     return FMath::Max(Profile->FearTolerance, Profile->StressTolerance);
 }
 
-void AGideonDirector::ApplyPhasePulseToNPC(AStagehandDemoNPCCharacter* NPC)
+void AGideonDirector::ApplyPhasePulseToNPC(AStagingDemoNPCCharacter* NPC)
 {
     if (!NPC)
     {
@@ -1006,15 +1006,15 @@ void AGideonDirector::ApplyPhasePulseToNPC(AStagehandDemoNPCCharacter* NPC)
 
     NPC->SetRunPhaseState(CurrentRunPhase);
 
-    const UStagehandNPCProfile* Profile = NPC->NPCProfile.Get();
+    const UStagingNPCProfile* Profile = NPC->NPCProfile.Get();
     const float PhasePulse = PhaseFearPulse * GetPhaseFearMultiplier(CurrentRunPhase);
-    if (PhasePulse > 0.0f && (!Profile || !Profile->bStoryPinned || CurrentRunPhase == EStagehandRunPhase::Hunt))
+    if (PhasePulse > 0.0f && (!Profile || !Profile->bStoryPinned || CurrentRunPhase == EStagingRunPhase::Hunt))
     {
         NPC->AddFear(PhasePulse);
     }
 }
 
-void AGideonDirector::ApplyPOIToNPC(AStagehandDemoNPCCharacter* NPC, const FGideonPOISpec& Spec, ARoomModuleBase* TargetRoom)
+void AGideonDirector::ApplyPOIToNPC(AStagingDemoNPCCharacter* NPC, const FGideonPOISpec& Spec, ARoomModuleBase* TargetRoom)
 {
     if (!NPC || !TargetRoom)
     {
@@ -1041,7 +1041,7 @@ void AGideonDirector::ApplyPOIToNPC(AStagehandDemoNPCCharacter* NPC, const FGide
     }
 }
 
-void AGideonDirector::DriveNPCBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, float DeltaSeconds)
+void AGideonDirector::DriveNPCBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, float DeltaSeconds)
 {
     if (!NPC)
     {
@@ -1049,7 +1049,7 @@ void AGideonDirector::DriveNPCBehavior(AStagehandDemoNPCCharacter* NPC, FGideonD
     }
 
     const FGideonNPCRuntimeState RuntimeState = NPC->GetGideonRuntimeState();
-    const UStagehandNPCProfile* Profile = NPC->NPCProfile.Get();
+    const UStagingNPCProfile* Profile = NPC->NPCProfile.Get();
     const float FearTolerance = ResolveFearToleranceForNPC(Profile);
     const float LeaveThreshold = FearTolerance * FMath::Max(1.0f, LeaveFearThresholdMultiplier);
 
@@ -1093,7 +1093,7 @@ void AGideonDirector::DriveNPCBehavior(AStagehandDemoNPCCharacter* NPC, FGideonD
     }
 }
 
-void AGideonDirector::StartHideBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* HideRoom)
+void AGideonDirector::StartHideBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* HideRoom)
 {
     if (!NPC || !HideRoom)
     {
@@ -1108,7 +1108,7 @@ void AGideonDirector::StartHideBehavior(AStagehandDemoNPCCharacter* NPC, FGideon
     }
 }
 
-void AGideonDirector::StartLeaveBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* ExitRoom)
+void AGideonDirector::StartLeaveBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* ExitRoom)
 {
     if (!NPC)
     {
@@ -1132,7 +1132,7 @@ void AGideonDirector::StartLeaveBehavior(AStagehandDemoNPCCharacter* NPC, FGideo
     }
 }
 
-void AGideonDirector::StartRoamingBehavior(AStagehandDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record)
+void AGideonDirector::StartRoamingBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record)
 {
     if (!NPC)
     {

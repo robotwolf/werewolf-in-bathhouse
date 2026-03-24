@@ -3,7 +3,7 @@
 #include "GinnyProfiles.h"
 #include "MasonBuilderComponent.h"
 #include "RoomSignageComponent.h"
-#include "StagehandDebugVisualizerComponent.h"
+#include "StagingDebugVisualizerComponent.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
@@ -266,8 +266,8 @@ ARoomModuleBase::ARoomModuleBase()
     RoomSignage = CreateDefaultSubobject<URoomSignageComponent>(TEXT("RoomSignage"));
     RoomSignage->SetupAttachment(SceneRoot);
 
-    StagehandDebugVisualizer = CreateDefaultSubobject<UStagehandDebugVisualizerComponent>(TEXT("StagehandDebugVisualizer"));
-    StagehandDebugVisualizer->SetupAttachment(SceneRoot);
+    StagingDebugVisualizer = CreateDefaultSubobject<UStagingDebugVisualizerComponent>(TEXT("StagingDebugVisualizer"));
+    StagingDebugVisualizer->SetupAttachment(SceneRoot);
 
     MasonBuilder = CreateDefaultSubobject<UMasonBuilderComponent>(TEXT("MasonBuilder"));
 
@@ -324,9 +324,9 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
     RefreshConnectorCache();
     RefreshGameplayMarkerCache();
     UpdateConnectorDebugVisualization();
-    if (StagehandDebugVisualizer)
+    if (StagingDebugVisualizer)
     {
-        StagehandDebugVisualizer->RefreshVisualization();
+        StagingDebugVisualizer->RefreshVisualization();
     }
 
     if (ParametricSettings.bEnabled)

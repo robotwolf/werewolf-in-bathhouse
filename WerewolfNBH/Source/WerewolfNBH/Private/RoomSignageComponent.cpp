@@ -4,7 +4,7 @@
 #include "Components/PointLightComponent.h"
 #include "Components/TextRenderComponent.h"
 #include "Engine/World.h"
-#include "StagehandBillboardLabelComponent.h"
+#include "StagingBillboardLabelComponent.h"
 
 URoomSignageComponent::URoomSignageComponent()
 {
@@ -135,7 +135,7 @@ void URoomSignageComponent::EnsureHelperComponents()
 
     if (!InteriorLabel)
     {
-        InteriorLabel = NewObject<UStagehandBillboardLabelComponent>(Owner, TEXT("InteriorBillboardLabel"));
+        InteriorLabel = NewObject<UStagingBillboardLabelComponent>(Owner, TEXT("InteriorBillboardLabel"));
         InteriorLabel->SetupAttachment(this);
         InteriorLabel->CreationMethod = EComponentCreationMethod::Instance;
         Owner->AddInstanceComponent(InteriorLabel);
@@ -144,7 +144,7 @@ void URoomSignageComponent::EnsureHelperComponents()
 
     if (!ExteriorRoofLabel)
     {
-        ExteriorRoofLabel = NewObject<UStagehandBillboardLabelComponent>(Owner, TEXT("ExteriorRoofBillboardLabel"));
+        ExteriorRoofLabel = NewObject<UStagingBillboardLabelComponent>(Owner, TEXT("ExteriorRoofBillboardLabel"));
         ExteriorRoofLabel->SetupAttachment(this);
         ExteriorRoofLabel->CreationMethod = EComponentCreationMethod::Instance;
         Owner->AddInstanceComponent(ExteriorRoofLabel);

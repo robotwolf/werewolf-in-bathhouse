@@ -22,100 +22,100 @@ public:
     virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Probe")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Probe")
     TObjectPtr<USceneComponent> SceneRoot;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Probe")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Probe")
     TObjectPtr<UBillboardComponent> MarkerBillboard;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Probe")
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Probe")
     TObjectPtr<UArrowComponent> MarkerArrow;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe")
     bool bUseGeneratorRooms = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe", meta=(EditCondition="bUseGeneratorRooms"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe", meta=(EditCondition="bUseGeneratorRooms"))
     TObjectPtr<ARoomGenerator> TargetGenerator = nullptr;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe", meta=(EditCondition="!bUseGeneratorRooms"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe", meta=(EditCondition="!bUseGeneratorRooms"))
     TArray<TObjectPtr<ARoomModuleBase>> ManualRooms;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe")
     ERoomGameplayMarkerFamily MarkerFamily = ERoomGameplayMarkerFamily::NPC;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe")
     int32 SelectionSeed = 1337;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe")
     bool bUseScoredSelection = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
     float RoomTagWeight = 3.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
     float ActivityTagWeight = 2.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe", meta=(EditCondition="bUseScoredSelection", ClampMin="0.0"))
     float MarkerTagWeight = 1.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|RoomFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|RoomFilters")
     FGameplayTagContainer RequiredRoomTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|RoomFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|RoomFilters")
     FGameplayTagContainer BlockedRoomTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|RoomFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|RoomFilters")
     FGameplayTagContainer PreferredRoomTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|ActivityFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|ActivityFilters")
     FGameplayTagContainer RequiredActivityTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|ActivityFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|ActivityFilters")
     FGameplayTagContainer BlockedActivityTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|ActivityFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|ActivityFilters")
     FGameplayTagContainer PreferredActivityTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|MarkerFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|MarkerFilters")
     FGameplayTagContainer RequiredMarkerTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|MarkerFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|MarkerFilters")
     FGameplayTagContainer BlockedMarkerTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|MarkerFilters")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|MarkerFilters")
     FGameplayTagContainer PreferredMarkerTags;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug")
     bool bRefreshDuringConstruction = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug")
     bool bHideHelpersInGame = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug")
     bool bDrawDebugMarker = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug")
     FLinearColor DebugColor = FLinearColor(0.95f, 0.55f, 0.15f, 1.0f);
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug", meta=(ClampMin="0.1"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug", meta=(ClampMin="0.1"))
     float DebugDuration = 5.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Probe|Debug", meta=(ClampMin="1.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Probe|Debug", meta=(ClampMin="1.0"))
     float DebugRadius = 24.0f;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Probe|Result")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Probe|Result")
     TObjectPtr<ARoomModuleBase> SelectedRoom = nullptr;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Probe|Result")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Probe|Result")
     FRoomGameplayMarker SelectedMarker;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Probe|Result")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Probe|Result")
     float SelectedScore = 0.0f;
 
-    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Stagehand|Probe|Result")
+    UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category="Staging|Probe|Result")
     FString SelectedSummary;
 
-    UFUNCTION(BlueprintCallable, CallInEditor, Category="Stagehand|Probe")
+    UFUNCTION(BlueprintCallable, CallInEditor, Category="Staging|Probe")
     bool RefreshProbe();
 
 protected:

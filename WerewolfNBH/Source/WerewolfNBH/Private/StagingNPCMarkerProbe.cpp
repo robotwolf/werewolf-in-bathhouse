@@ -1,12 +1,12 @@
-#include "StagehandNPCMarkerProbe.h"
+#include "StagingNPCMarkerProbe.h"
 
-#include "StagehandSimulationLibrary.h"
+#include "StagingSimulationLibrary.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "RoomGameplayMarkerLibrary.h"
 #include "RoomGenerator.h"
 
-AStagehandNPCMarkerProbe::AStagehandNPCMarkerProbe()
+AStagingNPCMarkerProbe::AStagingNPCMarkerProbe()
 {
     PrimaryActorTick.bCanEverTick = false;
 
@@ -29,7 +29,7 @@ AStagehandNPCMarkerProbe::AStagehandNPCMarkerProbe()
     MarkerArrow->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AStagehandNPCMarkerProbe::OnConstruction(const FTransform& Transform)
+void AStagingNPCMarkerProbe::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
@@ -43,18 +43,18 @@ void AStagehandNPCMarkerProbe::OnConstruction(const FTransform& Transform)
     }
 }
 
-void AStagehandNPCMarkerProbe::BeginPlay()
+void AStagingNPCMarkerProbe::BeginPlay()
 {
     Super::BeginPlay();
     RefreshProbe();
 }
 
-bool AStagehandNPCMarkerProbe::RefreshProbe()
+bool AStagingNPCMarkerProbe::RefreshProbe()
 {
-    Selection = FStagehandNPCMarkerSelection();
+    Selection = FStagingNPCMarkerSelection();
 
     const TArray<ARoomModuleBase*> Rooms = GatherGeneratorRooms();
-    Selection = UStagehandSimulationLibrary::PickMarkerForNPCProfile(
+    Selection = UStagingSimulationLibrary::PickMarkerForNPCProfile(
         NPCProfile,
         Rooms,
         Phase,
@@ -82,7 +82,7 @@ bool AStagehandNPCMarkerProbe::RefreshProbe()
     return Selection.bFoundSelection;
 }
 
-TArray<ARoomModuleBase*> AStagehandNPCMarkerProbe::GatherGeneratorRooms() const
+TArray<ARoomModuleBase*> AStagingNPCMarkerProbe::GatherGeneratorRooms() const
 {
     TArray<ARoomModuleBase*> Rooms;
     if (!TargetGenerator)
@@ -101,7 +101,7 @@ TArray<ARoomModuleBase*> AStagehandNPCMarkerProbe::GatherGeneratorRooms() const
     return Rooms;
 }
 
-void AStagehandNPCMarkerProbe::ApplyVisualState()
+void AStagingNPCMarkerProbe::ApplyVisualState()
 {
     const bool bHasSelection = Selection.bFoundSelection && Selection.Room && !Selection.Marker.MarkerName.IsNone();
 

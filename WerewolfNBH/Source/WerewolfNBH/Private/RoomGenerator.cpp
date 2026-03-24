@@ -10,8 +10,8 @@
 #include "GideonDirector.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.h"
-#include "StagehandDemoCoordinator.h"
-#include "StagehandDemoNPCCharacter.h"
+#include "StagingDemoCoordinator.h"
+#include "StagingDemoNPCCharacter.h"
 
 DEFINE_LOG_CATEGORY(LogGinny);
 
@@ -221,7 +221,7 @@ ARoomGenerator::ARoomGenerator()
     PrimaryActorTick.bCanEverTick = false;
     ButchDecoratorClass = AButchDecorator::StaticClass();
     GideonDirectorClass = AGideonDirector::StaticClass();
-    StagehandDemoCoordinatorClass = AStagehandDemoCoordinator::StaticClass();
+    StagingDemoCoordinatorClass = AStagingDemoCoordinator::StaticClass();
 }
 
 void ARoomGenerator::BeginPlay()
@@ -237,9 +237,9 @@ void ARoomGenerator::BeginPlay()
     {
         SpawnGideonDirector();
     }
-    else if (bAutoSpawnStagehandDemoCoordinator)
+    else if (bAutoSpawnStagingDemoCoordinator)
     {
-        SpawnStagehandDemoCoordinator();
+        SpawnStagingDemoCoordinator();
     }
 }
 
@@ -398,9 +398,9 @@ bool ARoomGenerator::RunLayoutValidation(bool bLogIssues)
     return bValid;
 }
 
-bool ARoomGenerator::SpawnStagehandDemoCoordinator()
+bool ARoomGenerator::SpawnStagingDemoCoordinator()
 {
-    if (!bAutoSpawnStagehandDemoCoordinator)
+    if (!bAutoSpawnStagingDemoCoordinator)
     {
         return false;
     }
@@ -411,7 +411,7 @@ bool ARoomGenerator::SpawnStagehandDemoCoordinator()
         return false;
     }
 
-    if (bLimitStagehandDemoToGeneratorTestMap && !IsGeneratorTestMap(World))
+    if (bLimitStagingDemoToGeneratorTestMap && !IsGeneratorTestMap(World))
     {
         return false;
     }
@@ -421,27 +421,27 @@ bool ARoomGenerator::SpawnStagehandDemoCoordinator()
         return false;
     }
 
-    if (SpawnedStagehandDemoCoordinator)
+    if (SpawnedStagingDemoCoordinator)
     {
         return true;
     }
 
-    for (TActorIterator<AStagehandDemoCoordinator> It(World); It; ++It)
+    for (TActorIterator<AStagingDemoCoordinator> It(World); It; ++It)
     {
         if (*It && It->TargetGenerator == this)
         {
-            SpawnedStagehandDemoCoordinator = *It;
+            SpawnedStagingDemoCoordinator = *It;
             return true;
         }
     }
 
-    if (!StagehandDemoCoordinatorClass)
+    if (!StagingDemoCoordinatorClass)
     {
         return false;
     }
 
-    AStagehandDemoCoordinator* DemoCoordinator = World->SpawnActorDeferred<AStagehandDemoCoordinator>(
-        StagehandDemoCoordinatorClass,
+    AStagingDemoCoordinator* DemoCoordinator = World->SpawnActorDeferred<AStagingDemoCoordinator>(
+        StagingDemoCoordinatorClass,
         FTransform(GetActorRotation(), GetActorLocation()),
         this,
         nullptr,
@@ -453,19 +453,19 @@ bool ARoomGenerator::SpawnStagehandDemoCoordinator()
     }
 
     DemoCoordinator->TargetGenerator = this;
-    if (StagehandDemoProfile)
+    if (StagingDemoProfile)
     {
-        DemoCoordinator->NPCProfile = StagehandDemoProfile;
+        DemoCoordinator->NPCProfile = StagingDemoProfile;
     }
-    if (StagehandDemoNPCClass)
+    if (StagingDemoNPCClass)
     {
-        DemoCoordinator->DemoNPCClass = StagehandDemoNPCClass;
+        DemoCoordinator->DemoNPCClass = StagingDemoNPCClass;
     }
-    DemoCoordinator->Phase = StagehandDemoPhase;
-    DemoCoordinator->bTreatAsWerewolf = bTreatStagehandDemoAsWerewolf;
-    DemoCoordinator->DemoSeedOffset = StagehandDemoSeedOffset;
+    DemoCoordinator->Phase = StagingDemoPhase;
+    DemoCoordinator->bTreatAsWerewolf = bTreatStagingDemoAsWerewolf;
+    DemoCoordinator->DemoSeedOffset = StagingDemoSeedOffset;
 
-    SpawnedStagehandDemoCoordinator = DemoCoordinator;
+    SpawnedStagingDemoCoordinator = DemoCoordinator;
     DemoCoordinator->FinishSpawning(FTransform(GetActorRotation(), GetActorLocation()));
     return true;
 }
@@ -520,15 +520,15 @@ bool ARoomGenerator::SpawnGideonDirector()
     }
 
     GideonDirector->TargetGenerator = this;
-    GideonDirector->CurrentRunPhase = StagehandDemoPhase;
-    GideonDirector->bTreatNPCsAsWerewolves = bTreatStagehandDemoAsWerewolf;
-    if (StagehandDemoNPCClass)
+    GideonDirector->CurrentRunPhase = StagingDemoPhase;
+    GideonDirector->bTreatNPCsAsWerewolves = bTreatStagingDemoAsWerewolf;
+    if (StagingDemoNPCClass)
     {
-        GideonDirector->NPCClass = StagehandDemoNPCClass;
+        GideonDirector->NPCClass = StagingDemoNPCClass;
     }
-    if (StagehandDemoProfile)
+    if (StagingDemoProfile)
     {
-        GideonDirector->DefaultNPCProfile = StagehandDemoProfile;
+        GideonDirector->DefaultNPCProfile = StagingDemoProfile;
     }
 
     SpawnedGideonDirector = GideonDirector;

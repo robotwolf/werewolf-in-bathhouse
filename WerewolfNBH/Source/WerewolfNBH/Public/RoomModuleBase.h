@@ -20,7 +20,7 @@ class UGinnyRoomProfile;
 class UMasonConstructionProfile;
 class UMasonBuilderComponent;
 class URoomSignageComponent;
-class UStagehandDebugVisualizerComponent;
+class UStagingDebugVisualizerComponent;
 
 UENUM(BlueprintType)
 enum class ERoomParametricFootprintType : uint8
@@ -399,8 +399,8 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Debug")
     TObjectPtr<URoomSignageComponent> RoomSignage;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Stagehand|Debug")
-    TObjectPtr<UStagehandDebugVisualizerComponent> StagehandDebugVisualizer;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Debug")
+    TObjectPtr<UStagingDebugVisualizerComponent> StagingDebugVisualizer;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Construction")
     TObjectPtr<UMasonBuilderComponent> MasonBuilder;

@@ -90,7 +90,7 @@ Bad requests:
 - `Ginny` owns which rooms exist and how they connect.
 - `Mason` owns how the room shell is physically built.
 - `ARoomModuleBase` owns room-local metadata and marker discovery.
-- `Stagehand` owns the first query/debug/selection layer that consumes room truth.
+- `Staging` owns the first query/debug/selection layer that consumes room truth.
 - `Gideon` owns runtime crowd orchestration on top of that truth:
   - spawn flow
   - admission flow
@@ -103,12 +103,15 @@ Bad requests:
 - `BP_RunManager` should own phase, werewolf assignment, and escalation later.
 - NPC/StateTree logic should choose markers from room output, not change room truth directly.
 
-### Stagehand and Gideon
+### Staging and Gideon
 
-`Stagehand` and `Gideon` are related, but not interchangeable.
+`Staging` and `Gideon` are related, but not interchangeable.
 
-- `Stagehand` is the handshake/query/debug layer:
+If you are reading older notes or asset names, `Staging` is the renamed successor to `Stagehand`.
+
+- `Staging` is the semantic query and handoff layer:
   - marker libraries
+  - connector and room-truth publication helpers
   - probes
   - profile-driven room/marker selection helpers
 - `Gideon` is the runtime crowd coordinator:
@@ -367,12 +370,12 @@ The gameplay side should assume:
 
 The first concrete NPC-side consumer pair is now:
 
-- `UStagehandSimulationLibrary`
-- `AStagehandNPCMarkerProbe`
+- `UStagingSimulationLibrary`
+- `AStagingNPCMarkerProbe`
 
 That means the handshake has moved beyond theory and into actual repo behavior.
 
-Gameplay can now feed an authored `UStagehandNPCProfile`:
+Gameplay can now feed an authored `UStagingNPCProfile`:
 
 - baseline activity preferences
 - preferred and avoided room tags
@@ -409,3 +412,4 @@ If both conversations need one simple rule to align on immediately, use this:
 - every mission-capable room should ship with at least one `MissionSocket_*` marker
 
 That is the minimum handshake that lets the simulation side stop guessing and start choosing.
+

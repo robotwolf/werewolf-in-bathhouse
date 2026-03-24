@@ -88,8 +88,9 @@ Current functional separation:
 - **Mason**: construction/graybox builder
   - turns bounds + connector/opening rules into usable primitive-built geometry
   - owns construction techniques such as `BoxShell`, `SliceFootprint`, `PublicStairShell`, and future non-bathhouse techniques
-- **Stagehand**: gameplay/query/debug handshake layer
+- **Staging**: semantic query and handoff layer
   - consumes room tags and markers
+  - exposes constructed space as usable room truth for tools, gameplay, and runtime orchestration
   - provides debug probes and early NPC-facing selection helpers
 - **Gideon**: runtime crowd orchestration layer
   - lives on top of generated space rather than replacing `Ginny` or `Mason`
@@ -104,7 +105,7 @@ Design bias:
 
 - `Ginny` should own **topology**, not detailed mesh construction.
 - `Mason` should own **embodiment**, not room-selection logic.
-- `Stagehand` should own **selection/query/debug handshake**, not topology or shell construction.
+- `Staging` should own **room-truth query and handoff**, not topology or shell construction.
 - `Gideon` should own **runtime crowd orchestration**, not room truth.
 - `Flo` should eventually own **config-to-config flow**, not local room assembly.
 - `Butch` should own **dressing**, not structural truth.
@@ -115,7 +116,7 @@ Architectural north star:
 
 - `Ginny` decides what exists and how it connects.
 - `Mason` decides how it gets built from primitives and rules.
-- `Stagehand` decides how generated room truth gets queried, tested, and handed to gameplay systems.
+- `Staging` decides how generated room truth gets queried, tested, and handed to gameplay and runtime systems.
 - `Gideon` decides how spawned NPCs are admitted, coordinated, and pushed through runtime crowd behavior.
 - `Butch` decides how it gets dressed and performed.
 - `Flo` will eventually decide how distinct layout regimes connect and misbehave.
@@ -244,7 +245,7 @@ Code/data naming for the generation stack should stay consistent with the curren
 
 - `Ginny*` for layout/profile assets and helper types
 - `Mason*` for construction/builder assets and helper types
-- `Stagehand*` for room-query, probe, and simulation helper types
+- `Staging*` for room-query, probe, and simulation helper types
 - `Gideon*` for runtime crowd-orchestration types
 - `Butch*` for dressing-related assets and types
 
@@ -326,3 +327,4 @@ Good answers should make it easy for the next person to understand:
 ## Guidance Updates
 
 If the user corrects a repeated assumption or workflow mistake, update this `AGENTS.md` so the correction persists for future sessions.
+

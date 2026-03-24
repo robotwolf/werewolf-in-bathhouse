@@ -3,15 +3,15 @@
 #include "CoreMinimal.h"
 #include "Components/SceneComponent.h"
 #include "RoomModuleBase.h"
-#include "StagehandDebugVisualizerComponent.generated.h"
+#include "StagingDebugVisualizerComponent.generated.h"
 
 class UStaticMesh;
 class UStaticMeshComponent;
-class UStagehandBillboardLabelComponent;
+class UStagingBillboardLabelComponent;
 class UMaterialInterface;
 
 USTRUCT()
-struct FStagehandDebugMarkerVisual
+struct FStagingDebugMarkerVisual
 {
     GENERATED_BODY()
 
@@ -19,63 +19,63 @@ struct FStagehandDebugMarkerVisual
     TObjectPtr<UStaticMeshComponent> Mesh = nullptr;
 
     UPROPERTY()
-    TObjectPtr<UStagehandBillboardLabelComponent> Label = nullptr;
+    TObjectPtr<UStagingBillboardLabelComponent> Label = nullptr;
 
     UPROPERTY()
     ERoomGameplayMarkerFamily Family = ERoomGameplayMarkerFamily::Custom;
 };
 
-UCLASS(ClassGroup=(Stagehand), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
-class WEREWOLFNBH_API UStagehandDebugVisualizerComponent : public USceneComponent
+UCLASS(ClassGroup=(Staging), BlueprintType, Blueprintable, meta=(BlueprintSpawnableComponent))
+class WEREWOLFNBH_API UStagingDebugVisualizerComponent : public USceneComponent
 {
     GENERATED_BODY()
 
 public:
-    UStagehandDebugVisualizerComponent();
+    UStagingDebugVisualizerComponent();
 
     virtual void OnRegister() override;
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bHideHelpersInGame = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowConnectorLabels = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowMarkerLabels = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowMarkerTags = false;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowNPCMarkers = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowTaskMarkers = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowClueMarkers = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowMissionMarkers = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bShowFXMarkers = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug")
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
     bool bBillboardLabelsToView = true;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug", meta=(ClampMin="4.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug", meta=(ClampMin="4.0"))
     float MarkerSolidSize = 18.0f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Stagehand|Debug", meta=(ClampMin="4.0"))
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug", meta=(ClampMin="4.0"))
     float LabelWorldSize = 20.0f;
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Debug")
+    UFUNCTION(BlueprintCallable, Category="Staging|Debug")
     void RefreshVisualization();
 
-    UFUNCTION(BlueprintCallable, Category="Stagehand|Debug")
+    UFUNCTION(BlueprintCallable, Category="Staging|Debug")
     void ApplyVisibility();
 
 private:
@@ -87,14 +87,14 @@ private:
     FRotator GetMarkerRotationForFamily(ERoomGameplayMarkerFamily Family) const;
     FString BuildMarkerLabel(const FRoomGameplayMarker& Marker) const;
     FString BuildConnectorLabel(const UPrototypeRoomConnectorComponent* Connector) const;
-    UStagehandBillboardLabelComponent* CreateLabelComponent(const FString& NameSuffix, const FVector& WorldLocation, const FString& Text, const FLinearColor& Color, float CardWidth = 84.0f);
+    UStagingBillboardLabelComponent* CreateLabelComponent(const FString& NameSuffix, const FVector& WorldLocation, const FString& Text, const FLinearColor& Color, float CardWidth = 84.0f);
     UStaticMeshComponent* CreateMarkerMeshComponent(const FString& NameSuffix, const FTransform& WorldTransform, ERoomGameplayMarkerFamily Family);
 
     UPROPERTY()
-    TArray<TObjectPtr<UStagehandBillboardLabelComponent>> ConnectorLabels;
+    TArray<TObjectPtr<UStagingBillboardLabelComponent>> ConnectorLabels;
 
     UPROPERTY()
-    TArray<FStagehandDebugMarkerVisual> MarkerVisuals;
+    TArray<FStagingDebugMarkerVisual> MarkerVisuals;
 
     UPROPERTY()
     TObjectPtr<UStaticMesh> CubeMesh = nullptr;

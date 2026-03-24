@@ -26,7 +26,7 @@
       <div class="hero-card">
         <div class="eyebrow">Workflow Guides</div>
         <h1>Do The Thing Without Guessing</h1>
-        <p class="lede">These are the quick routes: make a room, wire it honestly, mark it for gameplay, and test it without summoning a second crisis.</p>
+        <p class="lede">These are the fast routes: make a room, wire it honestly, mark it for gameplay, and test it without summoning a second crisis.</p>
       </div>
     </section>
 
@@ -35,11 +35,11 @@
       <div class="split">
         <div class="card">
           <h3>1. Start From A Room Blueprint</h3>
-          <p>Use an existing room as your base. Keep the bounds, connectors, Stagehand markers, and authored content root intact even if Mason is disabled.</p>
+          <p>Use an existing room as your base. Keep the bounds, connectors, Staging markers, and authored content root intact even if Mason is disabled.</p>
         </div>
         <div class="card">
           <h3>2. Decide Who Builds It</h3>
-          <p>If it is a hero room, disable <code>StockAssemblySettings.bEnabled</code> and <code>ParametricSettings.bEnabled</code>. Mason stays attached, but stops building walls over your sky.</p>
+          <p>If it is a hero room, disable <code>StockAssemblySettings.bEnabled</code> and <code>ParametricSettings.bEnabled</code>. Mason stays attached, but stops wallpapering over your sky.</p>
         </div>
         <div class="card">
           <h3>3. Keep Truth Honest</h3>
@@ -52,27 +52,32 @@
       <h2>Add Connectors And Openings</h2>
       <div class="card">
         <p>Place connectors where a traversal contract is actually true. Do not let a fake facade trick you into putting the hall connector where the hallway is not.</p>
-        <p><a href="../api/index.html#stagehand">See Stagehand connector/reference details</a></p>
+        <p><a href="../api/index.html#staging">See Staging connector and query details</a></p>
         <p><a href="../../ROOM_ASSEMBLER_USAGE_GUIDE.md">Open deep guide</a></p>
       </div>
     </section>
 
     <section class="section">
-      <h2>Add Stagehand Markers</h2>
+      <h2>Add Staging Markers</h2>
       <div class="split">
         <div class="card">
           <h3>Marker Families</h3>
-          <p><code>NPC_*</code>, <code>Task_*</code>, <code>Clue_*</code>, <code>MissionSocket_*</code>, and <code>FX_*</code> are the standard families. Use them on real affordance locations, not vibes.</p>
+          <p><code>NPC_*</code>, <code>Task_*</code>, <code>Clue_*</code>, <code>MissionSocket_*</code>, and <code>FX_*</code> are the standard families. Put them on real affordances, not vibes.</p>
         </div>
         <div class="card">
-          <h3>Billboard Debug</h3>
-          <p>The new billboard labels are meant to help you read these markers in-editor without zooming into the plaster like a detective with a magnifying glass.</p>
+          <h3>Why Staging Exists</h3>
+          <p>Other systems should be able to ask “what can this room support?” without scraping geometry. That is the whole point of the layer.</p>
+        </div>
+        <div class="card">
+          <h3>Editor Readability</h3>
+          <p>The billboard labels are there to keep marker and connector truth readable in-editor without forcing you to nose-kiss the drywall.</p>
         </div>
       </div>
     </section>
 
     <section class="section" id="contained-exterior">
-      <h2>Make A Contained Exterior Room</h2>`r`n      <p><a href="./contained-exterior.html">Open dedicated contained exterior page</a></p>
+      <h2>Make A Contained Exterior Room</h2>
+      <p><a href="./contained-exterior.html">Open dedicated contained exterior page</a></p>
       <div class="split">
         <div class="card">
           <h3>Visual Stack</h3>
@@ -85,7 +90,7 @@
         </div>
         <div class="card">
           <h3>Rule Of Thumb</h3>
-          <p>Outside by presentation. Normal room by systems truth. That sentence should be tattooed on the inside of this pattern�s forehead.</p>
+          <p>Outside by presentation. Normal room by systems truth. Tattoo that sentence on the inside of this pattern’s forehead.</p>
         </div>
       </div>
     </section>
@@ -97,7 +102,7 @@
         <ul>
           <li>Place the room directly for composition tests.</li>
           <li>Then wire it into the generator/layout path for topology and marker truth tests.</li>
-          <li>PIE should hide debug billboards by default.</li>
+          <li>PIE should hide Staging debug billboards by default.</li>
         </ul>
       </div>
     </section>
@@ -109,4 +114,3 @@
   <script src="../assets/app.js"></script>
 </body>
 </html>
-

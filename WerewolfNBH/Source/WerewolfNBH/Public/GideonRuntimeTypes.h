@@ -5,7 +5,7 @@
 #include "GideonRuntimeTypes.generated.h"
 
 class ARoomModuleBase;
-class AStagehandDemoNPCCharacter;
+class AStagingDemoNPCCharacter;
 
 UENUM(BlueprintType)
 enum class EGideonNPCRuntimeMode : uint8
@@ -57,7 +57,7 @@ struct FGideonNPCRuntimeState
     GENERATED_BODY()
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Gideon|NPC")
-    TObjectPtr<AStagehandDemoNPCCharacter> NPC = nullptr;
+    TObjectPtr<AStagingDemoNPCCharacter> NPC = nullptr;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Gideon|NPC")
     EGideonNPCRuntimeMode RuntimeMode = EGideonNPCRuntimeMode::Spawning;

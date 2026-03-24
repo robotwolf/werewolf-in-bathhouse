@@ -160,7 +160,7 @@ Show that generated room truth can feed a live runtime crowd layer without inven
 ### Recommended references
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
-- `E:\Documents\Projects\werewolf-in-bathhouse\Stagehand-Demo-NPC-Setup.md`
+- `E:\Documents\Projects\werewolf-in-bathhouse\Staging-Demo-NPC-Setup.md`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap`
 
 ### What this showcase should prove
@@ -185,3 +185,4 @@ We can call the showcase plan healthy when:
 3. a teammate can open one map and understand what `Gideon` is proving
 4. `Flo` has a written contract before implementation starts
 5. new experiments stop landing directly in the bathhouse baseline first
+

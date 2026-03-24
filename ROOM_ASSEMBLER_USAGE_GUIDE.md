@@ -61,23 +61,28 @@ Primary files:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\MasonBuilderComponent.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Mason`
 
-### `Stagehand`
+### `Staging`
 
-`Stagehand` is the gameplay handshake, query, and debug layer.
+`Staging` is the semantic query and handoff layer that exposes constructed space as usable room truth for tools, gameplay, and runtime orchestration.
+
+Older commits, assets, and migration redirects may still refer to this layer as `Stagehand`.
 
 Owns:
 
 - room marker lookup
 - room and marker filtering
+- connector lookup and semantics publication
+- room-truth handoff to gameplay/runtime systems
 - debug probes
+- debug/presentation helpers as a subsystem, not the whole identity
 - early NPC-facing selection helpers
 
 Primary files:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerLibrary.h`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerProbe.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandSimulationLibrary.h`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagehandNPCMarkerProbe.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingNPCMarkerProbe.h`
 
 ### `Gideon`
 
@@ -131,7 +136,7 @@ The clean mental model is:
 
 1. `Ginny` decides what exists.
 2. `Mason` builds it.
-3. `Stagehand` makes it queryable to gameplay.
+3. `Staging` makes it queryable to gameplay.
 4. `Gideon` uses that published truth to run live crowd behavior.
 5. `Butch` dresses it.
 6. `Flo` will eventually connect bigger regimes together.
@@ -282,7 +287,7 @@ The clean mental model is:
     - expose the selected room, marker, and score
     - move itself to the chosen marker and visualize it with a billboard/arrow
 
-- `UStagehandSimulationLibrary`
+- `UStagingSimulationLibrary`
   - First NPC-side consumer seam built on top of room marker output.
   - Can:
     - filter a profile's baseline activities by phase and werewolf context
@@ -291,8 +296,8 @@ The clean mental model is:
   - Current authored prototype profiles live under:
     - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\NPC\Profiles`
 
-- `AStagehandNPCMarkerProbe`
-  - Debug actor that uses `UStagehandSimulationLibrary` against a `RoomGenerator`'s spawned rooms.
+- `AStagingNPCMarkerProbe`
+  - Debug actor that uses `UStagingSimulationLibrary` against a `RoomGenerator`'s spawned rooms.
   - Useful for proving the full handshake:
     - room publishes markers
     - gameplay profile chooses activity
@@ -335,7 +340,7 @@ The clean mental model is:
   - stock openings
   - stair shell construction
   - technique selection for how a node is embodied
-- `Stagehand` owns the query/debug handshake:
+- `Staging` owns the query/debug handshake:
   - room marker lookup
   - tag-aware room selection
   - editor/runtime probes
@@ -348,7 +353,7 @@ The clean mental model is:
   - `Mason` is now the named primitive-construction seam.
   - Mason now has explicit technique selection instead of inferred one-off modes.
   - Mason construction defaults can now live in reusable `UMasonConstructionProfile` assets.
-  - `Stagehand` is the handshake layer between generated room truth and gameplay consumers.
+  - `Staging` is the handshake layer between generated room truth and gameplay consumers.
   - `Gideon` is the runtime orchestrator that uses that handshake for live crowd behavior.
   - Future work will keep expanding `Mason` so the same system can build more than bathhouse boxes without turning `Ginny` into a geometry goblin.
 
@@ -789,7 +794,7 @@ Key scripts:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\configure_assembler_blueprints.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_ginny_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_room_gameplay_markers.py`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_staging_npc_profiles.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_generator_instances.py`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\smoke_test_assembler.py`
 
@@ -803,8 +808,8 @@ Key scripts:
 - generator has a `LayoutProfile`
 - spawned rooms have `RoomProfile`
 - authored NPC profiles load from `Content/WerewolfBH/Data/NPC/Profiles`
-- `UStagehandSimulationLibrary` finds a room + `NPC_*` marker for each authored NPC profile
-- `AStagehandNPCMarkerProbe` refreshes successfully for each authored NPC profile
+- `UStagingSimulationLibrary` finds a room + `NPC_*` marker for each authored NPC profile
+- `AStagingNPCMarkerProbe` refreshes successfully for each authored NPC profile
 - spawned rooms satisfy any authored gameplay marker requirements
 - first room is `EntryFacadeNight`
 - first room after entry is `PublicHallStraight`
@@ -851,7 +856,7 @@ Current healthy test seeds:
 
 The current authored bathhouse NPC profile sync lives at:
 
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_bathhouse_npc_profiles.py`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Scripts\sync_staging_npc_profiles.py`
 
 Current prototype NPC assets:
 
@@ -972,3 +977,5 @@ They are paused, not deleted.
 2. Add more required bathhouse rooms only after assigning them a real program role.
 3. Tighten room adjacency rules before reopening decoration.
 4. Reintroduce `Butch` only after structural layouts stop behaving like legally connected nonsense.
+
+
