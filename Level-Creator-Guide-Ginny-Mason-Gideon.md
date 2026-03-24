@@ -1,14 +1,23 @@
-# Level Creator Guide: Ginny, Mason, and Gideon
+﻿# Level Creator Guide: Ginny, Mason, and Gideon
 
-This guide is for a level creator who needs to work with the room assembler without first enduring a month of architectural séance notes.
+This guide is for a level creator who needs to work with the room assembler without first enduring a month of architectural seance notes.
 
 If you only remember one thing, remember this:
 
 - `Ginny` decides **what exists and how it connects**
 - `Mason` decides **how that thing gets physically built**
+- `Staging` decides **what that built space means and how other systems can query it**
 - `Gideon` decides **how the crowd shows up and behaves once the place exists**
 
 That separation is deliberate. Please do not teach either of them the other's job unless you enjoy future cleanup work.
+
+Quick taxonomy:
+
+- `Ginny` answers: what should exist here?
+- `Mason` answers: what shape does it take?
+- `Staging` answers: what does it mean and how do we query it?
+- `Gideon` answers: what happens here right now?
+- `Butch` answers later: how should it feel?
 
 ## What These Systems Are
 
@@ -112,6 +121,30 @@ Primary code:
 Primary doc:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
+
+### `Staging`
+
+`Staging` is the semantic query and handoff layer.
+
+It is responsible for:
+
+- publishing room truth in a queryable way
+- marker and connector lookup
+- room and marker filtering
+- editor probes and readability helpers
+- making generated space usable to gameplay and runtime systems without geometry archaeology
+
+It is **not** responsible for:
+
+- choosing which rooms exist
+- building shells
+- runtime crowd orchestration
+
+Primary code:
+
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\RoomGameplayMarkerLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingSimulationLibrary.h`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\StagingNPCMarkerProbe.h`
 
 ### Runtime Marker Consumer
 
@@ -599,5 +632,6 @@ If you are new and just need a good first room:
 7. Walk it in-editor before declaring victory
 
 That is the sane road. Follow it and the bathhouse will probably only resent you a little.
+
 
 

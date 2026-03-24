@@ -6,6 +6,13 @@ It exists so the room constructor is not forced to guess AI needs, and the AI si
 
 ## Purpose
 
+Quick taxonomy:
+
+- `Ginny` answers: what should exist here?
+- `Mason` answers: what shape does it take?
+- `Staging` answers: what does it mean and how do we query it?
+- `Gideon` answers: what happens here right now?
+
 The constructor conversation should output:
 
 - valid room topology
@@ -90,7 +97,7 @@ Bad requests:
 - `Ginny` owns which rooms exist and how they connect.
 - `Mason` owns how the room shell is physically built.
 - `ARoomModuleBase` owns room-local metadata and marker discovery.
-- `Staging` owns the first query/debug/selection layer that consumes room truth.
+- `Staging` owns the first semantic query/handoff layer that consumes room truth.
 - `Gideon` owns runtime crowd orchestration on top of that truth:
   - spawn flow
   - admission flow
