@@ -24,6 +24,15 @@ If you are brand new to this stack and want the practical onboarding path first,
 
 If you need the fastest possible "who does what around here?" read, use this section first and save the deeper doc spelunking for after the coffee hits.
 
+Quick taxonomy:
+
+- `Ginny` answers: what should exist here?
+- `Mason` answers: what shape does it take?
+- `Butch` answers: how should it feel?
+- `Staging` answers: what does it mean and how do we query it?
+- `Gideon` answers: what happens here right now?
+- `Flo` will eventually answer: how do larger regimes connect and transition?
+
 ### `Ginny`
 
 `Ginny` is the layout and topology brain.
