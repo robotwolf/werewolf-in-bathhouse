@@ -6,11 +6,13 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/SkeletalMesh.h"
 #include "EngineUtils.h"
 #include "Engine/World.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "NavigationSystem.h"
+#include "NavigationPath.h"
 #include "RoomGameplayMarkerLibrary.h"
 #include "RoomGenerator.h"
 #include "StagingQueryLibrary.h"
@@ -123,6 +125,92 @@ namespace
         return Marker.MarkerName.IsNone()
             ? TEXT("NoMarker")
             : Marker.MarkerName.ToString();
+    }
+
+    FString ToNavFailureLabel(EStagingNavWatchdogFailureType FailureType)
+    {
+        switch (FailureType)
+        {
+        case EStagingNavWatchdogFailureType::OffNav:
+            return TEXT("OffNav");
+        case EStagingNavWatchdogFailureType::PathInvalid:
+            return TEXT("PathInvalid");
+        case EStagingNavWatchdogFailureType::MoveRejected:
+            return TEXT("MoveRejected");
+        case EStagingNavWatchdogFailureType::Blocked:
+            return TEXT("Blocked");
+        case EStagingNavWatchdogFailureType::OffPath:
+            return TEXT("OffPath");
+        case EStagingNavWatchdogFailureType::Aborted:
+            return TEXT("Aborted");
+        case EStagingNavWatchdogFailureType::RepeatedFailureHotspot:
+            return TEXT("RepeatedFailureHotspot");
+        case EStagingNavWatchdogFailureType::InvalidResult:
+        default:
+            return TEXT("InvalidResult");
+        }
+    }
+
+    FString ToPathResultLabel(EPathFollowingResult::Type ResultCode)
+    {
+        switch (ResultCode)
+        {
+        case EPathFollowingResult::Success:
+            return TEXT("Success");
+        case EPathFollowingResult::Blocked:
+            return TEXT("Blocked");
+        case EPathFollowingResult::OffPath:
+            return TEXT("OffPath");
+        case EPathFollowingResult::Aborted:
+            return TEXT("Aborted");
+        case EPathFollowingResult::Invalid:
+            return TEXT("Invalid");
+        default:
+            return FString::Printf(TEXT("Unknown(%d)"), static_cast<int32>(ResultCode));
+        }
+    }
+
+    FColor GetNavFailureColor(EStagingNavWatchdogFailureType FailureType)
+    {
+        switch (FailureType)
+        {
+        case EStagingNavWatchdogFailureType::OffNav:
+            return FColor(255, 96, 96);
+        case EStagingNavWatchdogFailureType::PathInvalid:
+            return FColor(255, 170, 64);
+        case EStagingNavWatchdogFailureType::MoveRejected:
+            return FColor(255, 215, 0);
+        case EStagingNavWatchdogFailureType::Blocked:
+            return FColor(255, 128, 0);
+        case EStagingNavWatchdogFailureType::OffPath:
+            return FColor(255, 0, 180);
+        case EStagingNavWatchdogFailureType::Aborted:
+            return FColor(200, 200, 64);
+        case EStagingNavWatchdogFailureType::RepeatedFailureHotspot:
+            return FColor(196, 64, 255);
+        case EStagingNavWatchdogFailureType::InvalidResult:
+        default:
+            return FColor::Red;
+        }
+    }
+
+    TArray<FString> GetTechnicalNavWatchdogLines()
+    {
+        return {
+            TEXT("Nav watchdog: target failed validation."),
+            TEXT("Nav watchdog: path request is invalid."),
+            TEXT("Nav watchdog: movement target is dishonest."),
+        };
+    }
+
+    TArray<FString> GetSardonicNavWatchdogLines()
+    {
+        return {
+            TEXT("Nav says no. Again."),
+            TEXT("That target lives in the geometric afterlife."),
+            TEXT("Pathfinding found a new and exciting way to disappoint us."),
+            TEXT("Somebody built a hole where a floor was supposed to be."),
+        };
     }
 }
 
@@ -254,6 +342,7 @@ void AStagingDemoNPCCharacter::StartBehaviorLoop()
 {
     LastFailureReason.Reset();
     GideonStatusReason.Reset();
+    NavWatchdogFailureHistory.Reset();
     CurrentSelection = FStagingNPCMarkerSelection();
     LastSelection = FStagingNPCMarkerSelection();
     CurrentMoveDestination = FVector::ZeroVector;
@@ -639,6 +728,276 @@ void AStagingDemoNPCCharacter::EvaluateBehavior()
     }
 }
 
+FString AStagingDemoNPCCharacter::BuildNavWatchdogTargetLabel(const FString& TargetReason) const
+{
+    FString Label = TargetReason.TrimStartAndEnd();
+    if (Label.IsEmpty())
+    {
+        if (HasUsableSelection(CurrentSelection))
+        {
+            Label = CurrentSelection.Marker.MarkerName.ToString();
+        }
+        else if (!GideonStatusReason.IsEmpty())
+        {
+            Label = GideonStatusReason;
+        }
+        else
+        {
+            Label = TEXT("UnlabeledTarget");
+        }
+    }
+
+    if (HasUsableSelection(CurrentSelection))
+    {
+        return FString::Printf(
+            TEXT("%s | %s / %s"),
+            *Label,
+            *GetRoomDisplayName(CurrentSelection.Room),
+            *GetMarkerDisplayName(CurrentSelection.Marker));
+    }
+
+    if (const ARoomModuleBase* ResolvedRoom = GetCurrentResolvedRoom())
+    {
+        return FString::Printf(TEXT("%s | %s"), *Label, *GetRoomDisplayName(ResolvedRoom));
+    }
+
+    return Label;
+}
+
+FString AStagingDemoNPCCharacter::BuildNavWatchdogLogicalKey(const FString& TargetReason, const FVector& RequestedLocation) const
+{
+    const FVector QuantizedLocation = RequestedLocation.GridSnap(50.0f);
+    return FString::Printf(
+        TEXT("%s|%s|%.0f,%.0f,%.0f"),
+        *BuildNavWatchdogTargetLabel(TargetReason),
+        *ToGideonModeLabel(GideonRuntimeMode),
+        QuantizedLocation.X,
+        QuantizedLocation.Y,
+        QuantizedLocation.Z);
+}
+
+FVector AStagingDemoNPCCharacter::GetNavWatchdogProjectionExtent() const
+{
+    const float SafeRadius = FMath::Max(25.0f, NavProjectionRadius);
+    return FVector(SafeRadius, SafeRadius, FMath::Max(240.0f, SafeRadius * 1.5f));
+}
+
+bool AStagingDemoNPCCharacter::ProbeNavWatchdogTarget(
+    const FVector& RequestedLocation,
+    FVector& OutResolvedLocation,
+    FString& OutFailureDetail,
+    EStagingNavWatchdogFailureType& OutFailureType,
+    bool& bOutHasProjectedLocation,
+    FVector& OutProjectedLocation) const
+{
+    OutResolvedLocation = RequestedLocation;
+    OutProjectedLocation = RequestedLocation;
+    bOutHasProjectedLocation = false;
+    OutFailureDetail.Reset();
+    OutFailureType = EStagingNavWatchdogFailureType::PathInvalid;
+
+    UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+    if (!NavigationSystem)
+    {
+        OutFailureDetail = TEXT("Navigation system is unavailable.");
+        return false;
+    }
+
+    FNavLocation ProjectedLocation;
+    if (!NavigationSystem->ProjectPointToNavigation(RequestedLocation, ProjectedLocation, GetNavWatchdogProjectionExtent()))
+    {
+        OutFailureType = EStagingNavWatchdogFailureType::OffNav;
+        OutFailureDetail = FString::Printf(
+            TEXT("Target %s could not project to nav within radius %.0f."),
+            *RequestedLocation.ToCompactString(),
+            NavProjectionRadius);
+        return false;
+    }
+
+    OutResolvedLocation = ProjectedLocation.Location;
+    OutProjectedLocation = ProjectedLocation.Location;
+    bOutHasProjectedLocation = !RequestedLocation.Equals(ProjectedLocation.Location, 1.0f);
+
+    UNavigationPath* NavPath = NavigationSystem->FindPathToLocationSynchronously(
+        GetWorld(),
+        GetActorLocation(),
+        OutResolvedLocation,
+        const_cast<AStagingDemoNPCCharacter*>(this));
+
+    if (!NavPath || !NavPath->IsValid())
+    {
+        OutFailureType = EStagingNavWatchdogFailureType::PathInvalid;
+        OutFailureDetail = TEXT("Projected target has no valid navigation path.");
+        return false;
+    }
+
+    if (NavPath->IsPartial())
+    {
+        OutFailureType = EStagingNavWatchdogFailureType::PathInvalid;
+        OutFailureDetail = TEXT("Projected target only has a partial navigation path.");
+        return false;
+    }
+
+    return true;
+}
+
+int32 AStagingDemoNPCCharacter::UpdateNavWatchdogFailureHistory(
+    const FString& LogicalTargetKey,
+    const FVector& RequestedLocation,
+    const FString& FailureDetail,
+    bool& bOutEscalated)
+{
+    const double CurrentTimeSeconds = GetWorld() ? static_cast<double>(GetWorld()->GetTimeSeconds()) : 0.0;
+    FStagingNavWatchdogFailureRecord& Record = NavWatchdogFailureHistory.FindOrAdd(LogicalTargetKey);
+
+    if ((CurrentTimeSeconds - Record.LastFailureTimeSeconds) <= static_cast<double>(RepeatedFailureWindowSeconds))
+    {
+        Record.FailureCount += 1;
+    }
+    else
+    {
+        Record.FailureCount = 1;
+    }
+
+    Record.LastFailureTimeSeconds = CurrentTimeSeconds;
+    Record.LastRequestedLocation = RequestedLocation;
+    Record.LastFailureDetail = FailureDetail;
+
+    bOutEscalated = Record.FailureCount >= FMath::Max(1, RepeatedFailureThreshold);
+    return Record.FailureCount;
+}
+
+void AStagingDemoNPCCharacter::ReportNavWatchdogFailure(
+    EStagingNavWatchdogFailureType FailureType,
+    const FString& TargetReason,
+    const FVector& RequestedLocation,
+    bool bHasProjectedLocation,
+    const FVector& ProjectedLocation,
+    const FString& FailureDetail)
+{
+    if (!bEnableNavWatchdog)
+    {
+        return;
+    }
+
+    const FString LogicalTargetKey = BuildNavWatchdogLogicalKey(TargetReason, RequestedLocation);
+    bool bEscalated = false;
+    const int32 FailureCount = UpdateNavWatchdogFailureHistory(
+        LogicalTargetKey,
+        RequestedLocation,
+        FailureDetail,
+        bEscalated);
+
+    const EStagingNavWatchdogFailureType EffectiveFailureType = bEscalated
+        ? EStagingNavWatchdogFailureType::RepeatedFailureHotspot
+        : FailureType;
+    const FColor FailureColor = GetNavFailureColor(EffectiveFailureType);
+    const FString FailureLabel = bEscalated
+        ? FString::Printf(TEXT("%s (%s)"), *ToNavFailureLabel(EffectiveFailureType), *ToNavFailureLabel(FailureType))
+        : ToNavFailureLabel(FailureType);
+    const FString RoomName = GetRoomDisplayName(GetCurrentResolvedRoom());
+    const FString MarkerName = HasUsableSelection(CurrentSelection)
+        ? GetMarkerDisplayName(CurrentSelection.Marker)
+        : TEXT("NoMarker");
+    const FString ProjectedText = bHasProjectedLocation
+        ? ProjectedLocation.ToCompactString()
+        : TEXT("None");
+
+    UE_LOG(
+        LogStagingDemoNPC,
+        Warning,
+        TEXT("NavWatchdog actor=%s room=%s marker=%s target=\"%s\" failure=%s requested=%s projected=%s retries=%d detail=\"%s\""),
+        *GetName(),
+        *RoomName,
+        *MarkerName,
+        *BuildNavWatchdogTargetLabel(TargetReason),
+        *FailureLabel,
+        *RequestedLocation.ToCompactString(),
+        *ProjectedText,
+        FailureCount,
+        FailureDetail.IsEmpty() ? TEXT("No detail") : *FailureDetail);
+
+    TArray<FString> PhraseBank;
+    switch (NavWatchdogToneMode)
+    {
+    case EStagingNavWatchdogToneMode::CustomOnly:
+        PhraseBank = CustomNavWatchdogLines;
+        if (PhraseBank.IsEmpty())
+        {
+            PhraseBank = GetTechnicalNavWatchdogLines();
+        }
+        break;
+
+    case EStagingNavWatchdogToneMode::Technical:
+        PhraseBank = GetTechnicalNavWatchdogLines();
+        PhraseBank.Append(CustomNavWatchdogLines);
+        break;
+
+    case EStagingNavWatchdogToneMode::Sardonic:
+    default:
+        PhraseBank = GetSardonicNavWatchdogLines();
+        PhraseBank.Append(CustomNavWatchdogLines);
+        break;
+    }
+
+    const uint32 PhraseSeed = HashCombineFast(GetTypeHash(LogicalTargetKey), static_cast<uint32>(FailureCount));
+    const FString Phrase = PhraseBank.IsEmpty()
+        ? TEXT("Nav watchdog found a bad target.")
+        : PhraseBank[PhraseSeed % PhraseBank.Num()];
+    const FString ScreenMessage = FString::Printf(
+        TEXT("%s | %s | %s | %s"),
+        *Phrase,
+        *FailureLabel,
+        *BuildNavWatchdogTargetLabel(TargetReason),
+        *RoomName);
+
+    if (GEngine)
+    {
+        GEngine->AddOnScreenDebugMessage(
+            -1,
+            DebugMarkerDuration,
+            FailureColor,
+            ScreenMessage);
+    }
+
+    if (UWorld* World = GetWorld())
+    {
+        const FVector MarkerLocation = bHasProjectedLocation ? ProjectedLocation : RequestedLocation;
+        DrawDebugSphere(
+            World,
+            MarkerLocation,
+            DebugMarkerRadius * (bEscalated ? 1.8f : 1.3f),
+            16,
+            FailureColor,
+            false,
+            DebugMarkerDuration,
+            0,
+            2.0f);
+        DrawDebugLine(
+            World,
+            GetActorLocation() + FVector(0.0f, 0.0f, 40.0f),
+            MarkerLocation,
+            FailureColor,
+            false,
+            DebugMarkerDuration,
+            0,
+            1.5f);
+        DrawDebugString(
+            World,
+            MarkerLocation + FVector(0.0f, 0.0f, 55.0f),
+            FString::Printf(
+                TEXT("%s\n%s\n%s"),
+                *FailureLabel,
+                *BuildNavWatchdogTargetLabel(TargetReason),
+                FailureDetail.IsEmpty() ? TEXT("No detail") : *FailureDetail),
+            nullptr,
+            FailureColor,
+            DebugMarkerDuration,
+            true,
+            1.0f);
+    }
+}
+
 void AStagingDemoNPCCharacter::MoveToCurrentSelection()
 {
     if (!HasUsableSelection(CurrentSelection))
@@ -658,24 +1017,36 @@ void AStagingDemoNPCCharacter::MoveToCurrentSelection()
         return;
     }
 
+    const FVector RequestedDestination = CurrentSelection.Marker.WorldTransform.GetLocation();
+    const FString TargetReason = BuildNavWatchdogTargetLabel(CurrentSelection.Notes);
+
     UpdateActionState(EStagingDemoActionState::Transit, CurrentSelection.Notes);
-    CurrentMoveDestination = CurrentSelection.Marker.WorldTransform.GetLocation();
-    if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+    FString NavFailureDetail;
+    EStagingNavWatchdogFailureType NavFailureType = EStagingNavWatchdogFailureType::PathInvalid;
+    bool bHasProjectedDestination = false;
+    FVector ProjectedDestination = RequestedDestination;
+    if (!ProbeNavWatchdogTarget(
+        RequestedDestination,
+        CurrentMoveDestination,
+        NavFailureDetail,
+        NavFailureType,
+        bHasProjectedDestination,
+        ProjectedDestination))
     {
-        FNavLocation ProjectedLocation;
-        const FVector ProjectionExtent(120.0f, 120.0f, 240.0f);
-        if (NavigationSystem->ProjectPointToNavigation(CurrentMoveDestination, ProjectedLocation, ProjectionExtent))
-        {
-            CurrentMoveDestination = ProjectedLocation.Location;
-        }
-        else
-        {
-            LastFailureReason = TEXT("Target marker is off the navmesh.");
-            UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
-            SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
-            ScheduleBehavior(RetryDelay);
-            return;
-        }
+        LastFailureReason = NavFailureDetail.IsEmpty()
+            ? TEXT("Target marker failed navigation validation.")
+            : NavFailureDetail;
+        ReportNavWatchdogFailure(
+            NavFailureType,
+            TargetReason,
+            RequestedDestination,
+            bHasProjectedDestination,
+            ProjectedDestination,
+            LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
+        SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
+        ScheduleBehavior(RetryDelay);
+        return;
     }
 
     const EPathFollowingRequestResult::Type MoveResult = DemoController->RequestMoveToLocation(
@@ -686,6 +1057,13 @@ void AStagingDemoNPCCharacter::MoveToCurrentSelection()
     if (MoveResult == EPathFollowingRequestResult::Failed)
     {
         LastFailureReason = TEXT("Nav move request failed.");
+        ReportNavWatchdogFailure(
+            EStagingNavWatchdogFailureType::MoveRejected,
+            TargetReason,
+            RequestedDestination,
+            bHasProjectedDestination,
+            CurrentMoveDestination,
+            LastFailureReason);
         UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
         SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
         ScheduleBehavior(RetryDelay);
@@ -706,6 +1084,11 @@ void AStagingDemoNPCCharacter::MoveToCurrentSelection()
 
 void AStagingDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type ResultCode)
 {
+    const FVector RequestedDestination = HasUsableSelection(CurrentSelection)
+        ? CurrentSelection.Marker.WorldTransform.GetLocation()
+        : CurrentMoveDestination;
+    const FString TargetReason = BuildNavWatchdogTargetLabel(CurrentSelection.Notes);
+
     if (GideonRuntimeMode != EGideonNPCRuntimeMode::Roaming &&
         GideonRuntimeMode != EGideonNPCRuntimeMode::Spawning)
     {
@@ -727,7 +1110,32 @@ void AStagingDemoNPCCharacter::HandleMoveCompleted(FAIRequestID RequestID, EPath
         return;
     }
 
-    LastFailureReason = FString::Printf(TEXT("Move failed with path result %d."), static_cast<int32>(ResultCode));
+    EStagingNavWatchdogFailureType FailureType = EStagingNavWatchdogFailureType::InvalidResult;
+    switch (ResultCode)
+    {
+    case EPathFollowingResult::Blocked:
+        FailureType = EStagingNavWatchdogFailureType::Blocked;
+        break;
+    case EPathFollowingResult::OffPath:
+        FailureType = EStagingNavWatchdogFailureType::OffPath;
+        break;
+    case EPathFollowingResult::Aborted:
+        FailureType = EStagingNavWatchdogFailureType::Aborted;
+        break;
+    case EPathFollowingResult::Invalid:
+    default:
+        FailureType = EStagingNavWatchdogFailureType::InvalidResult;
+        break;
+    }
+
+    LastFailureReason = FString::Printf(TEXT("Move failed with path result %s."), *ToPathResultLabel(ResultCode));
+    ReportNavWatchdogFailure(
+        FailureType,
+        TargetReason,
+        RequestedDestination,
+        !CurrentMoveDestination.IsNearlyZero(),
+        CurrentMoveDestination,
+        LastFailureReason);
     UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
     SetLoopState(EStagingDemoLoopState::Retry, LastFailureReason);
     ScheduleBehavior(RetryDelay);
@@ -755,14 +1163,31 @@ bool AStagingDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation, 
         return false;
     }
 
+    const FString TargetReason = BuildNavWatchdogTargetLabel(DebugReason);
     FVector ProjectedDestination = TargetLocation;
-    if (UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+    FString NavFailureDetail;
+    EStagingNavWatchdogFailureType NavFailureType = EStagingNavWatchdogFailureType::PathInvalid;
+    bool bHasProjectedDestination = false;
+    if (!ProbeNavWatchdogTarget(
+        TargetLocation,
+        ProjectedDestination,
+        NavFailureDetail,
+        NavFailureType,
+        bHasProjectedDestination,
+        ProjectedDestination))
     {
-        FNavLocation ProjectedLocation;
-        if (NavigationSystem->ProjectPointToNavigation(TargetLocation, ProjectedLocation, FVector(180.0f, 180.0f, 260.0f)))
-        {
-            ProjectedDestination = ProjectedLocation.Location;
-        }
+        LastFailureReason = NavFailureDetail.IsEmpty()
+            ? TEXT("Gideon target failed navigation validation.")
+            : NavFailureDetail;
+        ReportNavWatchdogFailure(
+            NavFailureType,
+            TargetReason,
+            TargetLocation,
+            bHasProjectedDestination,
+            ProjectedDestination,
+            LastFailureReason);
+        UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
+        return false;
     }
 
     GideonRuntimeMode = TargetMode;
@@ -780,6 +1205,13 @@ bool AStagingDemoNPCCharacter::RequestGideonMove(const FVector& TargetLocation, 
     if (MoveResult == EPathFollowingRequestResult::Failed)
     {
         LastFailureReason = TEXT("Gideon move request failed.");
+        ReportNavWatchdogFailure(
+            EStagingNavWatchdogFailureType::MoveRejected,
+            TargetReason,
+            TargetLocation,
+            bHasProjectedDestination,
+            ProjectedDestination,
+            LastFailureReason);
         UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
         return false;
     }
@@ -796,7 +1228,32 @@ void AStagingDemoNPCCharacter::HandleGideonMoveCompleted(EPathFollowingResult::T
 {
     if (ResultCode != EPathFollowingResult::Success)
     {
-        LastFailureReason = FString::Printf(TEXT("Gideon move failed with path result %d."), static_cast<int32>(ResultCode));
+        EStagingNavWatchdogFailureType FailureType = EStagingNavWatchdogFailureType::InvalidResult;
+        switch (ResultCode)
+        {
+        case EPathFollowingResult::Blocked:
+            FailureType = EStagingNavWatchdogFailureType::Blocked;
+            break;
+        case EPathFollowingResult::OffPath:
+            FailureType = EStagingNavWatchdogFailureType::OffPath;
+            break;
+        case EPathFollowingResult::Aborted:
+            FailureType = EStagingNavWatchdogFailureType::Aborted;
+            break;
+        case EPathFollowingResult::Invalid:
+        default:
+            FailureType = EStagingNavWatchdogFailureType::InvalidResult;
+            break;
+        }
+
+        LastFailureReason = FString::Printf(TEXT("Gideon move failed with path result %s."), *ToPathResultLabel(ResultCode));
+        ReportNavWatchdogFailure(
+            FailureType,
+            BuildNavWatchdogTargetLabel(GideonStatusReason),
+            CurrentMoveDestination.IsNearlyZero() ? GetActorLocation() : CurrentMoveDestination,
+            !CurrentMoveDestination.IsNearlyZero(),
+            CurrentMoveDestination,
+            LastFailureReason);
         UpdateActionState(EStagingDemoActionState::IdleWait, LastFailureReason);
 
         if (GideonRuntimeMode == EGideonNPCRuntimeMode::Leaving && bDestroyOnGideonMoveArrival)

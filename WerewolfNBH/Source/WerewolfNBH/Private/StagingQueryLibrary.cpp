@@ -59,7 +59,7 @@ namespace
         return ContainerHasExactLooseTag(Marker.GameplayTags, TagName);
     }
 
-    bool ContainsAnyToken(const FString& Value, std::initializer_list<const TCHAR*> Tokens)
+    bool QueryLibraryContainsAnyToken(const FString& Value, std::initializer_list<const TCHAR*> Tokens)
     {
         for (const TCHAR* Token : Tokens)
         {
@@ -314,8 +314,8 @@ namespace
                 }
             }
 
-            if (ContainsAnyToken(RoomId, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}) ||
-                ContainsAnyToken(RoomType, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}))
+            if (QueryLibraryContainsAnyToken(RoomId, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}) ||
+                QueryLibraryContainsAnyToken(RoomType, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}))
             {
                 Score += 1.0f;
                 if (OutReason.IsEmpty())
@@ -354,8 +354,8 @@ namespace
                 }
             }
 
-            if (ContainsAnyToken(RoomId, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")}) ||
-                ContainsAnyToken(RoomType, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")}))
+            if (QueryLibraryContainsAnyToken(RoomId, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")}) ||
+                QueryLibraryContainsAnyToken(RoomType, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")}))
             {
                 Score += 1.0f;
                 if (OutReason.IsEmpty())
@@ -406,8 +406,8 @@ namespace
                 OutReason = TEXT("Hide-friendly room tags");
             }
 
-            if (ContainsAnyToken(RoomId, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")}) ||
-                ContainsAnyToken(RoomType, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")}))
+            if (QueryLibraryContainsAnyToken(RoomId, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")}) ||
+                QueryLibraryContainsAnyToken(RoomType, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")}))
             {
                 Score += 1.0f;
                 if (OutReason.IsEmpty())

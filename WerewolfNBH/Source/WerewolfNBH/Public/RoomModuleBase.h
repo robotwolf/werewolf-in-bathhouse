@@ -10,6 +10,7 @@
 class UBillboardComponent;
 class UBoxComponent;
 class UChildActorComponent;
+class UDynamicMeshComponent;
 class UInstancedStaticMeshComponent;
 class UMaterialInterface;
 class USceneComponent;
@@ -387,6 +388,9 @@ public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<UInstancedStaticMeshComponent> GeneratedRoofMesh;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category="Room")
+    TObjectPtr<UDynamicMeshComponent> GeneratedUnifiedShellMesh;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<UBoxComponent> RoomBoundsBox;
 
@@ -689,6 +693,18 @@ protected:
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInterface> LastAppliedRoofMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellFloorMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellWallMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellCeilingMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellRoofMaterial = nullptr;
 
     UPrototypeRoomConnectorComponent* CreateConnector(const FName Name, const FVector& RelativeLocation, const FRotator& RelativeRotation, ERoomConnectorDirection Direction);
     const UGinnyRoomProfile* GetResolvedRoomProfile() const;

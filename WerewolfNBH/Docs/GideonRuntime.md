@@ -92,9 +92,9 @@ The default spawned mesh for `AStagingDemoNPCCharacter` is now:
 
 The default Anim BP is currently:
 
-- `/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed`
+- `/Game/WerewolfBH/Blueprints/NPC/ABP_Manny_StagingNPC`
 
-There is not currently a separate Manny-specific Anim BP wired in code.
+The Manny staging Anim BP is wired in code as the default.
 
 ### Towel Status
 
@@ -149,5 +149,25 @@ When validating Gideon:
 - towel visuals are not implemented yet
 - the booth interaction is still a basic gameplay gate stub
 - there is no parking lot / vehicle arrival implementation yet
-- there is no dedicated Manny animation blueprint pass yet
+- authored nav mistakes still depend on debug validation rather than automatic repair
+
+## Nav Watchdog
+
+Gideon and the staging demo NPC path now include a runtime-only nav watchdog on the current movement flow.
+
+What it reports:
+
+- move requests rejected immediately
+- targets that fail nav projection
+- targets that project but still have no valid path
+- blocked / off-path / aborted / invalid move completions
+- repeated failures to the same logical target in a short window
+
+What it emits:
+
+- structured `LogStagingDemoNPC` warnings
+- on-screen debug messages
+- world-space debug markers at the failed target or projected fallback point
+
+This watchdog is diagnostic only. It does not heal bad nav coverage for you, because that would just let the level keep lying with better manners.
 

@@ -239,6 +239,16 @@ def configure_room_generator():
     generator.set_editor_property("bLimitGideonToBathhouseSliceMap", True)
 
     log("Configured BathhouseSlice room generator actor.")
+    return generator
+
+
+def rebuild_editor_preview(generator) -> None:
+    if not generator:
+        raise RuntimeError("Missing room generator for editor preview rebuild.")
+
+    generator.clear_generated_layout()
+    generator.generate_layout()
+    log("Rebuilt in-editor bathhouse preview geometry.")
 
 
 def main():
@@ -250,7 +260,8 @@ def main():
     configure_environment()
     configure_navmesh()
     configure_player_start()
-    configure_room_generator()
+    generator = configure_room_generator()
+    rebuild_editor_preview(generator)
 
     unreal.EditorLevelLibrary.save_current_level()
     unreal.EditorLoadingAndSavingUtils.save_dirty_packages(True, True)

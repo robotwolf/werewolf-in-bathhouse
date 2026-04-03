@@ -9,6 +9,7 @@
 class ARoomModuleBase;
 class UMaterialInterface;
 class UMasonConstructionProfile;
+class UMasonMaterialProfile;
 
 USTRUCT(BlueprintType)
 struct FRoomClassEntry
@@ -163,7 +164,13 @@ public:
     EMasonConstructionTechnique ConstructionTechnique = EMasonConstructionTechnique::BoxShell;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction")
+    EMasonGeometryBackend GeometryBackend = EMasonGeometryBackend::InstancedPrisms;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction")
     FName ConstructionProfileId = NAME_None;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials")
+    TObjectPtr<UMasonMaterialProfile> MaterialProfile = nullptr;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction", meta=(ClampMin="1.0"))
     float FloorThickness = 20.0f;
@@ -209,6 +216,34 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Stairs", meta=(ClampMin="50.0"))
     float StairLandingSideOpeningHeight = 260.0f;
+};
+
+USTRUCT(BlueprintType)
+struct FMasonShellRegionMaterialAssignment
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials")
+    EMasonShellRegion Region = EMasonShellRegion::Wall;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials", meta=(ClampMin="0"))
+    int32 MaterialSlotIndex = 0;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials")
+    FString Notes;
+};
+
+UCLASS(BlueprintType)
+class WEREWOLFNBH_API UMasonMaterialProfile : public UDataAsset
+{
+    GENERATED_BODY()
+
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials")
+    bool bUseRoomProfileMaterialFallbacks = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Construction|Materials")
+    TArray<FMasonShellRegionMaterialAssignment> RegionAssignments;
 };
 
 UCLASS(BlueprintType)

@@ -1,12 +1,26 @@
 #include "MasonBuilderComponent.h"
 
 #include "Components/BoxComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshAttributeSet.h"
+#include "DynamicMesh/MeshIndexMappings.h"
+#include "DynamicMeshEditor.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "Generators/MinimalBoxMeshGenerator.h"
+#include "OrientedBoxTypes.h"
 
 namespace
 {
+    struct FMasonPrismPiece
+    {
+        EMasonShellRegion Surface = EMasonShellRegion::Wall;
+        FVector Min = FVector::ZeroVector;
+        FVector Max = FVector::ZeroVector;
+    };
+
     float ResolveOpeningWidth(const FMasonOpeningSpec& OpeningSpec, float FallbackWidth)
     {
         const float BaseWidth = FMath::Max(50.0f, FallbackWidth);
@@ -21,6 +35,34 @@ namespace
         }
 
         return BaseWidth;
+    }
+
+    void AddPrismPiece(
+        TArray<FMasonPrismPiece>& Pieces,
+        EMasonShellRegion Surface,
+        float MinX,
+        float MaxX,
+        float MinY,
+        float MaxY,
+        float MinZ,
+        float MaxZ)
+    {
+        const float SortedMinX = FMath::Min(MinX, MaxX);
+        const float SortedMaxX = FMath::Max(MinX, MaxX);
+        const float SortedMinY = FMath::Min(MinY, MaxY);
+        const float SortedMaxY = FMath::Max(MinY, MaxY);
+        const float SortedMinZ = FMath::Min(MinZ, MaxZ);
+        const float SortedMaxZ = FMath::Max(MinZ, MaxZ);
+        const FVector Size(SortedMaxX - SortedMinX, SortedMaxY - SortedMinY, SortedMaxZ - SortedMinZ);
+        if (Size.X <= 1.0f || Size.Y <= 1.0f || Size.Z <= 1.0f)
+        {
+            return;
+        }
+
+        FMasonPrismPiece& Piece = Pieces.AddDefaulted_GetRef();
+        Piece.Surface = Surface;
+        Piece.Min = FVector(SortedMinX, SortedMinY, SortedMinZ);
+        Piece.Max = FVector(SortedMaxX, SortedMaxY, SortedMaxZ);
     }
 
     void AddPrismInstance(
@@ -48,10 +90,470 @@ namespace
         float MinZ,
         float MaxZ)
     {
-        AddPrismInstance(
-            TargetMesh,
+        if (!TargetMesh)
+        {
+            return;
+        }
+
+        const FVector Size(MaxX - MinX, MaxY - MinY, MaxZ - MinZ);
+        if (Size.X <= 1.0f || Size.Y <= 1.0f || Size.Z <= 1.0f)
+        {
+            return;
+        }
+
+        TargetMesh->AddInstance(FTransform(
+            FRotator::ZeroRotator,
             FVector((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, (MinZ + MaxZ) * 0.5f),
-            FVector(MaxX - MinX, MaxY - MinY, MaxZ - MinZ));
+            FVector(Size.X / 100.0f, Size.Y / 100.0f, Size.Z / 100.0f)));
+    }
+
+    void EmitPrismPiecesToInstancedMeshes(
+        const TArray<FMasonPrismPiece>& Pieces,
+        UInstancedStaticMeshComponent* FloorMesh,
+        UInstancedStaticMeshComponent* WallMesh,
+        UInstancedStaticMeshComponent* CeilingMesh,
+        UInstancedStaticMeshComponent* RoofMesh)
+    {
+        for (const FMasonPrismPiece& Piece : Pieces)
+        {
+            UInstancedStaticMeshComponent* TargetMesh = nullptr;
+            switch (Piece.Surface)
+            {
+            case EMasonShellRegion::Floor:
+                TargetMesh = FloorMesh;
+                break;
+            case EMasonShellRegion::Wall:
+            case EMasonShellRegion::Trim:
+            case EMasonShellRegion::Threshold:
+            case EMasonShellRegion::StairTread:
+            case EMasonShellRegion::StairRiser:
+            case EMasonShellRegion::StairLanding:
+                TargetMesh = WallMesh;
+                break;
+            case EMasonShellRegion::Ceiling:
+                TargetMesh = CeilingMesh;
+                break;
+            case EMasonShellRegion::Roof:
+                TargetMesh = RoofMesh;
+                break;
+            default:
+                break;
+            }
+
+            AddPrismByBounds(
+                TargetMesh,
+                Piece.Min.X,
+                Piece.Max.X,
+                Piece.Min.Y,
+                Piece.Max.Y,
+                Piece.Min.Z,
+                Piece.Max.Z);
+        }
+    }
+
+    void EmitPrismPiecesToDynamicMesh(
+        const TArray<FMasonPrismPiece>& Pieces,
+        UDynamicMeshComponent* TargetMesh)
+    {
+        if (!TargetMesh || !TargetMesh->GetDynamicMesh())
+        {
+            return;
+        }
+
+        using namespace UE::Geometry;
+
+        FDynamicMesh3 UnifiedMesh;
+        UnifiedMesh.EnableAttributes();
+        UnifiedMesh.Attributes()->SetNumUVLayers(1);
+        UnifiedMesh.Attributes()->SetNumNormalLayers(1);
+        UnifiedMesh.Attributes()->EnableMaterialID();
+
+        FDynamicMeshEditor MeshEditor(&UnifiedMesh);
+
+        for (const FMasonPrismPiece& Piece : Pieces)
+        {
+            const FVector Center = (Piece.Min + Piece.Max) * 0.5f;
+            const FVector Extents = (Piece.Max - Piece.Min) * 0.5f;
+            if (Extents.X <= 0.5f || Extents.Y <= 0.5f || Extents.Z <= 0.5f)
+            {
+                continue;
+            }
+
+            FMinimalBoxMeshGenerator BoxGenerator;
+            BoxGenerator.Box = FOrientedBox3d(FVector3d(Center), FVector3d(Extents));
+            BoxGenerator.Generate();
+
+            FDynamicMesh3 PrismMesh(&BoxGenerator);
+            if (!PrismMesh.HasAttributes())
+            {
+                PrismMesh.EnableAttributes();
+            }
+
+            if (PrismMesh.Attributes() && !PrismMesh.Attributes()->HasMaterialID())
+            {
+                PrismMesh.Attributes()->EnableMaterialID();
+            }
+
+            if (PrismMesh.Attributes() && PrismMesh.Attributes()->GetMaterialID())
+            {
+                for (int32 TriangleID : PrismMesh.TriangleIndicesItr())
+                {
+                        PrismMesh.Attributes()->GetMaterialID()->SetValue(TriangleID, static_cast<int32>(Piece.Surface));
+                }
+            }
+
+            FMeshIndexMappings IndexMappings;
+            IndexMappings.Initialize(&PrismMesh);
+            MeshEditor.AppendMesh(&PrismMesh, IndexMappings);
+        }
+
+        TargetMesh->GetDynamicMesh()->SetMesh(MoveTemp(UnifiedMesh));
+        TargetMesh->UpdateCollision(false);
+    }
+
+    void GenerateBoxShellPieces(
+        const FMasonBuildSpec& BuildSpec,
+        const TArray<FMasonConnectorSpec>& ConnectorSpecs,
+        TArray<FMasonPrismPiece>& OutPieces)
+    {
+        const EMasonConstructionTechnique Technique = BuildSpec.ConstructionTechnique;
+        const FVector BoxExtent = BuildSpec.BoxExtent;
+        const FVector BoxCenter = BuildSpec.BoxCenter;
+        const FVector BoxMin = BoxCenter - BoxExtent;
+        const FVector BoxMax = BoxCenter + BoxExtent;
+        const FVector FullSize = BoxExtent * 2.0f;
+
+        const float FloorThickness = FMath::Clamp(BuildSpec.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
+        const float MaxCeilingThickness = FMath::Max(0.0f, FullSize.Z - FloorThickness - 50.0f);
+        const float CeilingThickness = FMath::Clamp(BuildSpec.CeilingThickness, 0.0f, MaxCeilingThickness);
+        const float FloorBottomZ = BoxMin.Z;
+        const float FloorTopZ = BoxMin.Z + FloorThickness;
+        const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
+        const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
+        const float WallThickness = FMath::Clamp(BuildSpec.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
+        const float DefaultDoorWidth = ResolveOpeningWidth(BuildSpec.DefaultOpeningSpec, BuildSpec.DefaultDoorWidth);
+        const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
+
+        auto AddSolidPrism = [&OutPieces](float MinX, float MaxX, float MinY, float MaxY, float MinZ, float MaxZ)
+        {
+            AddPrismPiece(OutPieces, EMasonShellRegion::Floor, MinX, MaxX, MinY, MaxY, MinZ, MaxZ);
+        };
+
+        float StairUpperLandingTopZ = FloorTopZ;
+        float StairLowerLandingMaxY = BoxMin.Y;
+        float StairUpperLandingMinY = BoxMax.Y;
+
+        if (Technique == EMasonConstructionTechnique::PublicStairShell)
+        {
+            const float MaxWalkWidth = FMath::Max(100.0f, FullSize.X - (WallThickness * 2.0f));
+            const float StairSideInset = FMath::Clamp(BuildSpec.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
+            const float RequestedWalkWidth = FMath::Clamp(BuildSpec.StairWalkWidth, 100.0f, MaxWalkWidth);
+            const float StairWalkWidth = FMath::Clamp(
+                RequestedWalkWidth,
+                100.0f,
+                FMath::Max(100.0f, FullSize.X - StairSideInset * 2.0f));
+            const float StairMinX = BoxCenter.X - StairWalkWidth * 0.5f;
+            const float StairMaxX = BoxCenter.X + StairWalkWidth * 0.5f;
+
+            const float LowerLandingDepth = FMath::Clamp(BuildSpec.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
+            const float UpperLandingDepth = FMath::Clamp(BuildSpec.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
+            const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
+            const int32 StepCount = FMath::Clamp(BuildSpec.StairStepCount, 3, 64);
+            const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
+            StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, BuildSpec.StairRiseHeight));
+            const float StepHeight = (StairUpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
+
+            const float SouthY = BoxMin.Y;
+            const float NorthY = BoxMax.Y;
+            StairLowerLandingMaxY = SouthY + LowerLandingDepth;
+            StairUpperLandingMinY = NorthY - UpperLandingDepth;
+
+            AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, StairLowerLandingMaxY, FloorBottomZ, FloorTopZ);
+
+            for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
+            {
+                const float StepMinY = StairLowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
+                const float StepMaxY = StepMinY + StepDepth;
+                const float StepTopZ = FloorTopZ + (static_cast<float>(StepIndex) + 1.0f) * StepHeight;
+                AddSolidPrism(StairMinX, StairMaxX, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
+            }
+
+            AddSolidPrism(BoxMin.X, BoxMax.X, StairUpperLandingMinY, NorthY, FloorBottomZ, StairUpperLandingTopZ);
+        }
+        else
+        {
+            AddSolidPrism(BoxMin.X, BoxMax.X, BoxMin.Y, BoxMax.Y, FloorBottomZ, FloorTopZ);
+        }
+
+        if (CeilingThickness > 0.0f)
+        {
+            AddPrismPiece(
+                OutPieces,
+                EMasonShellRegion::Ceiling,
+                BoxMin.X,
+                BoxMax.X,
+                BoxMin.Y,
+                BoxMax.Y,
+                BoxMax.Z - CeilingThickness,
+                BoxMax.Z);
+        }
+
+        constexpr float RoofThickness = 6.0f;
+        AddPrismPiece(
+            OutPieces,
+            EMasonShellRegion::Roof,
+            BoxMin.X,
+            BoxMax.X,
+            BoxMin.Y,
+            BoxMax.Y,
+            BoxMax.Z,
+            BoxMax.Z + RoofThickness);
+
+        struct FDoorCut
+        {
+            float Start = 0.0f;
+            float End = 0.0f;
+            float BottomZ = 0.0f;
+            float TopZ = 0.0f;
+            FMasonOpeningSpec OpeningSpec;
+        };
+
+        struct FWallSpec
+        {
+            bool bConstantX = false;
+            float ConstantCoord = 0.0f;
+            float RunMin = 0.0f;
+            float RunMax = 0.0f;
+            FVector2D Normal = FVector2D::ZeroVector;
+        };
+
+        auto AddDoorCut = [](TArray<FDoorCut>& DoorCuts, float Start, float End, float BottomZ, float TopZ)
+        {
+            FDoorCut Cut;
+            Cut.Start = Start;
+            Cut.End = End;
+            Cut.BottomZ = BottomZ;
+            Cut.TopZ = TopZ;
+            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
+            {
+                DoorCuts.Add(Cut);
+            }
+        };
+
+        TArray<FMasonConnectorSpec> SortedConnectors = ConnectorSpecs;
+        SortedConnectors.Sort([](const FMasonConnectorSpec& A, const FMasonConnectorSpec& B)
+        {
+            return A.ConnectorId.LexicalLess(B.ConnectorId);
+        });
+
+        auto AddWallPiece = [&OutPieces, WallThickness](const FWallSpec& Wall, float PieceStart, float PieceEnd, float BottomZ, float PieceHeight)
+        {
+            const float PieceLength = PieceEnd - PieceStart;
+            if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
+            {
+                return;
+            }
+
+            if (Wall.bConstantX)
+            {
+                AddPrismPiece(
+                    OutPieces,
+                    EMasonShellRegion::Wall,
+                    Wall.ConstantCoord + Wall.Normal.X * WallThickness,
+                    Wall.ConstantCoord,
+                    PieceStart,
+                    PieceEnd,
+                    BottomZ,
+                    BottomZ + PieceHeight);
+                return;
+            }
+
+            AddPrismPiece(
+                OutPieces,
+                EMasonShellRegion::Wall,
+                PieceStart,
+                PieceEnd,
+                Wall.ConstantCoord + Wall.Normal.Y * WallThickness,
+                Wall.ConstantCoord,
+                BottomZ,
+                BottomZ + PieceHeight);
+        };
+
+        auto BuildWall = [&](const FWallSpec& Wall)
+        {
+            TArray<FDoorCut> DoorCuts;
+
+            for (const FMasonConnectorSpec& Connector : SortedConnectors)
+            {
+                FVector2D ConnectorForward = FVector2D(Connector.RelativeRotation.Vector());
+                if (ConnectorForward.IsNearlyZero())
+                {
+                    continue;
+                }
+
+                ConnectorForward.Normalize();
+                if (FVector2D::DotProduct(ConnectorForward, Wall.Normal) < 0.6f)
+                {
+                    continue;
+                }
+
+                const float ConnectorConstant = Wall.bConstantX ? Connector.RelativeLocation.X : Connector.RelativeLocation.Y;
+                if (FMath::Abs(ConnectorConstant - Wall.ConstantCoord) > AlignmentTolerance)
+                {
+                    continue;
+                }
+
+                const float CenterOnRunAxis = Wall.bConstantX ? Connector.RelativeLocation.Y : Connector.RelativeLocation.X;
+                const float DoorCenterZ = Connector.RelativeLocation.Z;
+                const FMasonOpeningSpec& OpeningSpec = Connector.OpeningSpec.bHasExplicitProfile ? Connector.OpeningSpec : BuildSpec.DefaultOpeningSpec;
+                const float DoorWidth = ResolveOpeningWidth(OpeningSpec, DefaultDoorWidth);
+                const float DoorHeight = FMath::Clamp(OpeningSpec.OpeningHeight, 50.0f, WallHeight);
+                const float DoorHalfWidth = DoorWidth * 0.5f;
+                const float CutStart = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
+                const float CutEnd = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
+                const float CutBottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
+                const float CutTopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, CutBottomZ + 1.0f, CeilingBottomZ);
+                FDoorCut Cut;
+                Cut.Start = CutStart;
+                Cut.End = CutEnd;
+                Cut.BottomZ = CutBottomZ;
+                Cut.TopZ = CutTopZ;
+                Cut.OpeningSpec = OpeningSpec;
+                if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
+                {
+                    DoorCuts.Add(Cut);
+                }
+            }
+
+            if (Technique == EMasonConstructionTechnique::PublicStairShell && Wall.bConstantX && BuildSpec.bCreateStairLandingSideOpenings)
+            {
+                const float StairSideOpeningWidth = FMath::Clamp(
+                    BuildSpec.StairLandingSideOpeningWidth,
+                    50.0f,
+                    FMath::Max(50.0f, Wall.RunMax - Wall.RunMin));
+                const float StairSideOpeningHalfWidth = StairSideOpeningWidth * 0.5f;
+                const float StairSideOpeningHeight = FMath::Clamp(
+                    BuildSpec.StairLandingSideOpeningHeight,
+                    50.0f,
+                    FMath::Max(50.0f, CeilingBottomZ - FloorTopZ));
+
+                const float LowerLandingCenterY = (BoxMin.Y + StairLowerLandingMaxY) * 0.5f;
+                const float UpperLandingCenterY = (StairUpperLandingMinY + BoxMax.Y) * 0.5f;
+
+                AddDoorCut(
+                    DoorCuts,
+                    FMath::Max(Wall.RunMin, LowerLandingCenterY - StairSideOpeningHalfWidth),
+                    FMath::Min(Wall.RunMax, LowerLandingCenterY + StairSideOpeningHalfWidth),
+                    FloorTopZ,
+                    FMath::Clamp(FloorTopZ + StairSideOpeningHeight, FloorTopZ + 1.0f, CeilingBottomZ));
+
+                AddDoorCut(
+                    DoorCuts,
+                    FMath::Max(Wall.RunMin, UpperLandingCenterY - StairSideOpeningHalfWidth),
+                    FMath::Min(Wall.RunMax, UpperLandingCenterY + StairSideOpeningHalfWidth),
+                    StairUpperLandingTopZ,
+                    FMath::Clamp(StairUpperLandingTopZ + StairSideOpeningHeight, StairUpperLandingTopZ + 1.0f, CeilingBottomZ));
+            }
+
+            DoorCuts.Sort([](const FDoorCut& A, const FDoorCut& B)
+            {
+                if (!FMath::IsNearlyEqual(A.Start, B.Start))
+                {
+                    return A.Start < B.Start;
+                }
+                return A.End < B.End;
+            });
+
+            auto AddTrimPiece = [&OutPieces](const FWallSpec& TrimWall, float TrimStart, float TrimEnd, float BottomZ, float PieceHeight, float Depth)
+            {
+                const float PieceLength = TrimEnd - TrimStart;
+                if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
+                {
+                    return;
+                }
+
+                if (TrimWall.bConstantX)
+                {
+                    AddPrismPiece(
+                        OutPieces,
+                        EMasonShellRegion::Trim,
+                        TrimWall.ConstantCoord + TrimWall.Normal.X * Depth,
+                        TrimWall.ConstantCoord,
+                        TrimStart,
+                        TrimEnd,
+                        BottomZ,
+                        BottomZ + PieceHeight);
+                    return;
+                }
+
+                AddPrismPiece(
+                    OutPieces,
+                    EMasonShellRegion::Trim,
+                    TrimStart,
+                    TrimEnd,
+                    TrimWall.ConstantCoord + TrimWall.Normal.Y * Depth,
+                    TrimWall.ConstantCoord,
+                    BottomZ,
+                    BottomZ + PieceHeight);
+            };
+
+            auto AddOpeningTrim = [&](const FDoorCut& Cut)
+            {
+                if (!Cut.OpeningSpec.bHasExplicitProfile)
+                {
+                    return;
+                }
+
+                const float FrameThickness = FMath::Clamp(Cut.OpeningSpec.FrameThickness, 1.0f, 60.0f);
+                const float FrameDepth = FMath::Clamp(Cut.OpeningSpec.FrameDepth, 1.0f, WallThickness * 2.0f);
+
+                if (Cut.OpeningSpec.bGenerateFramePieces)
+                {
+                    AddTrimPiece(Wall, Cut.Start - FrameThickness, Cut.Start, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
+                    AddTrimPiece(Wall, Cut.End, Cut.End + FrameThickness, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
+                    AddTrimPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, FrameThickness, FrameDepth);
+                }
+
+                if (Cut.OpeningSpec.bGenerateThresholdPiece)
+                {
+                    AddTrimPiece(
+                        Wall,
+                        Cut.Start,
+                        Cut.End,
+                        Cut.BottomZ,
+                        FMath::Clamp(Cut.OpeningSpec.ThresholdHeight, 1.0f, 40.0f),
+                        FrameDepth);
+                }
+            };
+
+            float Cursor = Wall.RunMin;
+            for (const FDoorCut& Cut : DoorCuts)
+            {
+                AddWallPiece(Wall, Cursor, Cut.Start, FloorTopZ, WallHeight);
+
+                const float LowerPieceHeight = Cut.BottomZ - FloorTopZ;
+                if (LowerPieceHeight > 1.0f)
+                {
+                    AddWallPiece(Wall, Cut.Start, Cut.End, FloorTopZ, LowerPieceHeight);
+                }
+
+                const float HeaderHeight = CeilingBottomZ - Cut.TopZ;
+                if (HeaderHeight > 1.0f)
+                {
+                    AddWallPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, HeaderHeight);
+                }
+
+                AddOpeningTrim(Cut);
+                Cursor = FMath::Max(Cursor, Cut.End);
+            }
+
+            AddWallPiece(Wall, Cursor, Wall.RunMax, FloorTopZ, WallHeight);
+        };
+
+        BuildWall(FWallSpec{ false, static_cast<float>(BoxMax.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, 1.0f) });
+        BuildWall(FWallSpec{ false, static_cast<float>(BoxMin.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, -1.0f) });
+        BuildWall(FWallSpec{ true, static_cast<float>(BoxMax.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(1.0f, 0.0f) });
+        BuildWall(FWallSpec{ true, static_cast<float>(BoxMin.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(-1.0f, 0.0f) });
     }
 }
 
@@ -65,6 +567,7 @@ void UMasonBuilderComponent::ConfigureTargets(
     UInstancedStaticMeshComponent* InWallMesh,
     UInstancedStaticMeshComponent* InCeilingMesh,
     UInstancedStaticMeshComponent* InRoofMesh,
+    UDynamicMeshComponent* InUnifiedShellMesh,
     UBoxComponent* InBoundsBox,
     UStaticMesh* InDefaultCubeMesh)
 {
@@ -72,6 +575,7 @@ void UMasonBuilderComponent::ConfigureTargets(
     WallMesh = InWallMesh;
     CeilingMesh = InCeilingMesh;
     RoofMesh = InRoofMesh;
+    UnifiedShellMesh = InUnifiedShellMesh;
     BoundsBox = InBoundsBox;
     DefaultCubeMesh = InDefaultCubeMesh;
 
@@ -114,16 +618,49 @@ void UMasonBuilderComponent::ClearGeneratedGeometry()
     {
         RoofMesh->ClearInstances();
     }
+    if (UnifiedShellMesh && UnifiedShellMesh->GetDynamicMesh())
+    {
+        UnifiedShellMesh->GetDynamicMesh()->Reset();
+        UnifiedShellMesh->UpdateCollision(false);
+        UnifiedShellMesh->SetVisibility(false);
+        UnifiedShellMesh->SetHiddenInGame(true);
+    }
 }
 
 void UMasonBuilderComponent::BuildFromSpec(const FMasonBuildSpec& BuildSpec, const TArray<FMasonConnectorSpec>& ConnectorSpecs)
 {
-    if (!FloorMesh || !WallMesh || !CeilingMesh)
+    const bool bUseUnifiedDynamicMesh = ShouldUseUnifiedDynamicMesh(BuildSpec);
+
+    if (bUseUnifiedDynamicMesh)
+    {
+        if (!UnifiedShellMesh)
+        {
+            return;
+        }
+    }
+    else if (!FloorMesh || !WallMesh || !CeilingMesh)
     {
         return;
     }
 
     ClearGeneratedGeometry();
+
+    auto SetMeshVisibility = [](UPrimitiveComponent* MeshComponent, bool bVisible)
+    {
+        if (!MeshComponent)
+        {
+            return;
+        }
+
+        MeshComponent->SetVisibility(bVisible);
+        MeshComponent->SetHiddenInGame(!bVisible);
+    };
+
+    SetMeshVisibility(FloorMesh, !bUseUnifiedDynamicMesh);
+    SetMeshVisibility(WallMesh, !bUseUnifiedDynamicMesh);
+    SetMeshVisibility(CeilingMesh, !bUseUnifiedDynamicMesh);
+    SetMeshVisibility(RoofMesh, !bUseUnifiedDynamicMesh);
+    SetMeshVisibility(UnifiedShellMesh, bUseUnifiedDynamicMesh);
 
     switch (ResolveTechnique(BuildSpec))
     {
@@ -146,6 +683,23 @@ void UMasonBuilderComponent::BuildFromSpec(const FMasonBuildSpec& BuildSpec, con
     default:
         BuildBoxShell(BuildSpec, ConnectorSpecs);
         return;
+    }
+}
+
+bool UMasonBuilderComponent::ShouldUseUnifiedDynamicMesh(const FMasonBuildSpec& BuildSpec) const
+{
+    if (BuildSpec.GeometryBackend != EMasonGeometryBackend::UnifiedDynamicMesh || !UnifiedShellMesh)
+    {
+        return false;
+    }
+
+    switch (ResolveTechnique(BuildSpec))
+    {
+    case EMasonConstructionTechnique::BoxShell:
+    case EMasonConstructionTechnique::PublicStairShell:
+        return true;
+    default:
+        return false;
     }
 }
 
@@ -203,344 +757,16 @@ EMasonConstructionTechnique UMasonBuilderComponent::ResolveTechnique(const FMaso
 
 void UMasonBuilderComponent::BuildBoxShell(const FMasonBuildSpec& BuildSpec, const TArray<FMasonConnectorSpec>& ConnectorSpecs)
 {
-    const FVector BoxExtent = BuildSpec.BoxExtent;
-    const FVector BoxCenter = BuildSpec.BoxCenter;
-    const FVector BoxMin = BoxCenter - BoxExtent;
-    const FVector BoxMax = BoxCenter + BoxExtent;
-    const FVector FullSize = BoxExtent * 2.0f;
+    TArray<FMasonPrismPiece> PrismPieces;
+    GenerateBoxShellPieces(BuildSpec, ConnectorSpecs, PrismPieces);
 
-    const float FloorThickness = FMath::Clamp(BuildSpec.FloorThickness, 1.0f, FMath::Max(1.0f, FullSize.Z * 0.25f));
-    const float MaxCeilingThickness = FMath::Max(0.0f, FullSize.Z - FloorThickness - 50.0f);
-    const float CeilingThickness = FMath::Clamp(BuildSpec.CeilingThickness, 0.0f, MaxCeilingThickness);
-    const float FloorBottomZ = BoxMin.Z;
-    const float FloorTopZ = BoxMin.Z + FloorThickness;
-    const float CeilingBottomZ = BoxMax.Z - CeilingThickness;
-    const float WallHeight = FMath::Max(50.0f, CeilingBottomZ - FloorTopZ);
-    const float WallThickness = FMath::Clamp(BuildSpec.WallThickness, 1.0f, FMath::Min(FullSize.X, FullSize.Y) * 0.5f);
-    const float DefaultDoorWidth = ResolveOpeningWidth(BuildSpec.DefaultOpeningSpec, BuildSpec.DefaultDoorWidth);
-    const float DefaultDoorHeight = FMath::Clamp(BuildSpec.DefaultOpeningSpec.OpeningHeight, 50.0f, WallHeight);
-    const float AlignmentTolerance = FMath::Max(25.0f, WallThickness + 5.0f);
-
-    auto AddSolidPrism = [this](float MinX, float MaxX, float MinY, float MaxY, float MinZ, float MaxZ)
+    if (ShouldUseUnifiedDynamicMesh(BuildSpec))
     {
-        const float SizeX = MaxX - MinX;
-        const float SizeY = MaxY - MinY;
-        const float SizeZ = MaxZ - MinZ;
-        if (SizeX <= 1.0f || SizeY <= 1.0f || SizeZ <= 1.0f)
-        {
-            return;
-        }
-
-        FloorMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            FVector((MinX + MaxX) * 0.5f, (MinY + MaxY) * 0.5f, (MinZ + MaxZ) * 0.5f),
-            FVector(SizeX / 100.0f, SizeY / 100.0f, SizeZ / 100.0f)));
-    };
-
-    float StairUpperLandingTopZ = FloorTopZ;
-    float StairLowerLandingMaxY = BoxMin.Y;
-    float StairUpperLandingMinY = BoxMax.Y;
-
-    if (ResolveTechnique(BuildSpec) == EMasonConstructionTechnique::PublicStairShell)
-    {
-        const float MaxWalkWidth = FMath::Max(100.0f, FullSize.X - (WallThickness * 2.0f));
-        const float StairSideInset = FMath::Clamp(BuildSpec.StairSideInset, 0.0f, FMath::Max(0.0f, FullSize.X * 0.25f));
-        const float RequestedWalkWidth = FMath::Clamp(BuildSpec.StairWalkWidth, 100.0f, MaxWalkWidth);
-        const float StairWalkWidth = FMath::Clamp(
-            RequestedWalkWidth,
-            100.0f,
-            FMath::Max(100.0f, FullSize.X - StairSideInset * 2.0f));
-        const float StairMinX = BoxCenter.X - StairWalkWidth * 0.5f;
-        const float StairMaxX = BoxCenter.X + StairWalkWidth * 0.5f;
-
-        const float LowerLandingDepth = FMath::Clamp(BuildSpec.StairLowerLandingDepth, 50.0f, FullSize.Y * 0.4f);
-        const float UpperLandingDepth = FMath::Clamp(BuildSpec.StairUpperLandingDepth, 50.0f, FullSize.Y * 0.4f);
-        const float StairRunDepth = FMath::Max(100.0f, FullSize.Y - LowerLandingDepth - UpperLandingDepth);
-        const int32 StepCount = FMath::Clamp(BuildSpec.StairStepCount, 3, 64);
-        const float StepDepth = StairRunDepth / static_cast<float>(StepCount);
-        StairUpperLandingTopZ = FMath::Min(CeilingBottomZ - 20.0f, FloorTopZ + FMath::Max(100.0f, BuildSpec.StairRiseHeight));
-        const float StepHeight = (StairUpperLandingTopZ - FloorTopZ) / static_cast<float>(StepCount);
-
-        const float SouthY = BoxMin.Y;
-        const float NorthY = BoxMax.Y;
-        StairLowerLandingMaxY = SouthY + LowerLandingDepth;
-        StairUpperLandingMinY = NorthY - UpperLandingDepth;
-
-        AddSolidPrism(BoxMin.X, BoxMax.X, SouthY, StairLowerLandingMaxY, FloorBottomZ, FloorTopZ);
-
-        for (int32 StepIndex = 0; StepIndex < StepCount; ++StepIndex)
-        {
-            const float StepMinY = StairLowerLandingMaxY + static_cast<float>(StepIndex) * StepDepth;
-            const float StepMaxY = StepMinY + StepDepth;
-            const float StepTopZ = FloorTopZ + (static_cast<float>(StepIndex) + 1.0f) * StepHeight;
-            AddSolidPrism(StairMinX, StairMaxX, StepMinY, StepMaxY, FloorBottomZ, StepTopZ);
-        }
-
-        AddSolidPrism(BoxMin.X, BoxMax.X, StairUpperLandingMinY, NorthY, FloorBottomZ, StairUpperLandingTopZ);
-    }
-    else
-    {
-        AddSolidPrism(BoxMin.X, BoxMax.X, BoxMin.Y, BoxMax.Y, FloorBottomZ, FloorTopZ);
+        EmitPrismPiecesToDynamicMesh(PrismPieces, UnifiedShellMesh);
+        return;
     }
 
-    if (CeilingThickness > 0.0f)
-    {
-        CeilingMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            FVector(BoxCenter.X, BoxCenter.Y, BoxMax.Z - CeilingThickness * 0.5f),
-            FVector(FullSize.X / 100.0f, FullSize.Y / 100.0f, CeilingThickness / 100.0f)));
-    }
-
-    if (RoofMesh)
-    {
-        constexpr float RoofThickness = 6.0f;
-        RoofMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            FVector(BoxCenter.X, BoxCenter.Y, BoxMax.Z + RoofThickness * 0.5f),
-            FVector(FullSize.X / 100.0f, FullSize.Y / 100.0f, RoofThickness / 100.0f)));
-    }
-
-    struct FDoorCut
-    {
-        float Start = 0.0f;
-        float End = 0.0f;
-        float BottomZ = 0.0f;
-        float TopZ = 0.0f;
-        FMasonOpeningSpec OpeningSpec;
-    };
-
-    struct FWallSpec
-    {
-        bool bConstantX = false;
-        float ConstantCoord = 0.0f;
-        float RunMin = 0.0f;
-        float RunMax = 0.0f;
-        FVector2D Normal = FVector2D::ZeroVector;
-    };
-
-    auto AddDoorCut = [](TArray<FDoorCut>& DoorCuts, float Start, float End, float BottomZ, float TopZ)
-    {
-        FDoorCut Cut;
-        Cut.Start = Start;
-        Cut.End = End;
-        Cut.BottomZ = BottomZ;
-        Cut.TopZ = TopZ;
-        if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
-        {
-            DoorCuts.Add(Cut);
-        }
-    };
-
-    TArray<FMasonConnectorSpec> SortedConnectors = ConnectorSpecs;
-    SortedConnectors.Sort([](const FMasonConnectorSpec& A, const FMasonConnectorSpec& B)
-    {
-        return A.ConnectorId.LexicalLess(B.ConnectorId);
-    });
-
-    auto AddWallPiece = [this, WallThickness](const FWallSpec& Wall, float PieceStart, float PieceEnd, float BottomZ, float PieceHeight)
-    {
-        const float PieceLength = PieceEnd - PieceStart;
-        if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
-        {
-            return;
-        }
-
-        if (Wall.bConstantX)
-        {
-            const FVector Location(
-                Wall.ConstantCoord + Wall.Normal.X * WallThickness * 0.5f,
-                (PieceStart + PieceEnd) * 0.5f,
-                BottomZ + PieceHeight * 0.5f);
-            WallMesh->AddInstance(FTransform(
-                FRotator::ZeroRotator,
-                Location,
-                FVector(WallThickness / 100.0f, PieceLength / 100.0f, PieceHeight / 100.0f)));
-            return;
-        }
-
-        const FVector Location(
-            (PieceStart + PieceEnd) * 0.5f,
-            Wall.ConstantCoord + Wall.Normal.Y * WallThickness * 0.5f,
-            BottomZ + PieceHeight * 0.5f);
-        WallMesh->AddInstance(FTransform(
-            FRotator::ZeroRotator,
-            Location,
-            FVector(PieceLength / 100.0f, WallThickness / 100.0f, PieceHeight / 100.0f)));
-    };
-
-    auto BuildWall = [&](const FWallSpec& Wall)
-    {
-        TArray<FDoorCut> DoorCuts;
-
-        for (const FMasonConnectorSpec& Connector : SortedConnectors)
-        {
-            FVector2D ConnectorForward = FVector2D(Connector.RelativeRotation.Vector());
-            if (ConnectorForward.IsNearlyZero())
-            {
-                continue;
-            }
-
-            ConnectorForward.Normalize();
-            if (FVector2D::DotProduct(ConnectorForward, Wall.Normal) < 0.6f)
-            {
-                continue;
-            }
-
-            const float ConnectorConstant = Wall.bConstantX ? Connector.RelativeLocation.X : Connector.RelativeLocation.Y;
-            if (FMath::Abs(ConnectorConstant - Wall.ConstantCoord) > AlignmentTolerance)
-            {
-                continue;
-            }
-
-            const float CenterOnRunAxis = Wall.bConstantX ? Connector.RelativeLocation.Y : Connector.RelativeLocation.X;
-            const float DoorCenterZ = Connector.RelativeLocation.Z;
-            const FMasonOpeningSpec& OpeningSpec = Connector.OpeningSpec.bHasExplicitProfile ? Connector.OpeningSpec : BuildSpec.DefaultOpeningSpec;
-            const float DoorWidth = ResolveOpeningWidth(OpeningSpec, DefaultDoorWidth);
-            const float DoorHeight = FMath::Clamp(OpeningSpec.OpeningHeight, 50.0f, WallHeight);
-            const float DoorHalfWidth = DoorWidth * 0.5f;
-            const float CutStart = FMath::Max(Wall.RunMin, CenterOnRunAxis - DoorHalfWidth);
-            const float CutEnd = FMath::Min(Wall.RunMax, CenterOnRunAxis + DoorHalfWidth);
-            const float CutBottomZ = FMath::Clamp(DoorCenterZ - DoorHeight * 0.5f, FloorTopZ, CeilingBottomZ - 1.0f);
-            const float CutTopZ = FMath::Clamp(DoorCenterZ + DoorHeight * 0.5f, CutBottomZ + 1.0f, CeilingBottomZ);
-            FDoorCut Cut;
-            Cut.Start = CutStart;
-            Cut.End = CutEnd;
-            Cut.BottomZ = CutBottomZ;
-            Cut.TopZ = CutTopZ;
-            Cut.OpeningSpec = OpeningSpec;
-            if (Cut.End - Cut.Start > 1.0f && Cut.TopZ - Cut.BottomZ > 1.0f)
-            {
-                DoorCuts.Add(Cut);
-            }
-        }
-
-        if (ResolveTechnique(BuildSpec) == EMasonConstructionTechnique::PublicStairShell && Wall.bConstantX && BuildSpec.bCreateStairLandingSideOpenings)
-        {
-            const float StairSideOpeningWidth = FMath::Clamp(
-                BuildSpec.StairLandingSideOpeningWidth,
-                50.0f,
-                FMath::Max(50.0f, Wall.RunMax - Wall.RunMin));
-            const float StairSideOpeningHalfWidth = StairSideOpeningWidth * 0.5f;
-            const float StairSideOpeningHeight = FMath::Clamp(
-                BuildSpec.StairLandingSideOpeningHeight,
-                50.0f,
-                FMath::Max(50.0f, CeilingBottomZ - FloorTopZ));
-
-            const float LowerLandingCenterY = (BoxMin.Y + StairLowerLandingMaxY) * 0.5f;
-            const float UpperLandingCenterY = (StairUpperLandingMinY + BoxMax.Y) * 0.5f;
-
-            AddDoorCut(
-                DoorCuts,
-                FMath::Max(Wall.RunMin, LowerLandingCenterY - StairSideOpeningHalfWidth),
-                FMath::Min(Wall.RunMax, LowerLandingCenterY + StairSideOpeningHalfWidth),
-                FloorTopZ,
-                FMath::Clamp(FloorTopZ + StairSideOpeningHeight, FloorTopZ + 1.0f, CeilingBottomZ));
-
-            AddDoorCut(
-                DoorCuts,
-                FMath::Max(Wall.RunMin, UpperLandingCenterY - StairSideOpeningHalfWidth),
-                FMath::Min(Wall.RunMax, UpperLandingCenterY + StairSideOpeningHalfWidth),
-                StairUpperLandingTopZ,
-                FMath::Clamp(StairUpperLandingTopZ + StairSideOpeningHeight, StairUpperLandingTopZ + 1.0f, CeilingBottomZ));
-        }
-
-        DoorCuts.Sort([](const FDoorCut& A, const FDoorCut& B)
-        {
-            if (!FMath::IsNearlyEqual(A.Start, B.Start))
-            {
-                return A.Start < B.Start;
-            }
-            return A.End < B.End;
-        });
-
-        auto AddTrimPiece = [&](const FWallSpec& TrimWall, float TrimStart, float TrimEnd, float BottomZ, float PieceHeight, float Depth)
-        {
-            const float PieceLength = TrimEnd - TrimStart;
-            if (PieceLength <= 1.0f || PieceHeight <= 1.0f)
-            {
-                return;
-            }
-
-            if (TrimWall.bConstantX)
-            {
-                const FVector Location(
-                    TrimWall.ConstantCoord + TrimWall.Normal.X * Depth * 0.5f,
-                    (TrimStart + TrimEnd) * 0.5f,
-                    BottomZ + PieceHeight * 0.5f);
-                WallMesh->AddInstance(FTransform(
-                    FRotator::ZeroRotator,
-                    Location,
-                    FVector(Depth / 100.0f, PieceLength / 100.0f, PieceHeight / 100.0f)));
-                return;
-            }
-
-            const FVector Location(
-                (TrimStart + TrimEnd) * 0.5f,
-                TrimWall.ConstantCoord + TrimWall.Normal.Y * Depth * 0.5f,
-                BottomZ + PieceHeight * 0.5f);
-            WallMesh->AddInstance(FTransform(
-                FRotator::ZeroRotator,
-                Location,
-                FVector(PieceLength / 100.0f, Depth / 100.0f, PieceHeight / 100.0f)));
-        };
-
-        auto AddOpeningTrim = [&](const FDoorCut& Cut)
-        {
-            if (!Cut.OpeningSpec.bHasExplicitProfile)
-            {
-                return;
-            }
-
-            const float FrameThickness = FMath::Clamp(Cut.OpeningSpec.FrameThickness, 1.0f, 60.0f);
-            const float FrameDepth = FMath::Clamp(Cut.OpeningSpec.FrameDepth, 1.0f, WallThickness * 2.0f);
-
-            if (Cut.OpeningSpec.bGenerateFramePieces)
-            {
-                AddTrimPiece(Wall, Cut.Start - FrameThickness, Cut.Start, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
-                AddTrimPiece(Wall, Cut.End, Cut.End + FrameThickness, Cut.BottomZ, Cut.TopZ - Cut.BottomZ, FrameDepth);
-                AddTrimPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, FrameThickness, FrameDepth);
-            }
-
-            if (Cut.OpeningSpec.bGenerateThresholdPiece)
-            {
-                AddTrimPiece(
-                    Wall,
-                    Cut.Start,
-                    Cut.End,
-                    Cut.BottomZ,
-                    FMath::Clamp(Cut.OpeningSpec.ThresholdHeight, 1.0f, 40.0f),
-                    FrameDepth);
-            }
-        };
-
-        float Cursor = Wall.RunMin;
-        for (const FDoorCut& Cut : DoorCuts)
-        {
-            AddWallPiece(Wall, Cursor, Cut.Start, FloorTopZ, WallHeight);
-
-            const float LowerPieceHeight = Cut.BottomZ - FloorTopZ;
-            if (LowerPieceHeight > 1.0f)
-            {
-                AddWallPiece(Wall, Cut.Start, Cut.End, FloorTopZ, LowerPieceHeight);
-            }
-
-            const float HeaderHeight = CeilingBottomZ - Cut.TopZ;
-            if (HeaderHeight > 1.0f)
-            {
-                AddWallPiece(Wall, Cut.Start, Cut.End, Cut.TopZ, HeaderHeight);
-            }
-
-            AddOpeningTrim(Cut);
-            Cursor = FMath::Max(Cursor, Cut.End);
-        }
-
-        AddWallPiece(Wall, Cursor, Wall.RunMax, FloorTopZ, WallHeight);
-    };
-
-    BuildWall(FWallSpec{ false, static_cast<float>(BoxMax.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, 1.0f) });
-    BuildWall(FWallSpec{ false, static_cast<float>(BoxMin.Y), static_cast<float>(BoxMin.X), static_cast<float>(BoxMax.X), FVector2D(0.0f, -1.0f) });
-    BuildWall(FWallSpec{ true, static_cast<float>(BoxMax.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(1.0f, 0.0f) });
-    BuildWall(FWallSpec{ true, static_cast<float>(BoxMin.X), static_cast<float>(BoxMin.Y), static_cast<float>(BoxMax.Y), FVector2D(-1.0f, 0.0f) });
+    EmitPrismPiecesToInstancedMeshes(PrismPieces, FloorMesh, WallMesh, CeilingMesh, RoofMesh);
 }
 
 void UMasonBuilderComponent::BuildSliceFootprint(const FMasonBuildSpec& BuildSpec, const TArray<FMasonConnectorSpec>& ConnectorSpecs)

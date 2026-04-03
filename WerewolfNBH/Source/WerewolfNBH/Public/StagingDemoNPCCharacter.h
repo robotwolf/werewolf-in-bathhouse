@@ -38,6 +38,38 @@ enum class EStagingDemoActionState : uint8
     Hide
 };
 
+UENUM(BlueprintType)
+enum class EStagingNavWatchdogToneMode : uint8
+{
+    Technical,
+    Sardonic,
+    CustomOnly
+};
+
+UENUM(BlueprintType)
+enum class EStagingNavWatchdogFailureType : uint8
+{
+    OffNav,
+    PathInvalid,
+    MoveRejected,
+    Blocked,
+    OffPath,
+    Aborted,
+    InvalidResult,
+    RepeatedFailureHotspot
+};
+
+USTRUCT()
+struct FStagingNavWatchdogFailureRecord
+{
+    GENERATED_BODY()
+
+    double LastFailureTimeSeconds = 0.0;
+    int32 FailureCount = 0;
+    FVector LastRequestedLocation = FVector::ZeroVector;
+    FString LastFailureDetail;
+};
+
 USTRUCT(BlueprintType)
 struct FStagingDemoPresentationPayload
 {
@@ -128,6 +160,24 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Action", meta=(ClampMin="0.0"))
     float SocialPartnerSearchRadius = 650.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog")
+    bool bEnableNavWatchdog = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog", meta=(ClampMin="25.0"))
+    float NavProjectionRadius = 180.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog", meta=(ClampMin="0.5"))
+    float RepeatedFailureWindowSeconds = 8.0f;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog", meta=(ClampMin="1", ClampMax="16"))
+    int32 RepeatedFailureThreshold = 3;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog")
+    EStagingNavWatchdogToneMode NavWatchdogToneMode = EStagingNavWatchdogToneMode::Sardonic;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|NavWatchdog")
+    TArray<FString> CustomNavWatchdogLines;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Debug")
     bool bDrawDebugMarker = true;
@@ -294,8 +344,33 @@ protected:
     bool HasUsableSelection(const FStagingNPCMarkerSelection& Selection) const;
     void ApplyConfiguredAnimationBlueprint();
 
+private:
+    FString BuildNavWatchdogTargetLabel(const FString& TargetReason) const;
+    FString BuildNavWatchdogLogicalKey(const FString& TargetReason, const FVector& RequestedLocation) const;
+    FVector GetNavWatchdogProjectionExtent() const;
+    bool ProbeNavWatchdogTarget(
+        const FVector& RequestedLocation,
+        FVector& OutResolvedLocation,
+        FString& OutFailureDetail,
+        EStagingNavWatchdogFailureType& OutFailureType,
+        bool& bOutHasProjectedLocation,
+        FVector& OutProjectedLocation) const;
+    int32 UpdateNavWatchdogFailureHistory(
+        const FString& LogicalTargetKey,
+        const FVector& RequestedLocation,
+        const FString& FailureDetail,
+        bool& bOutEscalated);
+    void ReportNavWatchdogFailure(
+        EStagingNavWatchdogFailureType FailureType,
+        const FString& TargetReason,
+        const FVector& RequestedLocation,
+        bool bHasProjectedLocation,
+        const FVector& ProjectedLocation,
+        const FString& FailureDetail);
+
     FTimerHandle BehaviorTimerHandle;
     TWeakObjectPtr<AStagingDemoAIController> CachedDemoController;
     FString GideonStatusReason;
     bool bDestroyOnGideonMoveArrival = false;
+    TMap<FString, FStagingNavWatchdogFailureRecord> NavWatchdogFailureHistory;
 };

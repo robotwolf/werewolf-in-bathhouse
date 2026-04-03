@@ -69,6 +69,15 @@ Primary files:
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Public\MasonBuilderComponent.h`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Source\WerewolfNBH\Private\MasonBuilderComponent.cpp`
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Mason`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\MasonDynamicShellV1.md`
+
+Current migration note:
+
+- `ConstructionTechnique` and `GeometryBackend` are now separate concerns
+- `BoxShell` is the first unified dynamic-shell target
+- `InstancedPrisms` remains the default compatibility backend
+- `UnifiedDynamicMesh` is opt-in through Mason construction profiles
+- no user-facing union or smoothing controls exist in v1
 
 ### `Staging`
 
@@ -192,6 +201,8 @@ The clean mental model is:
   - Data asset that defines reusable construction defaults for `Mason`.
   - Intended to be the long-term source of truth for:
     - construction technique
+    - geometry backend
+    - shell-region material policy
     - construction profile id
     - shell thickness defaults
     - default opening height/width
@@ -199,13 +210,15 @@ The clean mental model is:
   - Current use:
     - bathhouse room profiles can point at shared Mason profiles
     - RV proof rooms use dedicated Mason profiles instead of baking all construction truth into room stock settings
+    - unified dynamic shell output is now selected here, not by changing Ginny or Staging behavior
 
 - `UMasonBuilderComponent`
   - The first named extraction of the reusable primitive-construction layer.
   - Current Phase 1 responsibility:
     - consume a `FMasonBuildSpec`
     - consume flattened connector opening data via `FMasonConnectorSpec`
-    - build the walkable primitive shell from those specs
+    - derive the walkable primitive shell once from those specs
+    - emit that shell through either ISM or unified dynamic-mesh output
   - Current explicit construction techniques:
     - `BoxShell`
     - `SliceFootprint`
@@ -217,6 +230,16 @@ The clean mental model is:
     - `BoxShell`, `SliceFootprint`, and `PublicStairShell` are fully active
     - `OpenLot` and `ObjectShell` now have first proof-of-concept behavior
     - `PartitionedBox` still falls back to the proven shell builder
+    - `BoxShell` / `PublicStairShell` now support dual-path output:
+      - `InstancedPrisms`
+      - `UnifiedDynamicMesh`
+    - unified dynamic output now uses named Mason shell regions for material IDs:
+      - `Floor`
+      - `Wall`
+      - `Ceiling`
+      - `Roof`
+      - reserved later regions such as `Trim`, `Threshold`, and stair-specific surfaces
+    - the ISM path is temporary compatibility, not the long-term canonical result
   - This is the seam where the current bathhouse graybox builder starts becoming reusable beyond the bathhouse.
 
 - `ARoomModuleBase`

@@ -81,6 +81,15 @@ Primary data:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Mason\Profiles`
 
+Current migration note:
+
+- Mason now separates `ConstructionTechnique` from `GeometryBackend`
+- `BoxShell` is the first unified dynamic-shell target
+- `InstancedPrisms` remains the default compatibility path
+- `UnifiedDynamicMesh` is opt-in per Mason construction profile
+- unified dynamic output now targets named Mason shell regions instead of anonymous material slots
+- no user-facing union or smoothing controls are exposed in v1
+
 ### `Butch`
 
 `Butch` is the decoration / dressing pass.
@@ -307,6 +316,15 @@ Examples:
 Construction profiles live under:
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Data\Mason\Profiles`
+
+Current profile guidance:
+
+- `ConstructionTechnique` still answers what kind of shell Mason should build
+- `GeometryBackend` answers how that shell is emitted
+- `MaterialProfile` is the reserved seam for shell-region-to-slot policy
+- use `InstancedPrisms` unless you are intentionally testing or rolling out unified dynamic output
+- `UnifiedDynamicMesh` currently targets `BoxShell` / `PublicStairShell`
+- this is not a user-facing boolean or smoothing tool; it is an internal Mason output path
 
 ## What a Room Needs
 

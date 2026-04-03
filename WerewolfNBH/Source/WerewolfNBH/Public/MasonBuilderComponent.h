@@ -6,6 +6,7 @@
 #include "MasonBuilderComponent.generated.h"
 
 class UBoxComponent;
+class UDynamicMeshComponent;
 class UInstancedStaticMeshComponent;
 class UStaticMesh;
 
@@ -18,6 +19,27 @@ enum class EMasonConstructionTechnique : uint8
     PartitionedBox,
     OpenLot,
     ObjectShell
+};
+
+UENUM(BlueprintType)
+enum class EMasonGeometryBackend : uint8
+{
+    InstancedPrisms UMETA(DisplayName="Instanced Prisms"),
+    UnifiedDynamicMesh UMETA(DisplayName="Unified Dynamic Mesh")
+};
+
+UENUM(BlueprintType)
+enum class EMasonShellRegion : uint8
+{
+    Floor UMETA(DisplayName="Floor"),
+    Wall UMETA(DisplayName="Wall"),
+    Ceiling UMETA(DisplayName="Ceiling"),
+    Roof UMETA(DisplayName="Roof"),
+    Trim UMETA(DisplayName="Trim"),
+    Threshold UMETA(DisplayName="Threshold"),
+    StairTread UMETA(DisplayName="Stair Tread"),
+    StairRiser UMETA(DisplayName="Stair Riser"),
+    StairLanding UMETA(DisplayName="Stair Landing")
 };
 
 USTRUCT(BlueprintType)
@@ -99,6 +121,9 @@ struct FMasonBuildSpec
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mason")
     EMasonConstructionTechnique ConstructionTechnique = EMasonConstructionTechnique::BoxShell;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mason")
+    EMasonGeometryBackend GeometryBackend = EMasonGeometryBackend::InstancedPrisms;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Mason")
     FName ConstructionProfileId = NAME_None;
@@ -186,6 +211,7 @@ public:
         UInstancedStaticMeshComponent* InWallMesh,
         UInstancedStaticMeshComponent* InCeilingMesh,
         UInstancedStaticMeshComponent* InRoofMesh,
+        UDynamicMeshComponent* InUnifiedShellMesh,
         UBoxComponent* InBoundsBox,
         UStaticMesh* InDefaultCubeMesh);
 
@@ -194,6 +220,7 @@ public:
     void UpdateBoundsFromSpec(const FMasonBuildSpec& BuildSpec);
 
 private:
+    bool ShouldUseUnifiedDynamicMesh(const FMasonBuildSpec& BuildSpec) const;
     EMasonConstructionTechnique ResolveTechnique(const FMasonBuildSpec& BuildSpec) const;
     void BuildSliceFootprint(const FMasonBuildSpec& BuildSpec, const TArray<FMasonConnectorSpec>& ConnectorSpecs);
     void BuildBoxShell(const FMasonBuildSpec& BuildSpec, const TArray<FMasonConnectorSpec>& ConnectorSpecs);
@@ -212,6 +239,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UInstancedStaticMeshComponent> RoofMesh = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UDynamicMeshComponent> UnifiedShellMesh = nullptr;
 
     UPROPERTY(Transient)
     TObjectPtr<UBoxComponent> BoundsBox = nullptr;

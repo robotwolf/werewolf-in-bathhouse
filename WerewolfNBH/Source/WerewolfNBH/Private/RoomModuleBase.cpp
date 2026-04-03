@@ -8,6 +8,7 @@
 #include "Components/BillboardComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "Components/DynamicMeshComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -34,6 +35,24 @@ namespace
         MeshComponent->SetGenerateOverlapEvents(false);
         MeshComponent->SetMobility(EComponentMobility::Movable);
         MeshComponent->SetCanEverAffectNavigation(bAffectsNavigation);
+    }
+
+    void ConfigureGeneratedDynamicMesh(UDynamicMeshComponent* MeshComponent, bool bAffectsNavigation)
+    {
+        if (!MeshComponent)
+        {
+            return;
+        }
+
+        MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+        MeshComponent->SetCollisionResponseToAllChannels(ECR_Block);
+        MeshComponent->SetGenerateOverlapEvents(false);
+        MeshComponent->SetMobility(EComponentMobility::Movable);
+        MeshComponent->SetCanEverAffectNavigation(bAffectsNavigation);
+        MeshComponent->SetDeferredCollisionUpdatesEnabled(false, false);
+        MeshComponent->SetComplexAsSimpleCollisionEnabled(true, false);
+        MeshComponent->SetVisibility(false);
+        MeshComponent->SetHiddenInGame(true);
     }
 
     int32 MinCellIndex(float MinValue, float CellSize)
@@ -92,6 +111,7 @@ namespace
         }
 
         BuildSpec.ConstructionTechnique = ConstructionProfile->ConstructionTechnique;
+        BuildSpec.GeometryBackend = ConstructionProfile->GeometryBackend;
         BuildSpec.ConstructionProfileId = ConstructionProfile->ConstructionProfileId.IsNone()
             ? BuildSpec.ConstructionProfileId
             : ConstructionProfile->ConstructionProfileId;
@@ -249,6 +269,10 @@ ARoomModuleBase::ARoomModuleBase()
     ConfigureGeneratedMesh(GeneratedRoofMesh, false);
     GeneratedRoofMesh->SetCanEverAffectNavigation(false);
 
+    GeneratedUnifiedShellMesh = CreateDefaultSubobject<UDynamicMeshComponent>(TEXT("GeneratedUnifiedShellMesh"));
+    GeneratedUnifiedShellMesh->SetupAttachment(SceneRoot);
+    ConfigureGeneratedDynamicMesh(GeneratedUnifiedShellMesh, true);
+
     RoomBoundsBox = CreateDefaultSubobject<UBoxComponent>(TEXT("RoomBoundsBox"));
     RoomBoundsBox->SetupAttachment(SceneRoot);
     RoomBoundsBox->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
@@ -291,6 +315,15 @@ ARoomModuleBase::ARoomModuleBase()
         GeneratedWallMesh->SetMaterial(0, DefaultMaterial);
         GeneratedCeilingMesh->SetMaterial(0, DefaultMaterial);
         GeneratedRoofMesh->SetMaterial(0, DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(0, DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Wall), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Ceiling), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Roof), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Trim), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Threshold), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairTread), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairRiser), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairLanding), DefaultMaterial);
     }
 }
 
@@ -317,6 +350,7 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
             GeneratedWallMesh,
             GeneratedCeilingMesh,
             GeneratedRoofMesh,
+            GeneratedUnifiedShellMesh,
             RoomBoundsBox,
             DefaultCubeMesh);
     }
@@ -1430,6 +1464,11 @@ void ARoomModuleBase::ClearGeneratedGrayboxInstances()
     {
         GeneratedRoofMesh->ClearInstances();
     }
+    if (GeneratedUnifiedShellMesh && GeneratedUnifiedShellMesh->GetDynamicMesh())
+    {
+        GeneratedUnifiedShellMesh->GetDynamicMesh()->Reset();
+        GeneratedUnifiedShellMesh->UpdateCollision(false);
+    }
 }
 
 void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
@@ -1482,6 +1521,34 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
     ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false, LastAppliedWallMaterial, bRespectManualGeneratedMeshMaterials);
     ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false, LastAppliedCeilingMaterial, bRespectManualGeneratedMeshMaterials);
     ApplyMaterial(GeneratedRoofMesh, GetResolvedRoofMaterial(), false, LastAppliedRoofMaterial, bRespectManualGeneratedMeshMaterials);
+
+    if (GeneratedUnifiedShellMesh)
+    {
+        UMaterialInterface* FloorMaterial = GetResolvedFloorMaterial();
+        UMaterialInterface* WallMaterial = GetResolvedWallMaterial();
+        UMaterialInterface* CeilingMaterial = GetResolvedCeilingMaterial();
+        UMaterialInterface* RoofMaterial = GetResolvedRoofMaterial();
+
+        UMaterialInterface* EffectiveFloorMaterial = FloorMaterial ? FloorMaterial : DefaultMaterial.Get();
+        UMaterialInterface* EffectiveWallMaterial = WallMaterial ? WallMaterial : DefaultMaterial.Get();
+        UMaterialInterface* EffectiveCeilingMaterial = CeilingMaterial ? CeilingMaterial : DefaultMaterial.Get();
+        UMaterialInterface* EffectiveRoofMaterial = RoofMaterial ? RoofMaterial : DefaultMaterial.Get();
+
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Floor), EffectiveFloorMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Wall), EffectiveWallMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Ceiling), EffectiveCeilingMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Roof), EffectiveRoofMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Trim), EffectiveWallMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Threshold), EffectiveFloorMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairTread), EffectiveFloorMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairRiser), EffectiveWallMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairLanding), EffectiveFloorMaterial);
+
+        LastAppliedUnifiedShellFloorMaterial = EffectiveFloorMaterial;
+        LastAppliedUnifiedShellWallMaterial = EffectiveWallMaterial;
+        LastAppliedUnifiedShellCeilingMaterial = EffectiveCeilingMaterial;
+        LastAppliedUnifiedShellRoofMaterial = EffectiveRoofMaterial;
+    }
 }
 
 void ARoomModuleBase::UpdatePlayerStartPlacement()
