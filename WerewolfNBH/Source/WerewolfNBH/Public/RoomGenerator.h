@@ -182,7 +182,7 @@ public:
     bool bAutoSpawnStagingDemoCoordinator = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
-    bool bLimitStagingDemoToGeneratorTestMap = true;
+    bool bLimitStagingDemoToBathhouseSliceMap = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo", meta=(EditCondition="bAutoSpawnStagingDemoCoordinator"))
     TSubclassOf<AStagingDemoCoordinator> StagingDemoCoordinatorClass;
@@ -206,7 +206,7 @@ public:
     bool bAutoSpawnGideonDirector = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime", meta=(EditCondition="bAutoSpawnGideonDirector"))
-    bool bLimitGideonToGeneratorTestMap = true;
+    bool bLimitGideonToBathhouseSliceMap = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Gideon|Runtime", meta=(EditCondition="bAutoSpawnGideonDirector"))
     TSubclassOf<AGideonDirector> GideonDirectorClass;

@@ -13,6 +13,7 @@
 #include "NavigationSystem.h"
 #include "RoomGameplayMarkerLibrary.h"
 #include "RoomGenerator.h"
+#include "StagingQueryLibrary.h"
 #include "TimerManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "WerewolfGameplayTagLibrary.h"
@@ -170,18 +171,27 @@ AStagingDemoNPCCharacter::AStagingDemoNPCCharacter()
         GetMesh()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     }
 
-    static ConstructorHelpers::FClassFinder<UAnimInstance> UnarmedAnimClassFinder(
-        TEXT("/Game/Characters/Mannequins/Anims/Unarmed/ABP_Unarmed"));
-    if (UnarmedAnimClassFinder.Succeeded() && GetMesh())
+    static ConstructorHelpers::FClassFinder<UAnimInstance> StagingAnimClassFinder(
+        TEXT("/Game/WerewolfBH/Blueprints/NPC/ABP_Manny_StagingNPC"));
+    if (StagingAnimClassFinder.Succeeded())
     {
-        GetMesh()->SetAnimInstanceClass(UnarmedAnimClassFinder.Class);
+        DefaultAnimationBlueprint = StagingAnimClassFinder.Class;
     }
+
+    ApplyConfiguredAnimationBlueprint();
+}
+
+void AStagingDemoNPCCharacter::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
+    ApplyConfiguredAnimationBlueprint();
 }
 
 void AStagingDemoNPCCharacter::BeginPlay()
 {
     Super::BeginPlay();
 
+    ApplyConfiguredAnimationBlueprint();
     BindToDemoController();
     UpdateDebugText();
 
@@ -225,6 +235,19 @@ void AStagingDemoNPCCharacter::EndPlay(const EEndPlayReason::Type EndPlayReason)
     }
 
     Super::EndPlay(EndPlayReason);
+}
+
+void AStagingDemoNPCCharacter::ApplyConfiguredAnimationBlueprint()
+{
+    if (!GetMesh() || !DefaultAnimationBlueprint)
+    {
+        return;
+    }
+
+    if (GetMesh()->GetAnimClass() != DefaultAnimationBlueprint.Get())
+    {
+        GetMesh()->SetAnimInstanceClass(DefaultAnimationBlueprint.Get());
+    }
 }
 
 void AStagingDemoNPCCharacter::StartBehaviorLoop()
@@ -826,46 +849,26 @@ FVector AStagingDemoNPCCharacter::ResolveHideDestination(ARoomModuleBase* HideRo
         return GetActorLocation();
     }
 
-    FGameplayTagContainer PreferredActivityTags;
+    FStagingMarkerQuery MarkerQuery;
+    MarkerQuery.bRestrictToMarkerFamily = true;
+    MarkerQuery.MarkerFamily = ERoomGameplayMarkerFamily::NPC;
     if (const FGameplayTag HideTag = UWerewolfGameplayTagLibrary::MakeGameplayTagFromName(TEXT("NPC.Activity.Hide"), false); HideTag.IsValid())
     {
-        PreferredActivityTags.AddTag(HideTag);
+        MarkerQuery.TagQuery.PreferredTags.AddTag(HideTag);
     }
 
-    ARoomModuleBase* CandidateRoom = nullptr;
-    FRoomGameplayMarker CandidateMarker;
-    float CandidateScore = 0.0f;
-    const TArray<ARoomModuleBase*> CandidateRooms{HideRoom};
-    const bool bFoundMarker = URoomGameplayMarkerLibrary::PickBestGameplayMarkerAcrossRooms(
-        CandidateRooms,
-        ERoomGameplayMarkerFamily::NPC,
-        HashCombineFast(SelectionSeed, 7001),
-        FGameplayTagContainer(),
-        FGameplayTagContainer(),
-        FGameplayTagContainer(),
-        FGameplayTagContainer(),
-        FGameplayTagContainer(),
-        PreferredActivityTags,
-        FGameplayTagContainer(),
-        FGameplayTagContainer(),
-        PreferredActivityTags,
-        1.0f,
-        2.0f,
-        2.0f,
-        CandidateRoom,
-        CandidateMarker,
-        CandidateScore,
-        true,
-        true,
-        true);
+    const FStagingMarkerSelection MarkerSelection = UStagingQueryLibrary::PickBestMarkerInRoom(
+        HideRoom,
+        MarkerQuery,
+        HashCombineFast(SelectionSeed, 7001));
 
-    if (bFoundMarker && CandidateRoom && !CandidateMarker.MarkerName.IsNone())
+    if (MarkerSelection.bFoundSelection && !MarkerSelection.Marker.MarkerName.IsNone())
     {
         if (OutMarker)
         {
-            *OutMarker = CandidateMarker;
+            *OutMarker = MarkerSelection.Marker;
         }
-        return CandidateMarker.WorldTransform.GetLocation();
+        return MarkerSelection.Marker.WorldTransform.GetLocation();
     }
 
     return HideRoom->GetActorLocation();

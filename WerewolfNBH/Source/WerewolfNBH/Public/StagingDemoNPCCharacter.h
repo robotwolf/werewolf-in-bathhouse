@@ -12,6 +12,7 @@
 class ARoomGenerator;
 class AStagingDemoAIController;
 class UArrowComponent;
+class UAnimInstance;
 class UStagingNPCProfile;
 class UWerewolfStateBillboardComponent;
 
@@ -81,6 +82,7 @@ class WEREWOLFNBH_API AStagingDemoNPCCharacter : public ACharacter
 public:
     AStagingDemoNPCCharacter();
 
+    virtual void OnConstruction(const FTransform& Transform) override;
     virtual void BeginPlay() override;
     virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
     virtual void Tick(float DeltaSeconds) override;
@@ -102,6 +104,9 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo")
     bool bAutoStartOnBeginPlay = true;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Staging|Demo|Appearance")
+    TSubclassOf<UAnimInstance> DefaultAnimationBlueprint;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Demo|Timing", meta=(ClampMin="0.1"))
     float LayoutPollInterval = 0.5f;
@@ -287,6 +292,7 @@ protected:
     bool IsSelectionNearCurrentLocation(const FStagingNPCMarkerSelection& Selection) const;
     bool MatchesLastSelection(const FStagingNPCMarkerSelection& Selection) const;
     bool HasUsableSelection(const FStagingNPCMarkerSelection& Selection) const;
+    void ApplyConfiguredAnimationBlueprint();
 
     FTimerHandle BehaviorTimerHandle;
     TWeakObjectPtr<AStagingDemoAIController> CachedDemoController;

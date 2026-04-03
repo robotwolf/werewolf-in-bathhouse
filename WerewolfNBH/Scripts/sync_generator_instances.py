@@ -1,9 +1,13 @@
+import os
 import unreal
 
-MAP_PATH = '/Game/WerewolfBH/GeneratorTest'
+MAP_PATH = os.environ.get("WNBH_MAP_PATH", "/Game/WerewolfBH/Maps/L_BathhouseSlice").strip()
 GENERATOR_BP_PATH = '/Game/WerewolfBH/Blueprints/Assembler/BP_RoomGenerator'
 BUTCH_BP_OBJECT_PATH = '/Game/WerewolfBH/Blueprints/Assembler/BP_ButchDecorator'
 BUTCH_BP_PATH = f'{BUTCH_BP_OBJECT_PATH}.BP_ButchDecorator'
+
+if not MAP_PATH:
+    raise RuntimeError('Set WNBH_MAP_PATH to an authored bathhouse map before running sync_generator_instances')
 
 world = unreal.EditorLoadingAndSavingUtils.load_map(MAP_PATH)
 if not world:

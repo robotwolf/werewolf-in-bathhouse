@@ -45,11 +45,11 @@ Recommended asset additions and current repo paths:
    - only add turn or pause polish after the base locomotion works
 
 4. In `BP_StagingNPC`:
-   - assign `SKM_Quinn_Simple` if needed
-   - set the mesh `Anim Class` to `ABP_Quinn_StagingNPC`
+   - assign `SKM_Manny_Simple` if needed
+   - set `DefaultAnimationBlueprint` to `ABP_Manny_StagingNPC`
    - keep the inherited C++ movement settings unless they actively fight the animation
 
-5. On the placed room generator in `GeneratorTest`:
+5. On the placed room generator in `L_BathhouseSlice` or your current bathhouse test map:
    - set `StagingDemoNPCClass` to `BP_StagingNPC`
 
 6. If you are editing the coordinator directly instead of the generator:

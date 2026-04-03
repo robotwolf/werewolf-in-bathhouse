@@ -9,9 +9,8 @@
 #include "RoomGenerator.h"
 #include "RoomModuleBase.h"
 #include "StagingDemoNPCCharacter.h"
+#include "StagingQueryLibrary.h"
 #include "WerewolfGameplayTagLibrary.h"
-
-#include <initializer_list>
 
 DEFINE_LOG_CATEGORY_STATIC(LogGideonDirector, Log, All);
 
@@ -50,19 +49,6 @@ namespace
         return FString::Printf(TEXT("%s/%s"), *RoomId, *RoomType);
     }
 
-    bool ContainsAnyToken(const FString& Value, std::initializer_list<const TCHAR*> Tokens)
-    {
-        for (const TCHAR* Token : Tokens)
-        {
-            if (Value.Contains(Token, ESearchCase::IgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     float GetPhaseFearMultiplier(EStagingRunPhase Phase)
     {
         switch (Phase)
@@ -81,34 +67,9 @@ namespace
         }
     }
 
-    bool HasGameplayTag(const FGameplayTagContainer& Container, const TCHAR* TagName)
+    FGameplayTag MakeLooseTag(const TCHAR* TagName)
     {
-        const FGameplayTag Tag = UWerewolfGameplayTagLibrary::MakeGameplayTagFromName(FName(TagName), false);
-        return Tag.IsValid() && Container.HasTagExact(Tag);
-    }
-
-    bool MarkerHasGameplayTag(const FRoomGameplayMarker& Marker, const TCHAR* TagName)
-    {
-        return HasGameplayTag(Marker.GameplayTags, TagName);
-    }
-
-    const FRoomGameplayMarker* FindMarkerByTag(const TArray<FRoomGameplayMarker>& Markers, const TCHAR* TagName, int32 PreferredIndex = 0)
-    {
-        TArray<const FRoomGameplayMarker*> Matches;
-        for (const FRoomGameplayMarker& Marker : Markers)
-        {
-            if (MarkerHasGameplayTag(Marker, TagName))
-            {
-                Matches.Add(&Marker);
-            }
-        }
-
-        if (Matches.IsEmpty())
-        {
-            return nullptr;
-        }
-
-        return Matches[FMath::Clamp(PreferredIndex, 0, Matches.Num() - 1)];
+        return UWerewolfGameplayTagLibrary::MakeGameplayTagFromName(FName(TagName), false);
     }
 
     void LoadDefaultGideonProfiles(TArray<TObjectPtr<UStagingNPCProfile>>& OutProfiles, TObjectPtr<UStagingNPCProfile>& OutDefaultProfile)
@@ -747,24 +708,16 @@ ARoomModuleBase* AGideonDirector::FindEntryRoom() const
         return nullptr;
     }
 
-    const FGameplayTag EntryTag = UWerewolfGameplayTagLibrary::MakeGameplayTagFromName(TEXT("Room.Function.Entry"), false);
+    FStagingRoomQuery Query;
+    Query.SelectionSeed = 1107;
+    Query.SemanticIntent = EStagingSemanticRoomIntent::Entry;
+    Query.SemanticIntentWeight = 1.0f;
+    Query.GraphDistanceWeight = 0.0f;
 
-    for (ARoomModuleBase* Room : Generator->SpawnedRooms)
+    const FStagingRoomSelection Selection = UStagingQueryLibrary::PickBestRoomFromGenerator(Generator, Query);
+    if (Selection.bFoundSelection && Selection.Room)
     {
-        if (!Room)
-        {
-            continue;
-        }
-
-        const FString RoomId = Room->GetResolvedRoomID().ToString();
-        const FString RoomType = Room->GetResolvedRoomType().ToString();
-        const FGameplayTagContainer RoomTags = Room->GetResolvedRoomTags();
-        if ((EntryTag.IsValid() && RoomTags.HasTagExact(EntryTag)) ||
-            ContainsAnyToken(RoomId, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}) ||
-            ContainsAnyToken(RoomType, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}))
-        {
-            return Room;
-        }
+        return Selection.Room.Get();
     }
 
     return Generator->SpawnedRooms.Num() > 0 ? Generator->SpawnedRooms[0] : nullptr;
@@ -786,41 +739,22 @@ ARoomModuleBase* AGideonDirector::FindBestRoomForPOI(const ARoomModuleBase* Orig
         return Generator->SpawnedRooms.Num() > 0 ? Generator->SpawnedRooms[0] : nullptr;
     }
 
-    TMap<const ARoomModuleBase*, int32> Distances;
-    BuildRoomDistanceMap(SearchRoot, Distances);
-    if (Distances.IsEmpty())
+    FStagingRoomQuery Query;
+    Query.SelectionSeed = HashCombineFast(2143, RoomsAway);
+    Query.OriginRoom = const_cast<ARoomModuleBase*>(SearchRoot);
+    Query.bAllowOriginRoom = true;
+    Query.bRequireReachableFromOrigin = true;
+    Query.PreferredGraphDistance = FMath::Max(0, RoomsAway);
+    Query.SemanticIntentWeight = 0.0f;
+    Query.GraphDistanceWeight = 4.0f;
+
+    const FStagingRoomSelection Selection = UStagingQueryLibrary::PickBestRoomFromGenerator(Generator, Query);
+    if (Selection.bFoundSelection && Selection.Room)
     {
-        return const_cast<ARoomModuleBase*>(SearchRoot);
+        return Selection.Room.Get();
     }
 
-    ARoomModuleBase* BestExactMatch = nullptr;
-    ARoomModuleBase* BestFallback = nullptr;
-    int32 BestFallbackDelta = TNumericLimits<int32>::Max();
-
-    for (const TPair<const ARoomModuleBase*, int32>& Pair : Distances)
-    {
-        const ARoomModuleBase* Room = Pair.Key;
-        const int32 Distance = Pair.Value;
-        if (!Room)
-        {
-            continue;
-        }
-
-        if (Distance == RoomsAway)
-        {
-            BestExactMatch = const_cast<ARoomModuleBase*>(Room);
-            break;
-        }
-
-        const int32 Delta = FMath::Abs(Distance - RoomsAway);
-        if (Delta < BestFallbackDelta)
-        {
-            BestFallbackDelta = Delta;
-            BestFallback = const_cast<ARoomModuleBase*>(Room);
-        }
-    }
-
-    return BestExactMatch ? BestExactMatch : BestFallback;
+    return const_cast<ARoomModuleBase*>(SearchRoot);
 }
 
 ARoomModuleBase* AGideonDirector::FindNearestHideRoom(const ARoomModuleBase* OriginRoom) const
@@ -839,30 +773,20 @@ ARoomModuleBase* AGideonDirector::FindNearestHideRoom(const ARoomModuleBase* Ori
         return Generator->SpawnedRooms.Num() > 0 ? Generator->SpawnedRooms[0] : nullptr;
     }
 
-    TMap<const ARoomModuleBase*, int32> Distances;
-    BuildRoomDistanceMap(SearchRoot, Distances);
+    FStagingRoomQuery Query;
+    Query.SelectionSeed = 3211;
+    Query.SemanticIntent = EStagingSemanticRoomIntent::Hide;
+    Query.OriginRoom = const_cast<ARoomModuleBase*>(SearchRoot);
+    Query.bAllowOriginRoom = true;
+    Query.bRequireReachableFromOrigin = true;
+    Query.bPreferNearestToOrigin = true;
+    Query.SemanticIntentWeight = 2.5f;
+    Query.GraphDistanceWeight = 2.0f;
 
-    ARoomModuleBase* BestRoom = nullptr;
-    int32 BestDistance = TNumericLimits<int32>::Max();
-
-    for (const TPair<const ARoomModuleBase*, int32>& Pair : Distances)
+    const FStagingRoomSelection Selection = UStagingQueryLibrary::PickBestRoomFromGenerator(Generator, Query);
+    if (Selection.bFoundSelection && Selection.Room)
     {
-        const ARoomModuleBase* Room = Pair.Key;
-        if (!Room || !IsHideFriendlyRoom(Room))
-        {
-            continue;
-        }
-
-        if (Pair.Value < BestDistance)
-        {
-            BestDistance = Pair.Value;
-            BestRoom = const_cast<ARoomModuleBase*>(Room);
-        }
-    }
-
-    if (BestRoom)
-    {
-        return BestRoom;
+        return Selection.Room.Get();
     }
 
     return const_cast<ARoomModuleBase*>(SearchRoot);
@@ -875,18 +799,16 @@ ARoomModuleBase* AGideonDirector::FindExitRoom() const
         : nullptr;
     if (Generator)
     {
-        for (ARoomModuleBase* Room : Generator->SpawnedRooms)
-        {
-            if (!Room)
-            {
-                continue;
-            }
+        FStagingRoomQuery Query;
+        Query.SelectionSeed = 1703;
+        Query.SemanticIntent = EStagingSemanticRoomIntent::Exit;
+        Query.SemanticIntentWeight = 1.0f;
+        Query.GraphDistanceWeight = 0.0f;
 
-            const TArray<FRoomGameplayMarker> Markers = Room->GetAllGameplayMarkers();
-            if (FindMarkerByTag(Markers, TEXT("Gideon.Exit")) != nullptr || IsExitLikeRoom(Room))
-            {
-                return Room;
-            }
+        const FStagingRoomSelection Selection = UStagingQueryLibrary::PickBestRoomFromGenerator(Generator, Query);
+        if (Selection.bFoundSelection && Selection.Room)
+        {
+            return Selection.Room.Get();
         }
     }
 
@@ -907,10 +829,20 @@ FVector AGideonDirector::GetSpawnLocationForNPC(int32 SpawnIndex) const
 {
     if (const ARoomModuleBase* EntryRoom = FindEntryRoom())
     {
-        const TArray<FRoomGameplayMarker> Markers = EntryRoom->GetAllGameplayMarkers();
-        if (const FRoomGameplayMarker* Marker = FindMarkerByTag(Markers, TEXT("Gideon.Arrival.Spawn"), SpawnIndex))
+        if (const FGameplayTag SpawnTag = MakeLooseTag(TEXT("Gideon.Arrival.Spawn")); SpawnTag.IsValid())
         {
-            return Marker->WorldTransform.GetLocation();
+            FStagingMarkerQuery MarkerQuery;
+            MarkerQuery.bRestrictToMarkerFamily = false;
+            MarkerQuery.TagQuery.RequiredTags.AddTag(SpawnTag);
+
+            const FStagingMarkerSelection MarkerSelection = UStagingQueryLibrary::PickBestMarkerInRoom(
+                EntryRoom,
+                MarkerQuery,
+                HashCombineFast(1703, SpawnIndex));
+            if (MarkerSelection.bFoundSelection && !MarkerSelection.Marker.MarkerName.IsNone())
+            {
+                return MarkerSelection.Marker.WorldTransform.GetLocation();
+            }
         }
 
         return EntryRoom->GetActorLocation() + FVector(0.0f, 0.0f, 90.0f);
@@ -928,10 +860,20 @@ FVector AGideonDirector::GetQueueLocationForNPC(int32 QueueIndex) const
 
     if (const ARoomModuleBase* EntryRoom = FindEntryRoom())
     {
-        const TArray<FRoomGameplayMarker> Markers = EntryRoom->GetAllGameplayMarkers();
-        if (const FRoomGameplayMarker* Marker = FindMarkerByTag(Markers, TEXT("Gideon.Arrival.Queue"), QueueIndex))
+        if (const FGameplayTag QueueTag = MakeLooseTag(TEXT("Gideon.Arrival.Queue")); QueueTag.IsValid())
         {
-            return Marker->WorldTransform.GetLocation();
+            FStagingMarkerQuery MarkerQuery;
+            MarkerQuery.bRestrictToMarkerFamily = false;
+            MarkerQuery.TagQuery.RequiredTags.AddTag(QueueTag);
+
+            const FStagingMarkerSelection MarkerSelection = UStagingQueryLibrary::PickBestMarkerInRoom(
+                EntryRoom,
+                MarkerQuery,
+                HashCombineFast(2207, QueueIndex));
+            if (MarkerSelection.bFoundSelection && !MarkerSelection.Marker.MarkerName.IsNone())
+            {
+                return MarkerSelection.Marker.WorldTransform.GetLocation();
+            }
         }
 
         return EntryRoom->GetActorLocation() + FVector(0.0f, QueueIndex * 100.0f, 90.0f);
@@ -1145,125 +1087,7 @@ void AGideonDirector::StartRoamingBehavior(AStagingDemoNPCCharacter* NPC, FGideo
 
 int32 AGideonDirector::GetRoomDistance(const ARoomModuleBase* StartRoom, const ARoomModuleBase* GoalRoom) const
 {
-    if (!StartRoom || !GoalRoom)
-    {
-        return INDEX_NONE;
-    }
-
-    if (StartRoom == GoalRoom)
-    {
-        return 0;
-    }
-
-    TMap<const ARoomModuleBase*, int32> Distances;
-    BuildRoomDistanceMap(StartRoom, Distances);
-
-    if (const int32* Distance = Distances.Find(GoalRoom))
-    {
-        return *Distance;
-    }
-
-    return INDEX_NONE;
-}
-
-void AGideonDirector::BuildRoomDistanceMap(const ARoomModuleBase* StartRoom, TMap<const ARoomModuleBase*, int32>& OutDistances) const
-{
-    OutDistances.Reset();
-    if (!StartRoom)
-    {
-        return;
-    }
-
-    TArray<const ARoomModuleBase*> Queue;
-    Queue.Add(StartRoom);
-    OutDistances.Add(StartRoom, 0);
-
-    for (int32 Index = 0; Index < Queue.Num(); ++Index)
-    {
-        const ARoomModuleBase* Room = Queue[Index];
-        const int32* RoomDistance = OutDistances.Find(Room);
-        const int32 NextDistance = RoomDistance ? (*RoomDistance + 1) : 1;
-
-        if (!Room)
-        {
-            continue;
-        }
-
-        for (const FRoomConnectionRecord& Connection : Room->ConnectedRooms)
-        {
-            const ARoomModuleBase* OtherRoom = Connection.OtherRoom.Get();
-            if (!OtherRoom || OutDistances.Contains(OtherRoom))
-            {
-                continue;
-            }
-
-            OutDistances.Add(OtherRoom, NextDistance);
-            Queue.Add(OtherRoom);
-        }
-    }
-}
-
-bool AGideonDirector::IsEntryLikeRoom(const ARoomModuleBase* Room) const
-{
-    if (!Room)
-    {
-        return false;
-    }
-
-    const FGameplayTagContainer RoomTags = Room->GetResolvedRoomTags();
-    const FString RoomId = Room->GetResolvedRoomID().ToString();
-    const FString RoomType = Room->GetResolvedRoomType().ToString();
-
-    return HasGameplayTag(RoomTags, TEXT("Room.Function.Entry")) ||
-        ContainsAnyToken(RoomId, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")}) ||
-        ContainsAnyToken(RoomType, {TEXT("Entry"), TEXT("Reception"), TEXT("Arrival")});
-}
-
-bool AGideonDirector::IsHideFriendlyRoom(const ARoomModuleBase* Room) const
-{
-    if (!Room)
-    {
-        return false;
-    }
-
-    const FGameplayTagContainer RoomTags = Room->GetResolvedRoomTags();
-    const FGameplayTagContainer ActivityTags = Room->GetResolvedActivityTags();
-    const TArray<FRoomGameplayMarker> Markers = Room->GetAllGameplayMarkers();
-    const FString RoomId = Room->GetResolvedRoomID().ToString();
-    const FString RoomType = Room->GetResolvedRoomType().ToString();
-
-    if (FindMarkerByTag(Markers, TEXT("Gideon.Hide")) != nullptr || FindMarkerByTag(Markers, TEXT("NPC.Activity.Hide")) != nullptr)
-    {
-        return true;
-    }
-
-    return HasGameplayTag(ActivityTags, TEXT("Room.Function.Changing")) ||
-        HasGameplayTag(ActivityTags, TEXT("Room.Function.Maintenance")) ||
-        HasGameplayTag(ActivityTags, TEXT("Room.Function.Storage")) ||
-        HasGameplayTag(ActivityTags, TEXT("Room.Function.Staff")) ||
-        HasGameplayTag(RoomTags, TEXT("Room.Function.Changing")) ||
-        HasGameplayTag(RoomTags, TEXT("Room.Function.Maintenance")) ||
-        HasGameplayTag(RoomTags, TEXT("Room.Function.Storage")) ||
-        HasGameplayTag(RoomTags, TEXT("Room.Function.Staff")) ||
-        ContainsAnyToken(RoomId, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")}) ||
-        ContainsAnyToken(RoomType, {TEXT("Hide"), TEXT("Changing"), TEXT("Maintenance"), TEXT("Storage"), TEXT("Staff")});
-}
-
-bool AGideonDirector::IsExitLikeRoom(const ARoomModuleBase* Room) const
-{
-    if (!Room)
-    {
-        return false;
-    }
-
-    const FGameplayTagContainer RoomTags = Room->GetResolvedRoomTags();
-    const FString RoomId = Room->GetResolvedRoomID().ToString();
-    const FString RoomType = Room->GetResolvedRoomType().ToString();
-
-    return HasGameplayTag(RoomTags, TEXT("Room.Function.Entry")) ||
-        HasGameplayTag(RoomTags, TEXT("Room.Function.Exit")) ||
-        ContainsAnyToken(RoomId, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")}) ||
-        ContainsAnyToken(RoomType, {TEXT("Exit"), TEXT("Entry"), TEXT("Reception")});
+    return UStagingQueryLibrary::GetGraphDistanceBetweenRooms(StartRoom, GoalRoom);
 }
 
 bool AGideonDirector::IsRoomValidForSpawn(const ARoomModuleBase* Room) const

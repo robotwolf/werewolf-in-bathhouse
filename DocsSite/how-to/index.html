@@ -52,7 +52,7 @@
       <h2>Add Connectors And Openings</h2>
       <div class="card">
         <p>Place connectors where a traversal contract is actually true. Do not let a fake facade trick you into putting the hall connector where the hallway is not.</p>
-        <p><a href="../api/index.html#staging">See Staging connector and query details</a></p>
+        <p><a href="../api/staging-query.html">See Staging connector and query details</a></p>
         <p><a href="../../ROOM_ASSEMBLER_USAGE_GUIDE.md">Open deep guide</a></p>
       </div>
     </section>
@@ -96,13 +96,13 @@
     </section>
 
     <section class="section">
-      <h2>Test In GeneratorTest</h2>
+      <h2>Canonical Slice Map</h2>
       <div class="card">
-        <p>Use <span class="path">E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap</span> for the fast sanity cycle.</p>
+        <p>Use <span class="path">E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Maps\L_BathhouseSlice.umap</span> for the fast sanity cycle.</p>
         <ul>
-          <li>Place the room directly for composition tests.</li>
-          <li>Then wire it into the generator/layout path for topology and marker truth tests.</li>
-          <li>PIE should hide Staging debug billboards by default.</li>
+          <li>It is the replacement for the old `GeneratorTest` workflow.</li>
+          <li>Keep Staging validation tied to authored room truth, not ad hoc test actors dropped into unrelated maps.</li>
+          <li>PIE should generate the bathhouse and auto-run the Staging demo loop there by default.</li>
         </ul>
       </div>
     </section>

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staging Query Surface | Werewolf Bathhouse Docs</title>
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">
+        <strong>Staging Query Surface</strong>
+        <span>Room truth, made queryable</span>
+      </div>
+      <nav class="nav">
+        <a data-nav href="../index.html">Overview</a>
+        <a data-nav href="../how-to/index.html">How-To</a>
+        <a data-nav href="./index.html">API</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-card">
+        <div class="eyebrow">Staging API</div>
+        <h1>Ask Rooms What They Mean</h1>
+        <p class="lede">
+          The query surface is the practical heart of Staging: callers ask for rooms, markers, connectors,
+          semantic roles, and graph-relative candidates without scraping geometry or teaching Gideon a second job.
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="callout">
+        <strong>Ownership line:</strong> Staging explains published room truth. It does not choose topology, build shells, or quietly become runtime policy in a fake moustache.
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Main Entry Points</h2>
+      <div class="grid cards">
+        <article class="card">
+          <h3><code>PickBestRoom</code></h3>
+          <p>Scores room, activity, marker, connector, semantic-intent, and graph-distance signals into one room selection.</p>
+        </article>
+        <article class="card">
+          <h3><code>PickBestRoomFromGenerator</code></h3>
+          <p>Convenience wrapper that queries directly from a generator's spawned-room set.</p>
+        </article>
+        <article class="card">
+          <h3><code>PickBestMarkerInRoom</code></h3>
+          <p>Chooses the best marker in a room by family and marker-tag clauses.</p>
+        </article>
+        <article class="card">
+          <h3><code>PickBestConnectorInRoom</code></h3>
+          <p>Chooses the best connector in a room by occupancy, contract semantics, and optional compatibility with a reference seam.</p>
+        </article>
+      </div>
+      <p><a href="../../WerewolfNBH/Docs/StagingQuerySurface.md">Open full Markdown doc</a></p>
+    </section>
+
+    <section class="section">
+      <h2>Query Vocabulary</h2>
+      <div class="split">
+        <div class="card">
+          <h3><code>FStagingTagQuery</code></h3>
+          <p>Required, blocked, and preferred gameplay tags with all-required vs any-required control.</p>
+        </div>
+        <div class="card">
+          <h3><code>FStagingMarkerQuery</code></h3>
+          <p>Optional family restriction plus marker-tag filtering and scoring.</p>
+        </div>
+        <div class="card">
+          <h3><code>FStagingConnectorQuery</code></h3>
+          <p>Connector occupancy and contract clauses: <code>ConnectionType</code>, <code>PassageKind</code>, <code>BoundaryKind</code>, <code>ClearanceClass</code>, <code>ContractTag</code>, and reference-connector compatibility.</p>
+        </div>
+        <div class="card">
+          <h3><code>FStagingRoomQuery</code></h3>
+          <p>Room and activity tags, optional marker and connector clauses, semantic intent, origin-room graph clauses, and scoring weights.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Semantic Intent</h2>
+      <div class="grid cards">
+        <article class="card">
+          <h3><code>Entry</code></h3>
+          <p>Prefers <code>Room.Function.Entry</code> and Gideon arrival/booth/parking markers, then falls back to legacy entry-like naming only if needed.</p>
+        </article>
+        <article class="card">
+          <h3><code>Exit</code></h3>
+          <p>Prefers <code>Room.Function.Exit</code> and <code>Gideon.Exit</code>, with entry-like fallback only when no dedicated exit exists.</p>
+        </article>
+        <article class="card">
+          <h3><code>Hide</code></h3>
+          <p>Prefers <code>Gideon.Hide</code>, <code>NPC.Activity.Hide</code>, and hide-friendly room semantics like changing, maintenance, storage, and staff.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Connector-Aware Clauses</h2>
+      <div class="card">
+        <p>The connector query layer is how Staging starts reasoning about traversal contracts instead of just rooms and markers.</p>
+        <ul>
+          <li>Require or prefer open connectors.</li>
+          <li>Require or prefer already connected connectors.</li>
+          <li>Filter by connection type, passage kind, boundary kind, clearance class, and contract tag.</li>
+          <li>Require compatibility with a reference connector when a caller is evaluating a handoff seam.</li>
+        </ul>
+        <p>That lets callers ask for things like: a room with an open exterior seam, a room with a transition connector, or a room whose connector contract is compatible with a known traversal need.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Usage Shapes</h2>
+      <div class="split">
+        <div class="card">
+          <h3>Nearest Hide Room</h3>
+          <p>Set semantic intent to <code>Hide</code>, supply an origin room, require reachability, and prefer nearest.</p>
+        </div>
+        <div class="card">
+          <h3>Activity-Matched NPC Room</h3>
+          <p>Enable marker querying, require an <code>NPC</code> marker, and prefer the current activity tag across both room activity tags and marker tags.</p>
+        </div>
+        <div class="card">
+          <h3>Traversal-Compatible Room</h3>
+          <p>Enable connector querying, require a matching connector, and use a reference connector to test compatibility against real traversal contracts.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="callout warning">
+        Contained-exterior reminder: a room may look outside and still publish ordinary room and connector truth. Query semantics must honor the published contract, not vibes about weather.
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer shell">
+    Short page on purpose. Use the Markdown doc when you need the sharper edges.
+  </footer>
+  <script src="../assets/app.js"></script>
+</body>
+</html>

@@ -288,7 +288,7 @@ When adding things to generated rooms, the safe default is:
 - gameplay/query markers belong under `GameplayMarkerRoot`
 - debug labels are visualization only; they should not be treated as placement anchors or gameplay markers
 
-If a room actor is spawned by Ginny, the room Blueprint is the source of truth. Adding a random world actor to `GeneratorTest` and hoping the generated room adopts it is how one accidentally invents bathhouse poltergeists.
+If a room actor is spawned by Ginny, the room Blueprint is the source of truth. Adding a random world actor to a temporary test map and hoping the generated room adopts it is how one accidentally invents bathhouse poltergeists.
 
 ## Minimum Marker Set By Room Type
 

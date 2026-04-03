@@ -178,10 +178,6 @@ protected:
     void StartLeaveBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record, ARoomModuleBase* ExitRoom);
     void StartRoamingBehavior(AStagingDemoNPCCharacter* NPC, FGideonDirectorNPCRecord& Record);
     int32 GetRoomDistance(const ARoomModuleBase* StartRoom, const ARoomModuleBase* GoalRoom) const;
-    void BuildRoomDistanceMap(const ARoomModuleBase* StartRoom, TMap<const ARoomModuleBase*, int32>& OutDistances) const;
-    bool IsEntryLikeRoom(const ARoomModuleBase* Room) const;
-    bool IsHideFriendlyRoom(const ARoomModuleBase* Room) const;
-    bool IsExitLikeRoom(const ARoomModuleBase* Room) const;
     bool IsRoomValidForSpawn(const ARoomModuleBase* Room) const;
     void LogDirectorMessage(const FString& Message) const;
 

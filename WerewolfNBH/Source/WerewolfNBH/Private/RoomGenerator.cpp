@@ -180,9 +180,9 @@ namespace
         TArray<FRoomSnapshot> RoomStates;
     };
 
-    bool IsGeneratorTestMap(const UWorld* World)
+    bool IsBathhouseSliceMap(const UWorld* World)
     {
-        return World && World->GetMapName().Contains(TEXT("GeneratorTest"));
+        return World && World->GetMapName().Contains(TEXT("BathhouseSlice"));
     }
 
     bool IsHallwayCandidateClass(TSubclassOf<ARoomModuleBase> CandidateClass)
@@ -411,7 +411,7 @@ bool ARoomGenerator::SpawnStagingDemoCoordinator()
         return false;
     }
 
-    if (bLimitStagingDemoToGeneratorTestMap && !IsGeneratorTestMap(World))
+    if (bLimitStagingDemoToBathhouseSliceMap && !IsBathhouseSliceMap(World))
     {
         return false;
     }
@@ -483,7 +483,7 @@ bool ARoomGenerator::SpawnGideonDirector()
         return false;
     }
 
-    if (bLimitGideonToGeneratorTestMap && !IsGeneratorTestMap(World))
+    if (bLimitGideonToBathhouseSliceMap && !IsBathhouseSliceMap(World))
     {
         return false;
     }

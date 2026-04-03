@@ -3,7 +3,7 @@ import unreal
 
 ASSET_RENAMES = {
     "/Game/WerewolfBH/Blueprints/NPC/BP_StagehandNPC": "/Game/WerewolfBH/Blueprints/NPC/BP_StagingNPC",
-    "/Game/WerewolfBH/Blueprints/NPC/ABP_Quinn_StagehandNPC": "/Game/WerewolfBH/Blueprints/NPC/ABP_Quinn_StagingNPC",
+    "/Game/WerewolfBH/Blueprints/NPC/ABP_Quinn_StagehandNPC": "/Game/WerewolfBH/Blueprints/NPC/ABP_Manny_StagingNPC",
     "/Game/WerewolfBH/Data/NPC/Topics/DA_StagehandTopic_IdleSmallTalk": "/Game/WerewolfBH/Data/NPC/Topics/DA_StagingTopic_IdleSmallTalk",
     "/Game/WerewolfBH/Data/NPC/Topics/DA_StagehandTopic_CluePlaceholder": "/Game/WerewolfBH/Data/NPC/Topics/DA_StagingTopic_CluePlaceholder",
     "/Game/WerewolfBH/Data/NPC/Topics/DA_StagehandTopic_SocialBanter": "/Game/WerewolfBH/Data/NPC/Topics/DA_StagingTopic_SocialBanter",

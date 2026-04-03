@@ -1,7 +1,7 @@
 #include "StagingSimulationLibrary.h"
 
 #include "StagingSimulationData.h"
-#include "RoomGameplayMarkerLibrary.h"
+#include "StagingQueryLibrary.h"
 #include "WerewolfGameplayTagLibrary.h"
 
 namespace
@@ -414,46 +414,35 @@ FStagingNPCMarkerSelection UStagingSimulationLibrary::PickMarkerForNPCProfile(
         FGameplayTagContainer BlockedRoomTags = NPCProfile->AvoidedRoomTags;
         BlockedRoomTags.AppendTags(Activity.BlockedRoomTags);
 
-        FGameplayTagContainer PreferredActivityTags;
+        FStagingRoomQuery Query;
+        Query.SelectionSeed = MakeActivitySeed(SelectionSeed, Activity.ActivityTag, ActivityIndex);
+        Query.RoomTagQuery.BlockedTags = BlockedRoomTags;
+        Query.RoomTagQuery.PreferredTags = PreferredRoomTags;
         if (Activity.ActivityTag.IsValid())
         {
-            PreferredActivityTags.AddTag(Activity.ActivityTag);
+            Query.ActivityTagQuery.PreferredTags.AddTag(Activity.ActivityTag);
         }
 
-        FGameplayTagContainer PreferredMarkerTags = PreferredActivityTags;
+        Query.bUseMarkerQuery = true;
+        Query.bRequireMatchingMarker = true;
+        Query.MarkerQuery.bRestrictToMarkerFamily = true;
+        Query.MarkerQuery.MarkerFamily = ERoomGameplayMarkerFamily::NPC;
+        Query.MarkerQuery.TagQuery.PreferredTags = Query.ActivityTagQuery.PreferredTags;
+        Query.RoomTagWeight = 3.0f;
+        Query.ActivityTagWeight = 2.0f;
+        Query.MarkerTagWeight = 2.0f;
+        Query.SemanticIntentWeight = 0.0f;
+        Query.GraphDistanceWeight = 0.0f;
 
-        ARoomModuleBase* CandidateRoom = nullptr;
-        FRoomGameplayMarker CandidateMarker;
-        float CandidateScore = 0.0f;
-
-        const bool bFoundMarker = URoomGameplayMarkerLibrary::PickBestGameplayMarkerAcrossRooms(
-            Rooms,
-            ERoomGameplayMarkerFamily::NPC,
-            MakeActivitySeed(SelectionSeed, Activity.ActivityTag, ActivityIndex),
-            FGameplayTagContainer(),
-            BlockedRoomTags,
-            PreferredRoomTags,
-            FGameplayTagContainer(),
-            FGameplayTagContainer(),
-            PreferredActivityTags,
-            FGameplayTagContainer(),
-            FGameplayTagContainer(),
-            PreferredMarkerTags,
-            3.0f,
-            2.0f,
-            2.0f,
-            CandidateRoom,
-            CandidateMarker,
-            CandidateScore,
-            true,
-            true,
-            true);
-
-        if (!bFoundMarker || !CandidateRoom || CandidateMarker.MarkerName.IsNone())
+        const FStagingRoomSelection RoomSelection = UStagingQueryLibrary::PickBestRoom(Rooms, Query);
+        if (!RoomSelection.bFoundSelection || !RoomSelection.Room || RoomSelection.Marker.MarkerName.IsNone())
         {
             continue;
         }
 
+        ARoomModuleBase* CandidateRoom = RoomSelection.Room.Get();
+        const FRoomGameplayMarker CandidateMarker = RoomSelection.Marker;
+        float CandidateScore = RoomSelection.Score;
         CandidateScore += Activity.Weight;
         if (CandidateScore > BestScore)
         {

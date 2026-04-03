@@ -1,7 +1,8 @@
+import os
 import unreal
 
 
-MAP_PATH = "/Game/WerewolfBH/GeneratorTest"
+MAP_PATH = os.environ.get("WNBH_MAP_PATH", "/Game/WerewolfBH/Maps/L_BathhouseSlice").strip()
 SEEDS = (1337, 1338, 1351)
 PROTOTYPE_ROOM_PREFIX = "/Script/WerewolfNBH.Prototype"
 STAIR_CLASS_FRAGMENT = "BP_Room_PublicHall_Stair_Up"
@@ -221,6 +222,8 @@ def fail(message: str) -> None:
 
 
 def load_test_world():
+    if not MAP_PATH:
+        fail("Set WNBH_MAP_PATH to an authored bathhouse map before running smoke_test_assembler.")
     world = unreal.EditorLoadingAndSavingUtils.load_map(MAP_PATH)
     if not world:
         fail(f"Unable to load map: {MAP_PATH}")
@@ -248,9 +251,9 @@ def get_generator(world):
     rotation = unreal.Rotator(0.0, 0.0, 0.0)
     spawned = unreal.EditorLevelLibrary.spawn_actor_from_class(generator_class, location, rotation)
     if not spawned:
-        fail("No RoomGenerator actor found in GeneratorTest map, and temporary spawn failed")
+        fail("No RoomGenerator actor found in the configured bathhouse map, and temporary spawn failed")
 
-    log("Spawned temporary RoomGenerator for smoke test because GeneratorTest map did not contain one.")
+    log("Spawned temporary RoomGenerator for smoke test because the configured bathhouse map did not contain one.")
     return spawned
 
 

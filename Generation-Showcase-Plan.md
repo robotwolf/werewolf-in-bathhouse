@@ -27,9 +27,9 @@ Show that `Ginny` can:
 ### Recommended map
 
 - Bathhouse:
-  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap`
+  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Maps\L_BathhouseSlice.umap`
 - RV proof:
-  - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Proofs\RV\Maps\Ginny_RV_Proof.umap`
+  - Removed during cleanup.
 
 ### What this showcase should prove
 
@@ -161,7 +161,7 @@ Show that generated room truth can feed a live runtime crowd layer without inven
 
 - `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Docs\GideonRuntime.md`
 - `E:\Documents\Projects\werewolf-in-bathhouse\Staging-Demo-NPC-Setup.md`
-- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\GeneratorTest.umap`
+- `E:\Documents\Projects\werewolf-in-bathhouse\WerewolfNBH\Content\WerewolfBH\Maps\L_BathhouseSlice.umap`
 
 ### What this showcase should prove
 
