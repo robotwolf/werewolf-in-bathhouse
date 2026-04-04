@@ -35,6 +35,7 @@ enum class EMasonShellRegion : uint8
     Wall UMETA(DisplayName="Wall"),
     Ceiling UMETA(DisplayName="Ceiling"),
     Roof UMETA(DisplayName="Roof"),
+    LockedDoor UMETA(DisplayName="Locked Door"),
     Trim UMETA(DisplayName="Trim"),
     Threshold UMETA(DisplayName="Threshold"),
     StairTread UMETA(DisplayName="Stair Tread"),
@@ -211,6 +212,7 @@ public:
         UInstancedStaticMeshComponent* InWallMesh,
         UInstancedStaticMeshComponent* InCeilingMesh,
         UInstancedStaticMeshComponent* InRoofMesh,
+        UInstancedStaticMeshComponent* InLockedDoorMesh,
         UDynamicMeshComponent* InUnifiedShellMesh,
         UBoxComponent* InBoundsBox,
         UStaticMesh* InDefaultCubeMesh);
@@ -239,6 +241,9 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UInstancedStaticMeshComponent> RoofMesh = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UInstancedStaticMeshComponent> LockedDoorMesh = nullptr;
 
     UPROPERTY(Transient)
     TObjectPtr<UDynamicMeshComponent> UnifiedShellMesh = nullptr;

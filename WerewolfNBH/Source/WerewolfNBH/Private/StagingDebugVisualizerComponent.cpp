@@ -129,6 +129,7 @@ UStagingDebugVisualizerComponent::UStagingDebugVisualizerComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     bTickInEditor = true;
+    SetComponentTickEnabled(false);
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube.Cube"));
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereFinder(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -289,6 +290,21 @@ void UStagingDebugVisualizerComponent::ApplyVisibility()
             MarkerVisual.Label->SetLabelVisible(bShowFamily);
         }
     }
+
+    bool bNeedsBillboardTick = false;
+    if (bBillboardLabelsToView)
+    {
+        bNeedsBillboardTick = bShowConnectorLabels;
+        if (!bNeedsBillboardTick && bShowMarkerLabels)
+        {
+            bNeedsBillboardTick = MarkerVisuals.ContainsByPredicate([](const FStagingDebugMarkerVisual& MarkerVisual)
+            {
+                return MarkerVisual.Label != nullptr;
+            });
+        }
+    }
+
+    SetComponentTickEnabled(bNeedsBillboardTick);
 }
 
 void UStagingDebugVisualizerComponent::ClearHelpers()

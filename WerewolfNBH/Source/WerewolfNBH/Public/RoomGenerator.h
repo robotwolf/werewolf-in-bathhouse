@@ -286,6 +286,7 @@ protected:
     bool AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRoomConnectorComponent* NewRoomConnector, UPrototypeRoomConnectorComponent* TargetConnector) const;
     bool ValidateVerticalPlacement(const ARoomModuleBase* CandidateRoom) const;
     bool ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, const ARoomModuleBase* IgnoredRoom) const;
+    bool ValidateGeneratedGeometryBounds(const ARoomModuleBase* CandidateRoom, bool bLogIssues) const;
     bool TryPlaceHallwayChain(
         UPrototypeRoomConnectorComponent* TargetConnector,
         int32 RemainingSegments,

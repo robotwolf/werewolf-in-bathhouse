@@ -20,9 +20,206 @@
 #include "GameplayTagsManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Misc/Crc.h"
+#include "HAL/PlatformTime.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogRoomPreview, Log, All);
 
 namespace
 {
+    FString JoinGameplayTagNames(const FGameplayTagContainer& Tags);
+
+    bool IsEditorPreviewWorld(const UWorld* World)
+    {
+        return World && !World->IsGameWorld();
+    }
+
+    void AppendObjectPath(FString& Signature, const UObject* Object)
+    {
+        Signature += Object ? Object->GetPathName() : TEXT("None");
+        Signature += TEXT("|");
+    }
+
+    void AppendVector(FString& Signature, const FVector& Value)
+    {
+        Signature += FString::Printf(TEXT("%.3f,%.3f,%.3f|"), Value.X, Value.Y, Value.Z);
+    }
+
+    void AppendVector2D(FString& Signature, const FVector2D& Value)
+    {
+        Signature += FString::Printf(TEXT("%.3f,%.3f|"), Value.X, Value.Y);
+    }
+
+    void AppendRotator(FString& Signature, const FRotator& Value)
+    {
+        Signature += FString::Printf(TEXT("%.3f,%.3f,%.3f|"), Value.Pitch, Value.Yaw, Value.Roll);
+    }
+
+    void AppendString(FString& Signature, const FString& Value)
+    {
+        Signature += Value;
+        Signature += TEXT("|");
+    }
+
+    void AppendName(FString& Signature, const FName Value)
+    {
+        AppendString(Signature, Value.ToString());
+    }
+
+    uint32 BuildGeometryPreviewSignature(const ARoomModuleBase& Room)
+    {
+        FString Signature;
+        Signature.Reserve(4096);
+
+        AppendVector(Signature, Room.RoomBoundsBox ? Room.RoomBoundsBox->GetRelativeLocation() : FVector::ZeroVector);
+        AppendVector(Signature, Room.RoomBoundsBox ? Room.RoomBoundsBox->GetUnscaledBoxExtent() : FVector::ZeroVector);
+        AppendName(Signature, Room.RoomID);
+        AppendName(Signature, Room.RoomType);
+        AppendObjectPath(Signature, Room.RoomProfile);
+        AppendVector(Signature, Room.RoomNameLabelOffset);
+        AppendVector(Signature, Room.ExteriorRoomNameLabelOffset);
+        AppendVector(Signature, Room.PlayerStartLocalOffset);
+
+        Signature += FString::Printf(
+            TEXT("%d|%d|%d|%d|%d|%d|%d|%d|%.3f|%.3f|"),
+            Room.ParametricSettings.bEnabled,
+            static_cast<int32>(Room.ParametricSettings.FootprintType),
+            Room.ParametricSettings.PathSamples,
+            Room.ParametricSettings.FloorIndex,
+            Room.ParametricSettings.bUseSliceBuilder,
+            Room.ParametricSettings.bGenerateCeiling,
+            Room.ParametricSettings.bUseConnectorAnchoredPath,
+            Room.ParametricSettings.bUseConnectorHeights,
+            Room.ParametricSettings.PathLength,
+            Room.ParametricSettings.PathWidth);
+        AppendVector2D(Signature, Room.ParametricSettings.RectangleSize);
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.CurveAmount));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.PathEndHeightOffset));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.SpiralTurns));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.CellSize));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.FloorThickness));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.WallThickness));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.WallHeight));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.CeilingThickness));
+        AppendString(Signature, FString::SanitizeFloat(Room.ParametricSettings.DoorWidth));
+
+        for (const FVector2D& Vertex : Room.ParametricSettings.PolygonVertices)
+        {
+            AppendVector2D(Signature, Vertex);
+        }
+
+        Signature += FString::Printf(
+            TEXT("%d|%d|%s|"),
+            Room.StockAssemblySettings.bEnabled,
+            static_cast<int32>(Room.StockAssemblySettings.FootprintType),
+            *Room.StockAssemblySettings.ConstructionProfileId.ToString());
+        Signature += FString::Printf(
+            TEXT("%d|%d|%.3f|%.3f|%.3f|%.3f|%d|%.3f|%.3f|%d|%.3f|%.3f|%.3f|%.3f|"),
+            Room.StockAssemblySettings.bOverrideConstructionTechnique,
+            static_cast<int32>(Room.StockAssemblySettings.ConstructionTechnique),
+            Room.StockAssemblySettings.FloorThickness,
+            Room.StockAssemblySettings.WallThickness,
+            Room.StockAssemblySettings.CeilingThickness,
+            Room.StockAssemblySettings.DoorWidth,
+            static_cast<int32>(Room.StockAssemblySettings.DoorWidthMode),
+            Room.StockAssemblySettings.CustomDoorWidth,
+            Room.StockAssemblySettings.DoorHeight,
+            static_cast<int32>(Room.StockAssemblySettings.StairLayoutType),
+            Room.StockAssemblySettings.StairWalkWidth,
+            Room.StockAssemblySettings.StairLowerLandingDepth,
+            Room.StockAssemblySettings.StairUpperLandingDepth,
+            Room.StockAssemblySettings.StairRiseHeight);
+        Signature += FString::Printf(
+            TEXT("%d|%.3f|%d|%.3f|%.3f|"),
+            Room.StockAssemblySettings.StairStepCount,
+            Room.StockAssemblySettings.StairSideInset,
+            Room.StockAssemblySettings.bCreateStairLandingSideOpenings,
+            Room.StockAssemblySettings.StairLandingSideOpeningWidth,
+            Room.StockAssemblySettings.StairLandingSideOpeningHeight);
+        AppendObjectPath(Signature, Room.StockAssemblySettings.ConstructionProfileOverride);
+
+        AppendObjectPath(Signature, Room.LegacyRoomMaterialOverride);
+        AppendObjectPath(Signature, Room.FloorMaterialOverride);
+        AppendObjectPath(Signature, Room.WallMaterialOverride);
+        AppendObjectPath(Signature, Room.CeilingMaterialOverride);
+        AppendObjectPath(Signature, Room.RoofMaterialOverride);
+
+        Signature += FString::Printf(
+            TEXT("%d|%d|%d|%s|"),
+            Room.bRespectManualGeneratedMeshMaterials,
+            Room.bSpawnPlayerStart,
+            Room.bCarveOnlyConnectedDoorways,
+            *JoinGameplayTagNames(Room.RoomTags));
+        AppendString(Signature, JoinGameplayTagNames(Room.ActivityTags));
+
+        TInlineComponentArray<UPrototypeRoomConnectorComponent*> Connectors(&Room);
+        Connectors.Sort([](const UPrototypeRoomConnectorComponent& A, const UPrototypeRoomConnectorComponent& B)
+        {
+            return A.GetName() < B.GetName();
+        });
+
+        for (const UPrototypeRoomConnectorComponent* Connector : Connectors)
+        {
+            if (!Connector)
+            {
+                continue;
+            }
+
+            AppendString(Signature, Connector->GetName());
+            AppendName(Signature, Connector->SocketID);
+            AppendVector(Signature, Connector->GetRelativeLocation());
+            AppendRotator(Signature, Connector->GetRelativeRotation());
+            Signature += FString::Printf(
+                TEXT("%d|%d|%d|%d|"),
+                static_cast<int32>(Connector->ConnectionType),
+                static_cast<int32>(Connector->PassageKind),
+                static_cast<int32>(Connector->BoundaryKind),
+                static_cast<int32>(Connector->ClearanceClass));
+            AppendName(Signature, Connector->ContractTag);
+            AppendObjectPath(Signature, Connector->OpeningProfileOverride);
+        }
+
+        return FCrc::StrCrc32(*Signature);
+    }
+
+    uint32 BuildEditorVisualSignature(const ARoomModuleBase& Room)
+    {
+        FString Signature;
+        Signature.Reserve(1024);
+        Signature += FString::Printf(
+            TEXT("%d|%d|%d|%d|%d|%d|%.3f|%d|"),
+            Room.bShowRoomNameLabel,
+            Room.bBillboardRoomNameLabel,
+            Room.bEnableViewportOnlyLabelTick,
+            Room.bShowExteriorRoomNameLabel,
+            Room.bShowRoomMarkerBillboard,
+            Room.bShowRoomMarkerLight,
+            Room.RoomNameLabelWorldSize,
+            Room.bShowConnectorDebugArrows);
+        Signature += FString::Printf(
+            TEXT("%d|"),
+            Room.bAutoRefreshStagingDebugInEditor);
+
+        if (Room.StagingDebugVisualizer)
+        {
+            const UStagingDebugVisualizerComponent* Visualizer = Room.StagingDebugVisualizer;
+            Signature += FString::Printf(
+                TEXT("%d|%d|%d|%d|%d|%d|%d|%d|%.3f|%.3f|"),
+                Visualizer->bShowConnectorLabels,
+                Visualizer->bShowMarkerLabels,
+                Visualizer->bShowMarkerTags,
+                Visualizer->bShowNPCMarkers,
+                Visualizer->bShowTaskMarkers,
+                Visualizer->bShowClueMarkers,
+                Visualizer->bShowMissionMarkers,
+                Visualizer->bShowFXMarkers,
+                Visualizer->MarkerSolidSize,
+                Visualizer->LabelWorldSize);
+        }
+
+        return FCrc::StrCrc32(*Signature);
+    }
+
     void ConfigureGeneratedMesh(UInstancedStaticMeshComponent* MeshComponent, bool bAffectsNavigation)
     {
         if (!MeshComponent)
@@ -269,6 +466,10 @@ ARoomModuleBase::ARoomModuleBase()
     ConfigureGeneratedMesh(GeneratedRoofMesh, false);
     GeneratedRoofMesh->SetCanEverAffectNavigation(false);
 
+    GeneratedLockedDoorMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("GeneratedLockedDoorMesh"));
+    GeneratedLockedDoorMesh->SetupAttachment(SceneRoot);
+    ConfigureGeneratedMesh(GeneratedLockedDoorMesh, true);
+
     GeneratedUnifiedShellMesh = CreateDefaultSubobject<UDynamicMeshComponent>(TEXT("GeneratedUnifiedShellMesh"));
     GeneratedUnifiedShellMesh->SetupAttachment(SceneRoot);
     ConfigureGeneratedDynamicMesh(GeneratedUnifiedShellMesh, true);
@@ -304,6 +505,7 @@ ARoomModuleBase::ARoomModuleBase()
         GeneratedWallMesh->SetStaticMesh(DefaultCubeMesh);
         GeneratedCeilingMesh->SetStaticMesh(DefaultCubeMesh);
         GeneratedRoofMesh->SetStaticMesh(DefaultCubeMesh);
+        GeneratedLockedDoorMesh->SetStaticMesh(DefaultCubeMesh);
     }
 
     static ConstructorHelpers::FObjectFinder<UMaterialInterface> MaterialFinder(TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
@@ -315,10 +517,12 @@ ARoomModuleBase::ARoomModuleBase()
         GeneratedWallMesh->SetMaterial(0, DefaultMaterial);
         GeneratedCeilingMesh->SetMaterial(0, DefaultMaterial);
         GeneratedRoofMesh->SetMaterial(0, DefaultMaterial);
+        GeneratedLockedDoorMesh->SetMaterial(0, DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(0, DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Wall), DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Ceiling), DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Roof), DefaultMaterial);
+        GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::LockedDoor), DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Trim), DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Threshold), DefaultMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairTread), DefaultMaterial);
@@ -336,7 +540,9 @@ void ARoomModuleBase::Tick(float DeltaSeconds)
 
 bool ARoomModuleBase::ShouldTickIfViewportsOnly() const
 {
-    return (bShowRoomNameLabel || bShowExteriorRoomNameLabel) && bBillboardRoomNameLabel;
+    return bEnableViewportOnlyLabelTick &&
+        (bShowRoomNameLabel || bShowExteriorRoomNameLabel) &&
+        bBillboardRoomNameLabel;
 }
 
 void ARoomModuleBase::OnConstruction(const FTransform& Transform)
@@ -350,48 +556,113 @@ void ARoomModuleBase::OnConstruction(const FTransform& Transform)
             GeneratedWallMesh,
             GeneratedCeilingMesh,
             GeneratedRoofMesh,
+            GeneratedLockedDoorMesh,
             GeneratedUnifiedShellMesh,
             RoomBoundsBox,
             DefaultCubeMesh);
     }
 
+    const UWorld* World = GetWorld();
+    const bool bIsEditorWorld = IsEditorPreviewWorld(World);
+    const uint32 GeometrySignature = BuildGeometryPreviewSignature(*this);
+    const uint32 EditorVisualSignature = BuildEditorVisualSignature(*this);
+    const bool bGeometryDirty =
+        bForceRoomPreviewRebuild ||
+        !bHasCachedGeometryPreviewSignature ||
+        CachedGeometryPreviewSignature != GeometrySignature;
+    const bool bVisualDirty =
+        bForceStagingDebugRefresh ||
+        !bHasCachedEditorVisualSignature ||
+        CachedEditorVisualSignature != EditorVisualSignature;
+
+    if (!bGeometryDirty && !bVisualDirty)
+    {
+        return;
+    }
+
     RefreshConnectorCache();
     RefreshGameplayMarkerCache();
     UpdateConnectorDebugVisualization();
-    if (StagingDebugVisualizer)
+
+    const double ConstructionStartSeconds = bIsEditorWorld ? FPlatformTime::Seconds() : 0.0;
+
+    if (bGeometryDirty)
+    {
+        if (ParametricSettings.bEnabled)
+        {
+            RoomMesh->SetVisibility(false);
+            RoomMesh->SetHiddenInGame(true);
+            BuildParametricGraybox();
+        }
+        else if (StockAssemblySettings.bEnabled)
+        {
+            RoomMesh->SetVisibility(false);
+            RoomMesh->SetHiddenInGame(true);
+            BuildStockBoundsGraybox();
+            RoomCenter = RoomBoundsBox->GetRelativeLocation();
+            RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
+        }
+        else
+        {
+            ClearGeneratedGrayboxInstances();
+            RoomMesh->SetVisibility(true);
+            RoomMesh->SetHiddenInGame(false);
+            RoomCenter = RoomBoundsBox->GetRelativeLocation();
+            RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
+            UpdateGrayboxMeshScale();
+        }
+
+        UpdateGeneratedGrayboxMaterial();
+        UpdatePlayerStartPlacement();
+
+#if !UE_BUILD_SHIPPING
+        if (bAuditGeneratedGeometryBounds && StockAssemblySettings.bEnabled)
+        {
+            TArray<FString> BoundsIssues;
+            if (!ValidateGeneratedGeometryWithinRoomBounds(BoundsIssues))
+            {
+                for (const FString& Issue : BoundsIssues)
+                {
+                    UE_LOG(LogRoomPreview, Warning, TEXT("%s"), *Issue);
+                }
+            }
+        }
+#endif
+    }
+
+    const bool bShouldRefreshStagingDebug = StagingDebugVisualizer &&
+        (!bIsEditorWorld || bForceStagingDebugRefresh || (bAutoRefreshStagingDebugInEditor && (bGeometryDirty || bVisualDirty)));
+    if (bShouldRefreshStagingDebug)
     {
         StagingDebugVisualizer->RefreshVisualization();
     }
-
-    if (ParametricSettings.bEnabled)
+    else if (StagingDebugVisualizer && bVisualDirty)
     {
-        RoomMesh->SetVisibility(false);
-        RoomMesh->SetHiddenInGame(true);
-        BuildParametricGraybox();
-    }
-    else if (StockAssemblySettings.bEnabled)
-    {
-        RoomMesh->SetVisibility(false);
-        RoomMesh->SetHiddenInGame(true);
-        BuildStockBoundsGraybox();
-        RoomCenter = RoomBoundsBox->GetRelativeLocation();
-        RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
-    }
-    else
-    {
-        ClearGeneratedGrayboxInstances();
-        RoomMesh->SetVisibility(true);
-        RoomMesh->SetHiddenInGame(false);
-        RoomCenter = RoomBoundsBox->GetRelativeLocation();
-        RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
-        UpdateGrayboxMeshScale();
+        StagingDebugVisualizer->ApplyVisibility();
     }
 
-    UpdateGeneratedGrayboxMaterial();
-
-    UpdatePlayerStartPlacement();
     UpdateRoomNameLabel();
     UpdateRoomNameBillboard();
+
+    CachedGeometryPreviewSignature = GeometrySignature;
+    CachedEditorVisualSignature = EditorVisualSignature;
+    bHasCachedGeometryPreviewSignature = true;
+    bHasCachedEditorVisualSignature = true;
+    bForceRoomPreviewRebuild = false;
+    bForceStagingDebugRefresh = false;
+
+    if (bIsEditorWorld && bLogEditorPreviewTimings)
+    {
+        const double ElapsedMilliseconds = (FPlatformTime::Seconds() - ConstructionStartSeconds) * 1000.0;
+        const TCHAR* Reason = bGeometryDirty ? TEXT("geometry") : TEXT("visual");
+        UE_LOG(
+            LogRoomPreview,
+            Log,
+            TEXT("Room preview rebuild [%s] %s took %.2f ms"),
+            Reason,
+            *GetName(),
+            ElapsedMilliseconds);
+    }
 }
 
 void ARoomModuleBase::RefreshConnectorCache()
@@ -440,6 +711,92 @@ void ARoomModuleBase::RefreshGameplayMarkerCache()
         const FString BName = B.SourceComponent ? B.SourceComponent->GetName() : FString();
         return AName < BName;
     });
+}
+
+void ARoomModuleBase::RebuildRoomPreview()
+{
+    if (const UWorld* World = GetWorld(); World && World->IsGameWorld())
+    {
+        RefreshGeneratedGeometryFromCurrentState();
+        return;
+    }
+
+    bForceRoomPreviewRebuild = true;
+    RerunConstructionScripts();
+}
+
+void ARoomModuleBase::RefreshGeneratedGeometryFromCurrentState()
+{
+    RefreshConnectorCache();
+    RefreshGameplayMarkerCache();
+    UpdateConnectorDebugVisualization();
+
+    if (ParametricSettings.bEnabled)
+    {
+        RoomMesh->SetVisibility(false);
+        RoomMesh->SetHiddenInGame(true);
+        BuildParametricGraybox();
+    }
+    else if (StockAssemblySettings.bEnabled)
+    {
+        RoomMesh->SetVisibility(false);
+        RoomMesh->SetHiddenInGame(true);
+        BuildStockBoundsGraybox();
+        RoomCenter = RoomBoundsBox->GetRelativeLocation();
+        RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
+    }
+    else
+    {
+        ClearGeneratedGrayboxInstances();
+        RoomMesh->SetVisibility(true);
+        RoomMesh->SetHiddenInGame(false);
+        RoomCenter = RoomBoundsBox->GetRelativeLocation();
+        RoomExtent = RoomBoundsBox->GetScaledBoxExtent();
+        UpdateGrayboxMeshScale();
+    }
+
+    UpdateGeneratedGrayboxMaterial();
+    UpdatePlayerStartPlacement();
+    UpdateRoomNameLabel();
+    UpdateRoomNameBillboard();
+
+    if (StagingDebugVisualizer && !GetWorld()->IsGameWorld() && bAutoRefreshStagingDebugInEditor)
+    {
+        StagingDebugVisualizer->RefreshVisualization();
+    }
+
+#if !UE_BUILD_SHIPPING
+    if (bAuditGeneratedGeometryBounds && StockAssemblySettings.bEnabled)
+    {
+        TArray<FString> BoundsIssues;
+        if (!ValidateGeneratedGeometryWithinRoomBounds(BoundsIssues))
+        {
+            for (const FString& Issue : BoundsIssues)
+            {
+                UE_LOG(LogRoomPreview, Warning, TEXT("%s"), *Issue);
+            }
+        }
+    }
+#endif
+
+    CachedGeometryPreviewSignature = BuildGeometryPreviewSignature(*this);
+    bHasCachedGeometryPreviewSignature = true;
+}
+
+void ARoomModuleBase::RefreshStagingDebugPreview()
+{
+    RefreshConnectorCache();
+    RefreshGameplayMarkerCache();
+    UpdateConnectorDebugVisualization();
+
+    if (StagingDebugVisualizer)
+    {
+        StagingDebugVisualizer->RefreshVisualization();
+    }
+
+    bForceStagingDebugRefresh = false;
+    CachedEditorVisualSignature = BuildEditorVisualSignature(*this);
+    bHasCachedEditorVisualSignature = true;
 }
 
 void ARoomModuleBase::UpdateConnectorDebugVisualization()
@@ -1101,6 +1458,76 @@ FString ARoomModuleBase::BuildGameplayDebugSummary() const
         *RequirementSummary);
 }
 
+bool ARoomModuleBase::CollectGeneratedGeometryWorldBounds(FBox& OutBounds) const
+{
+    OutBounds.Init();
+
+    auto AccumulateISM = [&OutBounds](const UInstancedStaticMeshComponent* MeshComponent)
+    {
+        if (MeshComponent && MeshComponent->GetInstanceCount() > 0)
+        {
+            OutBounds += MeshComponent->Bounds.GetBox();
+        }
+    };
+
+    AccumulateISM(GeneratedFloorMesh);
+    AccumulateISM(GeneratedWallMesh);
+    AccumulateISM(GeneratedCeilingMesh);
+    AccumulateISM(GeneratedLockedDoorMesh);
+
+    if (GeneratedUnifiedShellMesh &&
+        GeneratedUnifiedShellMesh->GetDynamicMesh() &&
+        GeneratedUnifiedShellMesh->GetDynamicMesh()->GetTriangleCount() > 0)
+    {
+        OutBounds += GeneratedUnifiedShellMesh->Bounds.GetBox();
+    }
+
+    return OutBounds.IsValid != 0;
+}
+
+bool ARoomModuleBase::ValidateGeneratedGeometryWithinRoomBounds(TArray<FString>& OutIssues) const
+{
+    OutIssues.Reset();
+
+    if (!RoomBoundsBox)
+    {
+        return true;
+    }
+
+    FBox GeneratedBounds;
+    if (!CollectGeneratedGeometryWorldBounds(GeneratedBounds))
+    {
+        return true;
+    }
+
+    const FBox BoundsBoxWorld = RoomBoundsBox->Bounds.GetBox();
+    constexpr float BoundsTolerance = 1.0f;
+
+    auto AddAxisIssue = [this, &OutIssues](const TCHAR* AxisName, float OverrunAmount, const TCHAR* SideName)
+    {
+        if (OverrunAmount <= 0.0f)
+        {
+            return;
+        }
+
+        OutIssues.Add(FString::Printf(
+            TEXT("[MasonBounds] %s exceeds RoomBoundsBox on %s %s by %.2f uu"),
+            *GetName(),
+            AxisName,
+            SideName,
+            OverrunAmount));
+    };
+
+    AddAxisIssue(TEXT("X"), BoundsBoxWorld.Min.X - GeneratedBounds.Min.X - BoundsTolerance, TEXT("min"));
+    AddAxisIssue(TEXT("Y"), BoundsBoxWorld.Min.Y - GeneratedBounds.Min.Y - BoundsTolerance, TEXT("min"));
+    AddAxisIssue(TEXT("Z"), BoundsBoxWorld.Min.Z - GeneratedBounds.Min.Z - BoundsTolerance, TEXT("min"));
+    AddAxisIssue(TEXT("X"), GeneratedBounds.Max.X - BoundsBoxWorld.Max.X - BoundsTolerance, TEXT("max"));
+    AddAxisIssue(TEXT("Y"), GeneratedBounds.Max.Y - BoundsBoxWorld.Max.Y - BoundsTolerance, TEXT("max"));
+    AddAxisIssue(TEXT("Z"), GeneratedBounds.Max.Z - BoundsBoxWorld.Max.Z - BoundsTolerance, TEXT("max"));
+
+    return OutIssues.IsEmpty();
+}
+
 void ARoomModuleBase::SetGrayboxDimensions(const FVector& FullSize)
 {
     const FVector HalfExtents = FullSize * 0.5f;
@@ -1238,6 +1665,7 @@ void ARoomModuleBase::BuildParametricGraybox()
                 ConnectorSpec.ConnectorId = Connector->SocketID.IsNone() ? FName(*Connector->GetName()) : Connector->SocketID;
                 ConnectorSpec.RelativeLocation = Connector->GetRelativeLocation();
                 ConnectorSpec.RelativeRotation = Connector->GetRelativeRotation();
+                ConnectorSpec.bConnected = IsConnectorConnected(Connector);
                 ConnectorSpec.ConnectionType = Connector->ConnectionType;
                 ConnectorSpec.PassageKind = Connector->PassageKind;
                 ConnectorSpec.BoundaryKind = Connector->BoundaryKind;
@@ -1464,6 +1892,10 @@ void ARoomModuleBase::ClearGeneratedGrayboxInstances()
     {
         GeneratedRoofMesh->ClearInstances();
     }
+    if (GeneratedLockedDoorMesh)
+    {
+        GeneratedLockedDoorMesh->ClearInstances();
+    }
     if (GeneratedUnifiedShellMesh && GeneratedUnifiedShellMesh->GetDynamicMesh())
     {
         GeneratedUnifiedShellMesh->GetDynamicMesh()->Reset();
@@ -1516,11 +1948,35 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
         LastAppliedMaterial = BaseMaterial;
     };
 
+    auto ApplyTintedMaterial = [this](
+        UMeshComponent* MeshComponent,
+        UMaterialInterface* PreferredMaterial,
+        const FLinearColor& TintColor,
+        TObjectPtr<UMaterialInterface>& LastAppliedMaterial)
+    {
+        if (!MeshComponent)
+        {
+            return;
+        }
+
+        UMaterialInterface* BaseMaterial = PreferredMaterial ? PreferredMaterial : DefaultMaterial.Get();
+        if (!BaseMaterial)
+        {
+            return;
+        }
+
+        UMaterialInstanceDynamic* MID = UMaterialInstanceDynamic::Create(BaseMaterial, this);
+        MID->SetVectorParameterValue(TEXT("Color"), TintColor);
+        MeshComponent->SetMaterial(0, MID);
+        LastAppliedMaterial = MID;
+    };
+
     ApplyMaterial(RoomMesh, GetResolvedLegacyRoomMaterial(), true, LastAppliedRoomMeshMaterial, false);
     ApplyMaterial(GeneratedFloorMesh, GetResolvedFloorMaterial(), false, LastAppliedFloorMaterial, bRespectManualGeneratedMeshMaterials);
     ApplyMaterial(GeneratedWallMesh, GetResolvedWallMaterial(), false, LastAppliedWallMaterial, bRespectManualGeneratedMeshMaterials);
     ApplyMaterial(GeneratedCeilingMesh, GetResolvedCeilingMaterial(), false, LastAppliedCeilingMaterial, bRespectManualGeneratedMeshMaterials);
     ApplyMaterial(GeneratedRoofMesh, GetResolvedRoofMaterial(), false, LastAppliedRoofMaterial, bRespectManualGeneratedMeshMaterials);
+    ApplyTintedMaterial(GeneratedLockedDoorMesh, DefaultMaterial.Get(), FLinearColor(0.85f, 0.1f, 0.1f, 1.0f), LastAppliedLockedDoorMaterial);
 
     if (GeneratedUnifiedShellMesh)
     {
@@ -1533,11 +1989,19 @@ void ARoomModuleBase::UpdateGeneratedGrayboxMaterial()
         UMaterialInterface* EffectiveWallMaterial = WallMaterial ? WallMaterial : DefaultMaterial.Get();
         UMaterialInterface* EffectiveCeilingMaterial = CeilingMaterial ? CeilingMaterial : DefaultMaterial.Get();
         UMaterialInterface* EffectiveRoofMaterial = RoofMaterial ? RoofMaterial : DefaultMaterial.Get();
+        UMaterialInterface* LockedDoorBaseMaterial = DefaultMaterial ? DefaultMaterial.Get() : EffectiveWallMaterial;
 
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Floor), EffectiveFloorMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Wall), EffectiveWallMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Ceiling), EffectiveCeilingMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Roof), EffectiveRoofMaterial);
+        if (LockedDoorBaseMaterial)
+        {
+            UMaterialInstanceDynamic* LockedDoorMID = UMaterialInstanceDynamic::Create(LockedDoorBaseMaterial, this);
+            LockedDoorMID->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.85f, 0.1f, 0.1f, 1.0f));
+            GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::LockedDoor), LockedDoorMID);
+            LastAppliedUnifiedShellLockedDoorMaterial = LockedDoorMID;
+        }
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Trim), EffectiveWallMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::Threshold), EffectiveFloorMaterial);
         GeneratedUnifiedShellMesh->SetMaterial(static_cast<int32>(EMasonShellRegion::StairTread), EffectiveFloorMaterial);

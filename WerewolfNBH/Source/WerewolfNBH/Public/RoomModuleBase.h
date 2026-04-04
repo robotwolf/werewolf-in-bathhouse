@@ -392,6 +392,9 @@ public:
     TObjectPtr<UDynamicMeshComponent> GeneratedUnifiedShellMesh;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
+    TObjectPtr<UInstancedStaticMeshComponent> GeneratedLockedDoorMesh;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
     TObjectPtr<UBoxComponent> RoomBoundsBox;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room")
@@ -405,6 +408,9 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Staging|Debug")
     TObjectPtr<UStagingDebugVisualizerComponent> StagingDebugVisualizer;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Staging|Debug")
+    bool bAutoRefreshStagingDebugInEditor = false;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Room|Construction")
     TObjectPtr<UMasonBuilderComponent> MasonBuilder;
@@ -443,6 +449,9 @@ public:
     bool bBillboardRoomNameLabel = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bEnableViewportOnlyLabelTick = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     bool bShowExteriorRoomNameLabel = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
@@ -471,6 +480,12 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
     bool bShowConnectorDebugArrows = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bLogEditorPreviewTimings = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Debug")
+    bool bAuditGeneratedGeometryBounds = true;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Room|Placement")
     FRoomPlacementRules PlacementRules;
@@ -640,6 +655,15 @@ public:
     UFUNCTION(BlueprintCallable, Category="Room|Gameplay")
     void RefreshGameplayMarkerCache();
 
+    UFUNCTION(BlueprintCallable, CallInEditor, Category="Room|Editor")
+    void RebuildRoomPreview();
+
+    UFUNCTION(BlueprintCallable, Category="Room|Runtime")
+    void RefreshGeneratedGeometryFromCurrentState();
+
+    UFUNCTION(BlueprintCallable, CallInEditor, Category="Room|Editor")
+    void RefreshStagingDebugPreview();
+
     UFUNCTION(BlueprintPure, Category="Room|Gameplay")
     int32 GetGameplayMarkerCountByFamily(ERoomGameplayMarkerFamily MarkerFamily) const;
 
@@ -670,6 +694,9 @@ public:
     UFUNCTION(BlueprintPure, Category="Room|Debug")
     FString BuildGameplayDebugSummary() const;
 
+    UFUNCTION(BlueprintCallable, Category="Room|Debug")
+    bool ValidateGeneratedGeometryWithinRoomBounds(TArray<FString>& OutIssues) const;
+
     FBox GetWorldBounds(float ShrinkBy = 0.0f) const;
 
 protected:
@@ -695,6 +722,9 @@ protected:
     TObjectPtr<UMaterialInterface> LastAppliedRoofMaterial = nullptr;
 
     UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedLockedDoorMaterial = nullptr;
+
+    UPROPERTY(Transient)
     TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellFloorMaterial = nullptr;
 
     UPROPERTY(Transient)
@@ -705,6 +735,27 @@ protected:
 
     UPROPERTY(Transient)
     TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellRoofMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    TObjectPtr<UMaterialInterface> LastAppliedUnifiedShellLockedDoorMaterial = nullptr;
+
+    UPROPERTY(Transient)
+    uint32 CachedGeometryPreviewSignature = 0;
+
+    UPROPERTY(Transient)
+    uint32 CachedEditorVisualSignature = 0;
+
+    UPROPERTY(Transient)
+    bool bHasCachedGeometryPreviewSignature = false;
+
+    UPROPERTY(Transient)
+    bool bHasCachedEditorVisualSignature = false;
+
+    UPROPERTY(Transient)
+    bool bForceRoomPreviewRebuild = false;
+
+    UPROPERTY(Transient)
+    bool bForceStagingDebugRefresh = false;
 
     UPrototypeRoomConnectorComponent* CreateConnector(const FName Name, const FVector& RelativeLocation, const FRotator& RelativeRotation, ERoomConnectorDirection Direction);
     const UGinnyRoomProfile* GetResolvedRoomProfile() const;
@@ -729,6 +780,7 @@ protected:
     void UpdateRoomNameLabel();
     void UpdateRoomNameBillboard();
     void UpdateConnectorDebugVisualization();
+    bool CollectGeneratedGeometryWorldBounds(FBox& OutBounds) const;
     void BuildFootprintCells(TSet<FIntPoint>& OutCells) const;
     void AddRectangleCells(TSet<FIntPoint>& OutCells, const FVector2D& Size) const;
     void AddPolygonCells(TSet<FIntPoint>& OutCells, const TArray<FVector2D>& Vertices) const;

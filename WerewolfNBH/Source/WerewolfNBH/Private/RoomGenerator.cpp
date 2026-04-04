@@ -3,11 +3,14 @@
 #include "ButchDecorator.h"
 #include "DrawDebugHelpers.h"
 #include "Components/BoxComponent.h"
+#include "Components/DynamicMeshComponent.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameplayTagContainer.h"
 #include "GideonDirector.h"
+#include "HAL/PlatformTime.h"
 #include "PrototypeRoomConnectorComponent.h"
 #include "RoomModuleBase.h"
 #include "StagingDemoCoordinator.h"
@@ -253,6 +256,8 @@ void ARoomGenerator::GenerateLayout()
         return;
     }
 
+    const double GenerationStartSeconds = FPlatformTime::Seconds();
+
     if (bUseNewSeedOnGenerate)
     {
         RunSeed = FMath::Rand();
@@ -326,6 +331,11 @@ void ARoomGenerator::GenerateLayout()
     LastGenerationAttemptSeed = FinalAttemptSeed;
     BuildGenerationSummary(bSucceeded, FinalAttemptSeed);
     DrawDebugState();
+
+    LogDebugMessage(FString::Printf(
+        TEXT("RoomGenerator finished in %.2f ms (%s)"),
+        (FPlatformTime::Seconds() - GenerationStartSeconds) * 1000.0,
+        bSucceeded ? TEXT("success") : TEXT("failure")));
 
     if (bSucceeded && GetConfiguredRunButchAfterGeneration())
     {
@@ -891,6 +901,143 @@ bool ARoomGenerator::TryPlaceRoomForDoor(
         return false;
     }
 
+    auto IsFocusedColdPlungeHallPair = [](const ARoomModuleBase* Candidate, const ARoomModuleBase* Target)
+    {
+        return Candidate &&
+            Target &&
+            Candidate->GetResolvedRoomID() == TEXT("PublicHallStraight") &&
+            Target->GetResolvedRoomID() == TEXT("ColdPlunge");
+    };
+
+    auto CollectGeneratedBounds = [](const ARoomModuleBase* Room, FBox& OutBounds)
+    {
+        OutBounds.Init();
+        if (!Room)
+        {
+            return false;
+        }
+
+        auto AccumulateISM = [&OutBounds](const UInstancedStaticMeshComponent* MeshComponent)
+        {
+            if (MeshComponent && MeshComponent->GetInstanceCount() > 0)
+            {
+                OutBounds += MeshComponent->Bounds.GetBox();
+            }
+        };
+
+        AccumulateISM(Room->GeneratedFloorMesh);
+        AccumulateISM(Room->GeneratedWallMesh);
+        AccumulateISM(Room->GeneratedCeilingMesh);
+        AccumulateISM(Room->GeneratedRoofMesh);
+        AccumulateISM(Room->GeneratedLockedDoorMesh);
+
+        if (Room->GeneratedUnifiedShellMesh &&
+            Room->GeneratedUnifiedShellMesh->GetDynamicMesh() &&
+            Room->GeneratedUnifiedShellMesh->GetDynamicMesh()->GetTriangleCount() > 0)
+        {
+            OutBounds += Room->GeneratedUnifiedShellMesh->Bounds.GetBox();
+        }
+
+        return OutBounds.IsValid != 0;
+    };
+
+    auto LogFocusedPlacementDiagnostics = [&](const TCHAR* Stage, UPrototypeRoomConnectorComponent* CandidateConnector)
+    {
+        if (!IsFocusedColdPlungeHallPair(CandidateRoom, TargetRoom))
+        {
+            return;
+        }
+
+        const FBox CandidateBounds = CandidateRoom->GetWorldBounds(OverlapTolerance);
+        const FBox TargetBounds = TargetRoom->GetWorldBounds(OverlapTolerance);
+
+        FBox CandidateGeneratedBounds;
+        const bool bHasGeneratedBounds = CollectGeneratedBounds(CandidateRoom, CandidateGeneratedBounds);
+
+        auto FormatBox = [](const FBox& Box)
+        {
+            return FString::Printf(
+                TEXT("Min=%s Max=%s"),
+                *Box.Min.ToString(),
+                *Box.Max.ToString());
+        };
+
+        const float OverlapX = FMath::Min(CandidateBounds.Max.X, TargetBounds.Max.X) - FMath::Max(CandidateBounds.Min.X, TargetBounds.Min.X);
+        const float OverlapY = FMath::Min(CandidateBounds.Max.Y, TargetBounds.Max.Y) - FMath::Max(CandidateBounds.Min.Y, TargetBounds.Min.Y);
+        const float OverlapZ = FMath::Min(CandidateBounds.Max.Z, TargetBounds.Max.Z) - FMath::Max(CandidateBounds.Min.Z, TargetBounds.Min.Z);
+
+        LogDebugMessage(FString::Printf(
+            TEXT("[ColdPlungeDiag][%s] target=%s.%s candidate=%s.%s"),
+            Stage,
+            *TargetRoom->GetResolvedRoomID().ToString(),
+            *GetNameSafe(TargetConnector),
+            *CandidateRoom->GetResolvedRoomID().ToString(),
+            *GetNameSafe(CandidateConnector)));
+        LogDebugMessage(FString::Printf(
+            TEXT("[ColdPlungeDiag][%s] targetConnector loc=%s rot=%s"),
+            Stage,
+            *TargetConnector->GetComponentLocation().ToString(),
+            *TargetConnector->GetComponentRotation().ToString()));
+        if (CandidateConnector)
+        {
+            LogDebugMessage(FString::Printf(
+                TEXT("[ColdPlungeDiag][%s] candidateConnector loc=%s rot=%s"),
+                Stage,
+                *CandidateConnector->GetComponentLocation().ToString(),
+                *CandidateConnector->GetComponentRotation().ToString()));
+        }
+        LogDebugMessage(FString::Printf(TEXT("[ColdPlungeDiag][%s] targetBounds %s"), Stage, *FormatBox(TargetBounds)));
+        LogDebugMessage(FString::Printf(TEXT("[ColdPlungeDiag][%s] candidateBounds %s"), Stage, *FormatBox(CandidateBounds)));
+        if (bHasGeneratedBounds)
+        {
+            LogDebugMessage(FString::Printf(TEXT("[ColdPlungeDiag][%s] candidateGeneratedBounds %s"), Stage, *FormatBox(CandidateGeneratedBounds)));
+        }
+        LogDebugMessage(FString::Printf(
+            TEXT("[ColdPlungeDiag][%s] overlapDelta X=%.2f Y=%.2f Z=%.2f"),
+            Stage,
+            OverlapX,
+            OverlapY,
+            OverlapZ));
+
+        if (bDebugDrawBounds)
+        {
+            if (UWorld* World = GetWorld())
+            {
+                DrawDebugBox(World, TargetBounds.GetCenter(), TargetBounds.GetExtent(), FQuat::Identity, FColor::Orange, false, 30.0f, 0, 3.0f);
+                DrawDebugBox(World, CandidateBounds.GetCenter(), CandidateBounds.GetExtent(), FQuat::Identity, FColor::Magenta, false, 30.0f, 0, 3.0f);
+                if (bHasGeneratedBounds)
+                {
+                    DrawDebugBox(World, CandidateGeneratedBounds.GetCenter(), CandidateGeneratedBounds.GetExtent(), FQuat::Identity, FColor::Cyan, false, 30.0f, 0, 2.0f);
+                }
+
+                DrawDebugDirectionalArrow(
+                    World,
+                    TargetConnector->GetComponentLocation(),
+                    TargetConnector->GetComponentLocation() + TargetConnector->GetForwardVector() * 120.0f,
+                    40.0f,
+                    FColor::Orange,
+                    false,
+                    30.0f,
+                    0,
+                    5.0f);
+
+                if (CandidateConnector)
+                {
+                    DrawDebugDirectionalArrow(
+                        World,
+                        CandidateConnector->GetComponentLocation(),
+                        CandidateConnector->GetComponentLocation() + CandidateConnector->GetForwardVector() * 120.0f,
+                        40.0f,
+                        FColor::Magenta,
+                        false,
+                        30.0f,
+                        0,
+                        5.0f);
+                }
+            }
+        }
+    };
+
     ShuffleConnectors(RandomStream, CompatibleConnectors);
 
     for (UPrototypeRoomConnectorComponent* CandidateConnector : CompatibleConnectors)
@@ -912,14 +1059,24 @@ bool ARoomGenerator::TryPlaceRoomForDoor(
             continue;
         }
 
+        LogFocusedPlacementDiagnostics(TEXT("Aligned"), CandidateConnector);
+
+        if (!ValidateGeneratedGeometryBounds(CandidateRoom, true))
+        {
+            LogFocusedPlacementDiagnostics(TEXT("RejectedGeometryBounds"), CandidateConnector);
+            continue;
+        }
+
         const bool bNoOverlap = ValidateNoOverlap(CandidateRoom, TargetRoom);
         if (!bNoOverlap)
         {
+            LogFocusedPlacementDiagnostics(TEXT("RejectedOverlap"), CandidateConnector);
             continue;
         }
 
         if (!ValidateVerticalPlacement(CandidateRoom))
         {
+            LogFocusedPlacementDiagnostics(TEXT("RejectedVertical"), CandidateConnector);
             continue;
         }
 
@@ -928,12 +1085,19 @@ bool ARoomGenerator::TryPlaceRoomForDoor(
         TargetRoom->RegisterConnection(TargetConnector, CandidateConnector, CandidateRoom);
         CandidateRoom->RegisterConnection(CandidateConnector, TargetConnector, TargetRoom);
 
+        // Door blockers are built from connection state. In PIE we need a runtime-safe
+        // geometry refresh that preserves connector identity instead of rerunning
+        // construction scripts and orphaning the connection records.
+        TargetRoom->RefreshGeneratedGeometryFromCurrentState();
+        CandidateRoom->RefreshGeneratedGeometryFromCurrentState();
+
         LogDebugMessage(FString::Printf(
             TEXT("Connected %s.%s -> %s.%s"),
             *TargetRoom->GetName(),
             *TargetConnector->GetName(),
             *CandidateRoom->GetName(),
             *CandidateConnector->GetName()));
+        LogFocusedPlacementDiagnostics(TEXT("Connected"), CandidateConnector);
 
         RegisterOpenDoors(CandidateRoom);
         RegisterRoomUsage(CandidateRoom);
@@ -964,12 +1128,12 @@ bool ARoomGenerator::AlignRoomToConnector(ARoomModuleBase* NewRoom, UPrototypeRo
 
     const FVector ConnectorOffset = NewRoomConnector->GetComponentLocation() - NewRoom->GetActorLocation();
     const FVector DesiredLocation = TargetConnector->GetComponentLocation() - ConnectorOffset;
-    const FVector SnappedLocation(
-        FMath::GridSnap(DesiredLocation.X, 100.0f),
-        FMath::GridSnap(DesiredLocation.Y, 100.0f),
+    const FVector FinalLocation(
+        DesiredLocation.X,
+        DesiredLocation.Y,
         FMath::GridSnap(DesiredLocation.Z, GetConfiguredVerticalSnapSize()));
 
-    NewRoom->SetActorLocation(SnappedLocation);
+    NewRoom->SetActorLocation(FinalLocation);
     return true;
 }
 
@@ -984,7 +1148,7 @@ bool ARoomGenerator::ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, con
 
     for (const ARoomModuleBase* ExistingRoom : SpawnedRooms)
     {
-        if (!ExistingRoom || ExistingRoom == CandidateRoom || ExistingRoom == IgnoredRoom)
+        if (!ExistingRoom || ExistingRoom == CandidateRoom)
         {
             continue;
         }
@@ -992,12 +1156,37 @@ bool ARoomGenerator::ValidateNoOverlap(const ARoomModuleBase* CandidateRoom, con
         const FBox ExistingBounds = ExistingRoom->GetWorldBounds(OverlapTolerance);
         if (CandidateBounds.Intersect(ExistingBounds))
         {
-            LogDebugMessage(FString::Printf(TEXT("[Overlap] Rejected %s due to overlap with %s"), *CandidateRoom->GetName(), *ExistingRoom->GetName()));
+            const bool bTargetRoomOverlap = ExistingRoom == IgnoredRoom;
+            LogDebugMessage(FString::Printf(
+                TEXT("[Overlap] Rejected %s due to overlap with %s%s"),
+                *CandidateRoom->GetName(),
+                *ExistingRoom->GetName(),
+                bTargetRoomOverlap ? TEXT(" (target room)") : TEXT("")));
             return false;
         }
     }
 
     return true;
+}
+
+bool ARoomGenerator::ValidateGeneratedGeometryBounds(const ARoomModuleBase* CandidateRoom, bool bLogIssues) const
+{
+    if (!CandidateRoom)
+    {
+        return false;
+    }
+
+    TArray<FString> Issues;
+    const bool bValid = CandidateRoom->ValidateGeneratedGeometryWithinRoomBounds(Issues);
+    if (!bValid && bLogIssues)
+    {
+        for (const FString& Issue : Issues)
+        {
+            LogDebugMessage(Issue);
+        }
+    }
+
+    return bValid;
 }
 
 bool ARoomGenerator::ValidateVerticalPlacement(const ARoomModuleBase* CandidateRoom) const
@@ -1216,6 +1405,12 @@ bool ARoomGenerator::ValidateLayout(TArray<FString>& OutIssues) const
         if (!Room)
         {
             continue;
+        }
+
+        TArray<FString> BoundsIssues;
+        if (!Room->ValidateGeneratedGeometryWithinRoomBounds(BoundsIssues))
+        {
+            OutIssues.Append(BoundsIssues);
         }
 
         const int32 ConnectionCount = Room->GetConnectionCount();
